@@ -1,4 +1,4 @@
-name: Continuous Integration
+name: Test Local Action
 
 on:
   pull_request:
@@ -57,8 +57,7 @@ jobs:
         uses: ./
         with:
           milliseconds: 2000
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Print Output
         id: output
-        run: echo "${{ steps.test-action.outputs.time }}"
+        run: echo "${{ steps.test-action.outputs.issue-url }}"
