@@ -13,6 +13,10 @@ inputs:
     description: 'Your input description here'
     required: true
     default: '1000'
+  token:
+    description: The GitHub token to use when calling the API
+    default: ${{ github.token }}
+    required: false
 
 # Define your outputs here.
 outputs:
