@@ -16,6 +16,7 @@ export async function run(): Promise<void> {
 
     const context = github.context
     const githubToken = core.getInput('GITHUB_TOKEN')
+    
     const octokit = github.getOctokit(githubToken, { userAgent })
     const newIssue = await octokit.rest.issues.create({
       owner: context.repo.owner,
