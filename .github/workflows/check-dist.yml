@@ -10,10 +10,11 @@
 name: Check Transpiled JavaScript
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  [workflow_dispatch]
 
 permissions:
   contents: read

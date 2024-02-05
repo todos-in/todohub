@@ -60,4 +60,4 @@ jobs:
 
       - name: Print Output
         id: output
-        run: echo "${{ steps.test-action.outputs.issue-url }}"
+        run: echo "${{ steps.test-action.outputs.new-issue }}"
