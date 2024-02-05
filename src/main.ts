@@ -23,7 +23,7 @@ export async function run(): Promise<void> {
       title: 'Test issue',
       body: 'Test issue body'
     })
-    core.debug(JSON.stringify(newIssue))
+    core.debug(newIssue.url)
 
     // Log the current timestamp, wait, then log the new timestamp
     core.debug(new Date().toTimeString())
@@ -32,6 +32,7 @@ export async function run(): Promise<void> {
 
     // Set outputs for other workflow steps to use
     core.setOutput('time', new Date().toTimeString())
+    core.setOutput('new-issue', newIssue.url)
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) core.setFailed(error.message)

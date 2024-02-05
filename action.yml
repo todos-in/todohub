@@ -18,6 +18,8 @@ inputs:
 outputs:
   time:
     description: 'Your output description here'
+  new-issue:
+    description: 'URL of created issue'
 
 runs:
   using: node20
