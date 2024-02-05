@@ -57,6 +57,7 @@ jobs:
         uses: ./
         with:
           milliseconds: 2000
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Print Output
         id: output
