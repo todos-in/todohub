@@ -28953,7 +28953,7 @@ async function run() {
         // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
         core.debug(`Waiting ${ms} milliseconds ...`);
         const context = github.context;
-        const githubToken = core.getInput('GITHUB_TOKEN');
+        const githubToken = core.getInput('token');
         const octokit = github.getOctokit(githubToken, { userAgent });
         const newIssue = await octokit.rest.issues.create({
             owner: context.repo.owner,
@@ -28961,13 +28961,14 @@ async function run() {
             title: 'Test issue',
             body: 'Test issue body'
         });
-        core.debug(JSON.stringify(newIssue));
+        core.debug(newIssue.url);
         // Log the current timestamp, wait, then log the new timestamp
         core.debug(new Date().toTimeString());
         await (0, wait_1.wait)(parseInt(ms, 10));
         core.debug(new Date().toTimeString());
         // Set outputs for other workflow steps to use
         core.setOutput('time', new Date().toTimeString());
+        core.setOutput('new-issue', newIssue.url);
     }
     catch (error) {
         // Fail the workflow run if an error occurs
