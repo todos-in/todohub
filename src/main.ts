@@ -1,5 +1,7 @@
 import * as core from '@actions/core'
 import { wait } from './wait'
+import * as github from '@actions/github'
+const userAgent = 'todohub/v1'
 
 /**
  * The main function for the action.
@@ -7,10 +9,21 @@ import { wait } from './wait'
  */
 export async function run(): Promise<void> {
   try {
-    const ms: string = core.getInput('milliseconds')
+    const ms = core.getInput('milliseconds')
 
     // Debug logs are only output if the `ACTIONS_STEP_DEBUG` secret is true
     core.debug(`Waiting ${ms} milliseconds ...`)
+
+    const context = github.context
+    const githubToken = core.getInput('GITHUB_TOKEN')
+    const octokit = github.getOctokit(githubToken, { userAgent })
+    const newIssue = await octokit.rest.issues.create({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      title: 'Test issue',
+      body: 'Test issue body'
+    })
+    core.debug(JSON.stringify(newIssue))
 
     // Log the current timestamp, wait, then log the new timestamp
     core.debug(new Date().toTimeString())
