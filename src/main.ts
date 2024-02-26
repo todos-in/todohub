@@ -28,6 +28,8 @@ export async function run(): Promise<void> {
   if (!cachedState) {
     const mainState = await repo.downloadTarball(commitSha);
     core.info(JSON.stringify(mainState));
+    console.info('---console teststest')
+    core.info('---core teststest')
   }
 
   try {
