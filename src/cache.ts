@@ -1,18 +1,18 @@
 interface Todo {
-  file: string,
-  line: number,
-  rawLine: string,
-  keyword: string,
-  issueNumber?: number,
-  todoText: string,
+  file: string
+  line: number
+  rawLine: string
+  keyword: string
+  issueNumber?: number
+  todoText: string
 }
 
 interface Cache {
-	commitSha: string,
-	todos: Todo[],
+  commitSha: string
+  todos: Todo[]
 }
 
-let cache: Cache;
+let cache: Cache
 
 // class TodoStore {
 //   todos: Todo[] = [];
@@ -24,14 +24,19 @@ let cache: Cache;
 
 export const getCached = async (owner: string, repo: string) => {
   if (cache) {
-    return cache;
+    return cache
   }
-  return null;
+  return null
 }
 
-export const setCache = async(owner: string, repo: string, commitSha: string, todos: Todo[]) => {
+export const setCache = async (
+  owner: string,
+  repo: string,
+  commitSha: string,
+  todos: Todo[]
+) => {
   cache = {
     commitSha,
-    todos,
-  };
+    todos
+  }
 }

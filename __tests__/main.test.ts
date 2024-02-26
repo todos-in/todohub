@@ -15,7 +15,7 @@ import * as main from '../src/main'
 const runMock = jest.spyOn(main, 'run')
 
 const actionInputMock: Record<string, string> = {
-  token: process.env['token'] || 'test',
+  token: process.env['token'] || 'test'
 }
 
 let debugMock: jest.SpyInstance
@@ -23,7 +23,7 @@ let errorMock: jest.SpyInstance
 let getInputMock: jest.SpyInstance
 let getOctokit: jest.SpyInstance
 
-console.debug(env.default);
+console.debug(env.default)
 
 describe('action', () => {
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('action', () => {
         }
         throw new Error(`Input not set: ${name}`)
       })
-    getOctokit = jest.spyOn(github, 'getOctokit').mockImplementation()
+    // getOctokit = jest.spyOn(github, 'getOctokit').mockImplementation()
   })
 
   it('sets the time output', async () => {

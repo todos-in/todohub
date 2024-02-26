@@ -8,32 +8,31 @@ import { getCached } from './cache.js'
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 export async function run(): Promise<void> {
-  core.info(JSON.stringify(process.env));
-  core.info(JSON.stringify(github.context));
+  core.info(JSON.stringify(process.env))
+  core.info(JSON.stringify(github.context))
 
-  const context = github.context;
-  const githubToken = core.getInput('token');
-  const ref = github.context.ref;
-  const branchName = github.context.ref.split('/').pop() || '';
-  const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/;
-  const featureBranchNumber = branchName.match(featureBranchRegex)?.[0];
-  const isFeatureBranch = featureBranchNumber !== undefined;
+  const context = github.context
+  const githubToken = core.getInput('token')
+  const ref = github.context.ref
+  const branchName = github.context.ref.split('/').pop() || ''
+  const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/
+  const featureBranchNumber = branchName.match(featureBranchRegex)?.[0]
+  const isFeatureBranch = featureBranchNumber !== undefined
 
   // TODO check what happens for deleted branches?
-  const commitSha = context.sha;
+  const commitSha = context.sha
 
-  const repo = new Repo(githubToken, context.repo.owner, context.repo.repo);
+  const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
 
-  const cachedState = await getCached(context.repo.owner, context.repo.repo);
+  const cachedState = await getCached(context.repo.owner, context.repo.repo)
   if (!cachedState) {
-    const mainState = await repo.downloadTarball(commitSha);
-    core.info(JSON.stringify(mainState));
+    const mainState = await repo.downloadTarball(commitSha)
+    core.info(JSON.stringify(mainState))
     console.log('---console teststest')
     core.error('---core teststest')
   }
 
   try {
-
     // const git = new Git(process.cwd())
     // const githubSha = core.getInput('GITHUB_SHA')
     // const githubRef = core.getInput('GITHUB_REF')
@@ -41,7 +40,7 @@ export async function run(): Promise<void> {
 
     // const changes = await git.getFileChanges(`c251b72921dc4b2539c719cdf601747d670c17c3`, githubSha)
 
-    await new Promise((resolve) => setTimeout(resolve, 6000));
+    await new Promise(resolve => setTimeout(resolve, 6000))
     // const newIssue = await repo.createIssue('Test issue', 'Test issue body');
 
     // core.debug(newIssue.data.url)
