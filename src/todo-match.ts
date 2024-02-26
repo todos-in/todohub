@@ -11,13 +11,40 @@
  *  
  * Matches example: "TODO (#1823) Fix this here"
  */
-const todoRegex = /(?<todo_keyword>TODO)[^\S\r\n]*\(?#?(?<issue_number>[0-9]+)\)?[^\S\r\n]*(?<todo_text>.*)/gmi
+// const todoRegex = /(?<todo_keyword>TODO)[^\S\r\n]*\(?#?(?<issue_number>[0-9]+)\)?[^\S\r\n]*(?<todo_text>.*)/gmi
+const todoRegexWithOrWithoutNumber = /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]*(?<todoText>.*)/gmi
 
-export const matchTodos = (text: string) => {
-  const matches = text.matchAll(todoRegex);
-  const groups = [];
+interface TodoRegexMatch {
+  rawLine: string,
+  keyword: string,
+  issueNumber?: number,
+  todoText: string,
+}
+
+export const matchTodos: (text: string) => TodoRegexMatch[] = (text) => {
+  const matches = text.matchAll(todoRegexWithOrWithoutNumber);
+  const todos: TodoRegexMatch[] = [];
   for (const match of matches) {
-    groups.push(match.groups);
+    if (!match.groups?.keyword) {
+      console.warn('Regex issue: keyword not found in match - this should not happen.');
+      continue;
+    }
+
+    let issueNumber = undefined;
+    if (match.groups?.issueNumber) {
+      issueNumber = parseInt(match.groups?.issueNumber);
+      if (Number.isNaN(issueNumber)) {
+        console.warn('Regex issue: issueNumber could not be parsed from match - this should not happen.');
+        continue;
+      }  
+    }
+
+    todos.push({
+      rawLine: match[0],
+      keyword: match.groups?.keyword,
+      issueNumber,
+      todoText: match.groups?.todoText,
+    });
   }
-  return groups;
+  return todos;
 }

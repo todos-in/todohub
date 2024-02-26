@@ -6,6 +6,7 @@
  * variables following the pattern `INPUT_<INPUT_NAME>`.
  */
 
+import * as env from './load-env'
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as main from '../src/main'
@@ -14,15 +15,15 @@ import * as main from '../src/main'
 const runMock = jest.spyOn(main, 'run')
 
 const actionInputMock: Record<string, string> = {
-  token: 'test',
-  GITHUB_SHA: 'c251b72921dc4b2539c719cdf601747d670c17c3',
-  GITHUB_REF: 'main'
+  token: process.env['token'] || 'test',
 }
 
 let debugMock: jest.SpyInstance
 let errorMock: jest.SpyInstance
 let getInputMock: jest.SpyInstance
 let getOctokit: jest.SpyInstance
+
+console.debug(env.default);
 
 describe('action', () => {
   beforeEach(() => {
