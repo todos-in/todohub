@@ -33369,8 +33369,12 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 function run() {
     var _a;
     return main_awaiter(this, void 0, void 0, function* () {
-        core.info(JSON.stringify(process.env));
-        core.info(JSON.stringify(github.context));
+        for (const [key, val] of Object.entries(process.env)) {
+            core.info(key + JSON.stringify(val));
+        }
+        for (const [key, val] of Object.entries(github.context)) {
+            core.info(key + JSON.stringify(val));
+        }
         const context = github.context;
         const githubToken = core.getInput('token');
         const ref = github.context.ref;
