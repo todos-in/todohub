@@ -8,8 +8,8 @@ import { getCached } from './cache.js'
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 export async function run(): Promise<void> {
-  console.log(process.env);
-  console.log(github.context);
+  core.info(JSON.stringify(process.env));
+  core.info(JSON.stringify(github.context));
 
   const context = github.context;
   const githubToken = core.getInput('token');
@@ -27,7 +27,7 @@ export async function run(): Promise<void> {
   const cachedState = await getCached(context.repo.owner, context.repo.repo);
   if (!cachedState) {
     const mainState = await repo.downloadTarball(commitSha);
-    console.info(mainState);
+    core.info(JSON.stringify(mainState));
   }
 
   try {
