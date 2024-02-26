@@ -33370,10 +33370,10 @@ function run() {
     var _a;
     return main_awaiter(this, void 0, void 0, function* () {
         for (const [key, val] of Object.entries(process.env)) {
-            core.info(key + JSON.stringify(val));
+            core.info('Envvar ' + key + ' --- ' + JSON.stringify(val));
         }
         for (const [key, val] of Object.entries(github.context)) {
-            core.info(key + JSON.stringify(val));
+            core.info('Context ' + key + ' --- ' + JSON.stringify(val));
         }
         const context = github.context;
         const githubToken = core.getInput('token');
