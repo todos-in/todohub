@@ -8,48 +8,68 @@ import { getCached } from './cache.js'
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 export async function run(): Promise<void> {
-  for (const [key, val] of Object.entries(process.env)) {
-    core.info('Envvar ' + key + ' --- ' + JSON.stringify(val))
-  }
-  for (const [key, val] of Object.entries(github.context)) {
-    core.info('Context ' + key + ' --- ' + JSON.stringify(val))
-  }
+  // for (const [key, val] of Object.entries(process.env)) {
+  //   core.info('Envvar ' + key + ' --- ' + JSON.stringify(val))
+  // }
+  // for (const [key, val] of Object.entries(github.context)) {
+  //   core.info('Context ' + key + ' --- ' + JSON.stringify(val))
+  // }
 
   const context = github.context
   const githubToken = core.getInput('token')
   const ref = github.context.ref
-  const branchName = github.context.ref.split('/').pop() || ''
+  const branchName = ref.split('/').pop() || ''
   const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/
-  const featureBranchNumber = branchName.match(featureBranchRegex)?.[0]
+  const featureBranchNumber = branchName.match(featureBranchRegex)?.groups?.['featureBranch']
   const isFeatureBranch = featureBranchNumber !== undefined
-
+  const featureBranchNumberParsed = featureBranchNumber ? Number.parseInt(featureBranchNumber) : undefined;
+  if (isFeatureBranch && Number.isNaN(featureBranchNumberParsed)) {
+    throw new Error('featureBranchNumber is not an integer');
+  }
   // TODO check what happens for deleted branches?
   const commitSha = context.sha
 
   const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
 
-  const cachedState = await getCached(context.repo.owner, context.repo.repo)
-  if (!cachedState) {
-    const mainState = await repo.downloadTarball(commitSha)
-    core.info(JSON.stringify(mainState))
-    console.log('---console teststest')
-    core.error('---core teststest')
+  // In App? const cachedState = await getCached(context.repo.owner, context.repo.repo)
+
+  // TODO handle errors
+  if (isFeatureBranch && featureBranchNumberParsed) {
+    // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment
+    // TODO apply diff
+
+    // TODO get and parse .todoignore to avoid unnecessary searching of files
+    // TODO parallelize stuff (+ add workers)
+
+    const findTodohubComment = repo.findTodoHubComment(featureBranchNumberParsed)
+    const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
+
+    const [todohubComment, todoState] = await Promise.all([findTodohubComment, getTodoState])
+    
+    const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
+    todohubComment.resetTag() // TODO for now we reset the data and completley rewrite - this should be merged with existing data
+    todohubComment.setTodos(featureTodos, commitSha)
+    const existingCommentId = todohubComment.getExistingCommentId()
+    if (existingCommentId) {
+      // TODO add state hash to check whether anything needs to be updated?
+      await repo.updateCommentGQl(existingCommentId, todohubComment.compose())
+    } else {
+      await repo.addCommentGQl(todohubComment.issueId, todohubComment.compose())
+    }
+  } else {
+    // search all issues for todo comments
+    // search codebase for all todos
+    // for union of all issues with comments and todos with those numbers {
+    //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
+    //     apply changes (rewrite or add comment), and save state as main state
+    //   }
+    // }
+    // TODO let feature branch take over once one exists
   }
 
+
   try {
-    // const git = new Git(process.cwd())
-    // const githubSha = core.getInput('GITHUB_SHA')
-    // const githubRef = core.getInput('GITHUB_REF')
-    // const changes = await git.getFileChanges(`c251b72921dc4b2539c719cdf601747d670c17c3`, `046947fc365048be81222b4eb2e5ac802b51aba1`)
-
-    // const changes = await git.getFileChanges(`c251b72921dc4b2539c719cdf601747d670c17c3`, githubSha)
-
     await new Promise(resolve => setTimeout(resolve, 6000))
-    // const newIssue = await repo.createIssue('Test issue', 'Test issue body');
-
-    // core.debug(newIssue.data.url)
-
-    // core.setOutput('new-issue', newIssue.data.url)
   } catch (error) {
     // if (error instanceof Error) core.setFailed(error.message)
     // else core.setFailed('Something bad happened')

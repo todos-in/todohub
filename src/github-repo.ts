@@ -5,11 +5,17 @@ import { request } from 'node:https'
 import { Writable } from 'node:stream'
 import { createGunzip } from 'node:zlib'
 import { IncomingMessage } from 'node:http'
-import { matchTodos } from './todo-match.js'
+import { matchTodos } from './util/todo-match.js'
 import Todos from './todos.js'
 import * as path from 'node:path'
+import TodohubComment from './elements/comment.js'
+import { ICommentsResponse, IIssuesResponse } from './types/github-api.js'
+
+const DEFAULT_ISSUE_PER_PAGE = 100
+const DEFAULT_COMMENTS_PER_PAGE = 30
 
 export default class Repo {
+  API_HITS = 0
   githubToken: string
   octokit: InstanceType<typeof GitHub>
   owner: string
@@ -80,15 +86,16 @@ export default class Repo {
     })
   }
 
-  async downloadTarball(ref?: string) {
+  async getTodosFromGitRef(ref?: string, issueNr?: string) {
+    const tar = await this.downloadTarball(ref)
+    const todoState = await this.extractTodosFromTarGz(tar, issueNr);
+    return todoState
+  }
+
+  async extractTodosFromTarGz(tarBallStream: IncomingMessage, issueNr?: string): Promise<Todos> {
+    // TODO move logic
     const extractStream = tar.extract()
     const unzipStream = createGunzip()
-
-    // TODO try catch
-    const url = await this.getTarballUrl(ref)
-    const response = await this.getTarballStream(url)
-
-    response.pipe(unzipStream).pipe(extractStream)
 
     const todos = new Todos()
 
@@ -99,7 +106,7 @@ export default class Repo {
           filePathParts.shift()
           const fileName = { fileName: path.join(...filePathParts) }
 
-          const todosFound = matchTodos(chunk.toString()).map(todo =>
+          const todosFound = matchTodos(chunk.toString(), issueNr).map(todo =>
             Object.assign(todo, fileName)
           )
           todos.addTodos(todosFound)
@@ -108,6 +115,8 @@ export default class Repo {
       })
     }
 
+    tarBallStream.pipe(unzipStream).pipe(extractStream)
+    // TODO check event handling
     // response.on('end', () => {
     //   // testStream.end();
     // });
@@ -147,11 +156,222 @@ export default class Repo {
     })
   }
 
+  async downloadTarball(ref?: string) {
+    // TODO try catch
+    const url = await this.getTarballUrl(ref)
+    return this.getTarballStream(url)
+  }
+
   async getIssue(issueNumber: number) {
     return this.octokit.rest.issues.get({
       owner: this.owner,
       repo: this.repo,
       issue_number: issueNumber
+    })
+  }
+
+  getIssuesWithComments() {
+    const issueQuery = `
+    query($owner: String!, $repo: String!, $after: String = null) {
+      repository(owner: $owner, name: $repo)
+        {
+          issues(first: ${DEFAULT_ISSUE_PER_PAGE}, after: $after) {
+            nodes {
+              title
+              number
+              id
+              body
+              author { login }
+              comments(first: ${DEFAULT_COMMENTS_PER_PAGE}) {
+                totalCount
+                edges {
+                  node {
+                    author { login }
+                    body 
+                    id
+                  }
+                }
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+              }
+            }
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+        }
+      }
+    }`
+
+    const generator = (repo: Repo) => async function* () {
+      let after = null;
+      let hasNext = false;
+      do {
+        repo.API_HITS++
+        const response = await repo.octokit.graphql(issueQuery, {
+          after,
+          owner: repo.owner,
+          repo: repo.repo,
+        }) as IIssuesResponse;
+
+        yield response.repository.issues.nodes;
+
+        after = response.repository.issues.pageInfo.endCursor;
+        hasNext = response.repository.issues.pageInfo.hasNextPage;
+      } while (hasNext);
+    }
+
+    return generator(this);
+  }
+
+  async findTodoHubComments() {
+    const commentByIssue: Record<string, TodohubComment> = {}
+
+    const getIssuesGenerator = this.getIssuesWithComments()
+    for await (const issuePage of getIssuesGenerator()) {
+      issuePageLoop: for (const issue of issuePage) {
+        for (const comment of issue.comments.edges) {
+          if (TodohubComment.isTodohubComment(comment.node.body)) {
+            commentByIssue[issue.id] = new TodohubComment(issue.id, {id:comment.node.id, body: comment.node.body})
+            continue issuePageLoop
+          }
+        }
+        if (issue.comments.pageInfo.hasNextPage) {
+          commentByIssue[issue.id] = await this.findTodoHubComment(issue.number, issue.comments.pageInfo.endCursor)
+        }
+        commentByIssue[issue.id] = new TodohubComment(issue.id)
+      }
+    }
+
+    return commentByIssue;
+  }
+
+  async findTodoHubComment(issueNumber: number, after?: string | null) {
+    const findCommentGenerator = this.getIssueCommentsGql(issueNumber, after);
+    let issueId: string | undefined = undefined
+    for await (const issueCommentsPage of findCommentGenerator()) {
+      issueId = issueCommentsPage.id
+      for (const comment of issueCommentsPage.comments.nodes) {
+        if (TodohubComment.isTodohubComment(comment.body)) {
+          return new TodohubComment(issueCommentsPage.id, {id: comment.id, body: comment.body})
+        }
+      }
+    }
+    if (!issueId) {
+      // TODO should fail earlier (graphql should return not found) - handle this
+      throw new Error('Not found')
+    }
+    return new TodohubComment(issueId)
+  }
+
+  getIssueCommentsGql(issueNumber: number, after: string | null = null) {
+    const commentQuery = `query($owner: String!, $repo: String!, $issueNumber: Int!, $after: String = null) {
+      repository(owner: $owner, name: $repo)
+        {
+          issue(number: $issueNumber) {
+            id
+            comments(first: ${DEFAULT_ISSUE_PER_PAGE}, after: $after) {
+              nodes {
+                body 
+                id
+                author { login }
+              }
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+          }
+        }
+      }
+    }`
+
+    const generator = (repo: Repo) => async function* () {
+      let hasNext = false;
+      do {
+        repo.API_HITS++
+        const response = await repo.octokit.graphql(commentQuery, {
+          issueNumber,
+          after,
+          owner: repo.owner,
+          repo: repo.repo
+        }) as ICommentsResponse;
+
+        yield response.repository.issue;
+
+        after = response.repository.issue.comments.pageInfo.endCursor;
+        hasNext = response.repository.issue.comments.pageInfo.hasNextPage;
+      } while (hasNext);
+    }
+
+    return generator(this);
+  }
+
+  // async findTodoHubComment(issueNumber: number) {
+  //   const commentsPages = this.octokit.paginate.iterator(
+  //     this.octokit.rest.issues.listComments, {
+  //     owner: this.owner,
+  //     repo: this.repo,
+  //     issue_number: issueNumber,
+  //     per_page: 100,
+  //   })
+  //   for await (const commentsPage of commentsPages) {
+  //     // TODO in app we can use 'performed_via_github_app' to find the comment?
+  //     for (const comment of commentsPage.data) {
+  //       // TODO search for exact tag
+  //       if (TodohubComment.isTodohubComment(comment.body)) {
+  //         return new TodohubComment(issueNumber, comment.body)
+  //       }
+  //     }
+  //   }
+  //   return new TodohubComment(issueNumber)
+  // }
+
+  // async getParsedIssue(issueNumber: number) {
+  //   const issue = await this.octokit.rest.issues.get({
+  //     owner: this.owner,
+  //     repo: this.repo,
+  //     issue_number: issueNumber
+  //   })
+
+  //   return new TodohubIssue(issue.data.body || '');
+  // }
+
+  async updateCommentGQl(commentId: string, body: string) {
+    return this.octokit.graphql(`
+      mutation($commentId: ID!, $body: String!) {
+        updateIssueComment(input: {id: $commentId, body: $body}) {
+          issueComment { id }
+        }
+      }`, {
+      commentId,
+      body,
+      owner: this.owner,
+      repo: this.repo
+    })
+  }
+
+  async addCommentGQl(issueId: string, body: string) {
+    return this.octokit.graphql(`
+      mutation($issueId: ID!, $body: String!) {
+        addComment(input: {subjectId: $issueId, body: $body}) {
+          commentEdge { node { id } }
+        }
+      }`, {
+      issueId,
+      body,
+      owner: this.owner,
+      repo: this.repo
+    })
+  }
+
+  async createComment(issueNumber: number, body: string) {
+    return this.octokit.rest.issues.createComment({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+      body
     })
   }
 

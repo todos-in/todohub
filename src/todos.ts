@@ -1,20 +1,16 @@
-interface ITodo {
-  fileName: string
-  // line: number,
-  rawLine: string
-  keyword: string
-  issueNumber?: number
-  todoText: string
-}
+import { ITodo } from './types/todo.js';
 
-export default class Todos {
-  todos: ITodo[] = []
-  todosByIssueNo: Record<number, ITodo> = {}
+export default class Todo {
+  // todos: ITodo[] = []
+  todosByIssueNo: Record<number, ITodo[]> = {}
 
   addTodos(todos: ITodo[]) {
-    this.todos = this.todos.concat(todos)
+    // this.todos = this.todos.concat(todos)
     for (const todo of todos) {
-      this.todosByIssueNo[todo.issueNumber || 0] = todo
+      if (!this.todosByIssueNo[todo.issueNumber || 0]) {
+        this.todosByIssueNo[todo.issueNumber || 0] = [];
+      }
+      this.todosByIssueNo[todo.issueNumber || 0].push(todo);
     }
   }
 

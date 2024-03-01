@@ -11,9 +11,9 @@
  *
  * Matches example: "TODO (#1823) Fix this here"
  */
-// const todoRegex = /(?<todo_keyword>TODO)[^\S\r\n]*\(?#?(?<issue_number>[0-9]+)\)?[^\S\r\n]*(?<todo_text>.*)/gmi
-const todoRegexWithOrWithoutNumber =
-  /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]*(?<todoText>.*)/gim
+// const todoRegex = /(?<todo_keyword>TODO)[^\S\r\n]*\(?#?(?<issue_number>[0-9]+)\)?[^\S\r\n]+(?<todo_text>.*)/gmi
+const todoRegexWithOrWithoutNumber = /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]+(?<todoText>.*)/gim
+const todoRegexForIssueNumber = (issueNumber: string) => new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)[^\\S\\r\\n]+(?<todoText>.*)`, 'gim')
 
 interface TodoRegexMatch {
   rawLine: string
@@ -22,8 +22,17 @@ interface TodoRegexMatch {
   todoText: string
 }
 
-export const matchTodos: (text: string) => TodoRegexMatch[] = text => {
-  const matches = text.matchAll(todoRegexWithOrWithoutNumber)
+export const matchTodos = (text: string, issueNumber?: string) => {
+  let regex;
+  if (issueNumber) {
+    if (Number.isNaN(Number.parseInt(issueNumber))) {
+      throw new Error('issueNumber is not an integer')
+    }
+    regex = todoRegexForIssueNumber(issueNumber);
+  } else {
+    regex = todoRegexWithOrWithoutNumber;
+  }
+  const matches = text.matchAll(regex)
   const todos: TodoRegexMatch[] = []
   for (const match of matches) {
     if (!match.groups?.keyword) {
