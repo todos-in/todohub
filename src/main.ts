@@ -20,11 +20,14 @@ export async function run(): Promise<void> {
   const ref = github.context.ref
   const branchName = ref.split('/').pop() || ''
   const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/
-  const featureBranchNumber = branchName.match(featureBranchRegex)?.groups?.['featureBranch']
+  const featureBranchNumber =
+    branchName.match(featureBranchRegex)?.groups?.['featureBranch']
   const isFeatureBranch = featureBranchNumber !== undefined
-  const featureBranchNumberParsed = featureBranchNumber ? Number.parseInt(featureBranchNumber) : undefined;
+  const featureBranchNumberParsed = featureBranchNumber
+    ? Number.parseInt(featureBranchNumber)
+    : undefined
   if (isFeatureBranch && Number.isNaN(featureBranchNumberParsed)) {
-    throw new Error('featureBranchNumber is not an integer');
+    throw new Error('featureBranchNumber is not an integer')
   }
   // TODO check what happens for deleted branches?
   const commitSha = context.sha
@@ -40,12 +43,18 @@ export async function run(): Promise<void> {
 
     // TODO get and parse .todoignore to avoid unnecessary searching of files
     // TODO parallelize stuff (+ add workers)
+    // TODO tests + organize Issues
 
-    const findTodohubComment = repo.findTodoHubComment(featureBranchNumberParsed)
+    const findTodohubComment = repo.findTodoHubComment(
+      featureBranchNumberParsed
+    )
     const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
 
-    const [todohubComment, todoState] = await Promise.all([findTodohubComment, getTodoState])
-    
+    const [todohubComment, todoState] = await Promise.all([
+      findTodohubComment,
+      getTodoState
+    ])
+
     const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
     todohubComment.resetTag() // TODO for now we reset the data and completley rewrite - this should be merged with existing data
     todohubComment.setTodos(featureTodos, commitSha)
@@ -66,7 +75,6 @@ export async function run(): Promise<void> {
     // }
     // TODO let feature branch take over once one exists
   }
-
 
   try {
     await new Promise(resolve => setTimeout(resolve, 6000))

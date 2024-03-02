@@ -33112,7 +33112,7 @@ const external_node_https_namespaceObject = __WEBPACK_EXTERNAL_createRequire(imp
 var external_node_stream_ = __nccwpck_require__(4492);
 ;// CONCATENATED MODULE: external "node:zlib"
 const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:zlib");
-;// CONCATENATED MODULE: ./src/todo-match.ts
+;// CONCATENATED MODULE: ./src/util/todo-match.ts
 /**
  * /(?<todo_keyword>TODO)   # Match 'TODO' and capture it in a named group
  * [^\S\r\n]*               # Match any non-newline whitespace characters zero or more times
@@ -33126,11 +33126,22 @@ const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(impo
  *
  * Matches example: "TODO (#1823) Fix this here"
  */
-// const todoRegex = /(?<todo_keyword>TODO)[^\S\r\n]*\(?#?(?<issue_number>[0-9]+)\)?[^\S\r\n]*(?<todo_text>.*)/gmi
-const todoRegexWithOrWithoutNumber = /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]*(?<todoText>.*)/gim;
-const matchTodos = text => {
+// const todoRegex = /(?<todo_keyword>TODO)[^\S\r\n]*\(?#?(?<issue_number>[0-9]+)\)?[^\S\r\n]+(?<todo_text>.*)/gmi
+const todoRegexWithOrWithoutNumber = /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]+(?<todoText>.*)/gim;
+const todoRegexForIssueNumber = (issueNumber) => new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)[^\\S\\r\\n]+(?<todoText>.*)`, 'gim');
+const matchTodos = (text, issueNumber) => {
     var _a, _b, _c, _d, _e;
-    const matches = text.matchAll(todoRegexWithOrWithoutNumber);
+    let regex;
+    if (issueNumber) {
+        if (Number.isNaN(Number.parseInt(issueNumber))) {
+            throw new Error('issueNumber is not an integer');
+        }
+        regex = todoRegexForIssueNumber(issueNumber);
+    }
+    else {
+        regex = todoRegexWithOrWithoutNumber;
+    }
+    const matches = text.matchAll(regex);
     const todos = [];
     for (const match of matches) {
         if (!((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword)) {
@@ -33156,15 +33167,18 @@ const matchTodos = text => {
 };
 
 ;// CONCATENATED MODULE: ./src/todos.ts
-class Todos {
+class Todo {
     constructor() {
-        this.todos = [];
+        // todos: ITodo[] = []
         this.todosByIssueNo = {};
     }
     addTodos(todos) {
-        this.todos = this.todos.concat(todos);
+        // this.todos = this.todos.concat(todos)
         for (const todo of todos) {
-            this.todosByIssueNo[todo.issueNumber || 0] = todo;
+            if (!this.todosByIssueNo[todo.issueNumber || 0]) {
+                this.todosByIssueNo[todo.issueNumber || 0] = [];
+            }
+            this.todosByIssueNo[todo.issueNumber || 0].push(todo);
         }
     }
     getByIssueNo(issueNo) {
@@ -33174,7 +33188,42 @@ class Todos {
 
 ;// CONCATENATED MODULE: external "node:path"
 const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
-;// CONCATENATED MODULE: ./src/github-repo.ts
+;// CONCATENATED MODULE: ./src/elements/tag.ts
+
+class TodohubTag {
+    constructor(tag) {
+        // TODO order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
+        this.todos = [];
+        if (tag) {
+            this.raw = tag;
+            const decoded = this.decode(tag);
+            // TODO check decoded JSON schema
+            this.todos = decoded.todos;
+            this.commitSha = decoded.commitSha;
+        }
+    }
+    mergeTodos(todos) {
+        // TODO implement
+    }
+    setTodos(todos, commitSha) {
+        this.todos = todos;
+        this.commitSha = commitSha;
+    }
+    decode(tag) {
+        const b64Decoded = Buffer.from(tag, 'base64');
+        const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
+        const parsed = JSON.parse(unzipped.toString('utf-8'));
+        return parsed;
+    }
+    encode() {
+        const stringified = JSON.stringify({ commitSha: this.commitSha, todos: this.todos });
+        const zipped = (0,external_node_zlib_namespaceObject.gzipSync)(Buffer.from(stringified, 'utf-8'));
+        const b64Encoded = zipped.toString('base64');
+        return b64Encoded;
+    }
+}
+
+;// CONCATENATED MODULE: ./src/elements/comment.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -33185,6 +33234,101 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
     });
 };
 
+class TodohubComment {
+    constructor(issueId, existingComment) {
+        this.issueId = issueId;
+        if (existingComment) {
+            const parsed = this.parseContent(existingComment.body);
+            if (!parsed) {
+                throw new Error('Trying to instantiate TodoComment which cant be parsed.');
+            }
+            // TODO check if all parts were parsed
+            this.rawText = existingComment.body;
+            this.commentId = existingComment.id;
+            this.preTag = parsed.preTag;
+            this.midTag = parsed.midTag;
+            this.postTag = parsed.postTag;
+            this.tag = new TodohubTag(parsed.tagData);
+        }
+        else {
+            this.tag = new TodohubTag();
+        }
+    }
+    getExistingCommentId() {
+        return this.commentId;
+    }
+    write() {
+        return __awaiter(this, void 0, void 0, function* () {
+            // TODO implement
+        });
+    }
+    mergeTodos(todos) {
+        this.tag.mergeTodos(todos);
+    }
+    resetTag() {
+        this.midTag = '';
+        this.tag = new TodohubTag();
+    }
+    setTodos(todos, commitSha) {
+        this.tag.setTodos(todos, commitSha);
+    }
+    static isTodohubComment(commentBody) {
+        // TODO make sure this always works
+        return !!(commentBody === null || commentBody === void 0 ? void 0 : commentBody.includes('<!--'));
+    }
+    parseContent(commentBody) {
+        var _a, _b, _c, _d;
+        const regex = /(?<preTag>[\s\S]*)<!--todohub_data="(?<tagData>.*)"-->(?<midTag>[\s\S]*)<!--todohub_end-->(?<postTag>[\s\S]*)/;
+        const parsed = commentBody.match(regex);
+        if (parsed) {
+            return {
+                preTag: (_a = parsed.groups) === null || _a === void 0 ? void 0 : _a['preTag'],
+                postTag: (_b = parsed.groups) === null || _b === void 0 ? void 0 : _b['postTag'],
+                tagData: (_c = parsed.groups) === null || _c === void 0 ? void 0 : _c['tagData'],
+                midTag: (_d = parsed.groups) === null || _d === void 0 ? void 0 : _d['midTag']
+            };
+        }
+        throw new Error('Could not parse todohub comment content');
+    }
+    compose() {
+        for (const todo of this.tag.todos) {
+            this.midTag += `\n* [ ] \`${todo.fileName}\`: ${todo.keyword} ${todo.todoText}`;
+        }
+        this.midTag += '\n';
+        return `${this.preTag || ''}<!--todohub_data="${this.tag.encode()}"-->${this.midTag || ''}<!--todohub_end-->${this.postTag || ''}`;
+    }
+}
+
+;// CONCATENATED MODULE: ./src/github-repo.ts
+var github_repo_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __await = (undefined && undefined.__await) || function (v) { return this instanceof __await ? (this.v = v, this) : new __await(v); }
+var __asyncGenerator = (undefined && undefined.__asyncGenerator) || function (thisArg, _arguments, generator) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var g = generator.apply(thisArg, _arguments || []), i, q = [];
+    return i = {}, verb("next"), verb("throw"), verb("return", awaitReturn), i[Symbol.asyncIterator] = function () { return this; }, i;
+    function awaitReturn(f) { return function (v) { return Promise.resolve(v).then(f, reject); }; }
+    function verb(n, f) { if (g[n]) { i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; if (f) i[n] = f(i[n]); } }
+    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
+    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
+    function fulfill(value) { resume("next", value); }
+    function reject(value) { resume("throw", value); }
+    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
+};
+var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
+    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+    var m = o[Symbol.asyncIterator], i;
+    return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i);
+    function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
+    function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
+};
 
 
 
@@ -33192,15 +33336,20 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
 
 
 
+
+
+const DEFAULT_ISSUE_PER_PAGE = 100;
+const DEFAULT_COMMENTS_PER_PAGE = 30;
 class Repo {
     constructor(githubToken, owner, repo) {
+        this.API_HITS = 0;
         this.githubToken = githubToken;
         this.octokit = github.getOctokit(githubToken, { userAgent: 'todohub/v1' });
         this.owner = owner;
         this.repo = repo;
     }
     getTarballUrl(ref) {
-        return __awaiter(this, void 0, void 0, function* () {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
             const { url, headers, method } = this.octokit.request.endpoint('GET /repos/{owner}/{repo}/tarball/{ref}', {
                 owner: this.owner,
                 repo: this.repo,
@@ -33228,7 +33377,7 @@ class Repo {
         });
     }
     getTarballStream(url) {
-        return __awaiter(this, void 0, void 0, function* () {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
             return new Promise((resolve, reject) => {
                 const downloadRequest = (0,external_node_https_namespaceObject.request)(url, { method: 'GET', timeout: 5000 }, res => {
                     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 299) {
@@ -33240,27 +33389,33 @@ class Repo {
             });
         });
     }
-    downloadTarball(ref) {
-        return __awaiter(this, void 0, void 0, function* () {
+    getTodosFromGitRef(ref, issueNr) {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
+            const tar = yield this.downloadTarball(ref);
+            const todoState = yield this.extractTodosFromTarGz(tar, issueNr);
+            return todoState;
+        });
+    }
+    extractTodosFromTarGz(tarBallStream, issueNr) {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
+            // TODO move logic
             const extractStream = tar_stream.extract();
             const unzipStream = (0,external_node_zlib_namespaceObject.createGunzip)();
-            // TODO try catch
-            const url = yield this.getTarballUrl(ref);
-            const response = yield this.getTarballStream(url);
-            response.pipe(unzipStream).pipe(extractStream);
-            const todos = new Todos();
+            const todos = new Todo();
             const newFindTodoStream = (filePath) => {
                 return new external_node_stream_.Writable({
                     write: function (chunk, encoding, next) {
                         const filePathParts = filePath.split(external_node_path_namespaceObject.sep);
                         filePathParts.shift();
                         const fileName = { fileName: external_node_path_namespaceObject.join(...filePathParts) };
-                        const todosFound = matchTodos(chunk.toString()).map(todo => Object.assign(todo, fileName));
+                        const todosFound = matchTodos(chunk.toString(), issueNr).map(todo => Object.assign(todo, fileName));
                         todos.addTodos(todosFound);
                         next();
                     }
                 });
             };
+            tarBallStream.pipe(unzipStream).pipe(extractStream);
+            // TODO check event handling
             // response.on('end', () => {
             //   // testStream.end();
             // });
@@ -33297,8 +33452,15 @@ class Repo {
             });
         });
     }
+    downloadTarball(ref) {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
+            // TODO try catch
+            const url = yield this.getTarballUrl(ref);
+            return this.getTarballStream(url);
+        });
+    }
     getIssue(issueNumber) {
-        return __awaiter(this, void 0, void 0, function* () {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
             return this.octokit.rest.issues.get({
                 owner: this.owner,
                 repo: this.repo,
@@ -33306,8 +33468,239 @@ class Repo {
             });
         });
     }
+    getIssuesWithComments() {
+        const issueQuery = `
+    query($owner: String!, $repo: String!, $after: String = null) {
+      repository(owner: $owner, name: $repo)
+        {
+          issues(first: ${DEFAULT_ISSUE_PER_PAGE}, after: $after) {
+            nodes {
+              title
+              number
+              id
+              body
+              author { login }
+              comments(first: ${DEFAULT_COMMENTS_PER_PAGE}) {
+                totalCount
+                edges {
+                  node {
+                    author { login }
+                    body 
+                    id
+                  }
+                }
+                pageInfo {
+                  endCursor
+                  hasNextPage
+                }
+              }
+            }
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+        }
+      }
+    }`;
+        const generator = (repo) => function () {
+            return __asyncGenerator(this, arguments, function* () {
+                let after = null;
+                let hasNext = false;
+                do {
+                    repo.API_HITS++;
+                    const response = (yield __await(repo.octokit.graphql(issueQuery, {
+                        after,
+                        owner: repo.owner,
+                        repo: repo.repo
+                    })));
+                    yield yield __await(response.repository.issues.nodes);
+                    after = response.repository.issues.pageInfo.endCursor;
+                    hasNext = response.repository.issues.pageInfo.hasNextPage;
+                } while (hasNext);
+            });
+        };
+        return generator(this);
+    }
+    findTodoHubComments() {
+        var _a, e_1, _b, _c;
+        return github_repo_awaiter(this, void 0, void 0, function* () {
+            const commentByIssue = {};
+            const getIssuesGenerator = this.getIssuesWithComments();
+            try {
+                for (var _d = true, _e = __asyncValues(getIssuesGenerator()), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
+                    _c = _f.value;
+                    _d = false;
+                    const issuePage = _c;
+                    issuePageLoop: for (const issue of issuePage) {
+                        for (const comment of issue.comments.edges) {
+                            if (TodohubComment.isTodohubComment(comment.node.body)) {
+                                commentByIssue[issue.id] = new TodohubComment(issue.id, {
+                                    id: comment.node.id,
+                                    body: comment.node.body
+                                });
+                                continue issuePageLoop;
+                            }
+                        }
+                        if (issue.comments.pageInfo.hasNextPage) {
+                            commentByIssue[issue.id] = yield this.findTodoHubComment(issue.number, issue.comments.pageInfo.endCursor);
+                        }
+                        commentByIssue[issue.id] = new TodohubComment(issue.id);
+                    }
+                }
+            }
+            catch (e_1_1) { e_1 = { error: e_1_1 }; }
+            finally {
+                try {
+                    if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
+                }
+                finally { if (e_1) throw e_1.error; }
+            }
+            return commentByIssue;
+        });
+    }
+    findTodoHubComment(issueNumber, after) {
+        var _a, e_2, _b, _c;
+        return github_repo_awaiter(this, void 0, void 0, function* () {
+            const findCommentGenerator = this.getIssueCommentsGql(issueNumber, after);
+            let issueId = undefined;
+            try {
+                for (var _d = true, _e = __asyncValues(findCommentGenerator()), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
+                    _c = _f.value;
+                    _d = false;
+                    const issueCommentsPage = _c;
+                    issueId = issueCommentsPage.id;
+                    for (const comment of issueCommentsPage.comments.nodes) {
+                        if (TodohubComment.isTodohubComment(comment.body)) {
+                            return new TodohubComment(issueCommentsPage.id, {
+                                id: comment.id,
+                                body: comment.body
+                            });
+                        }
+                    }
+                }
+            }
+            catch (e_2_1) { e_2 = { error: e_2_1 }; }
+            finally {
+                try {
+                    if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
+                }
+                finally { if (e_2) throw e_2.error; }
+            }
+            if (!issueId) {
+                // TODO should fail earlier (graphql should return not found) - handle this
+                throw new Error('Not found');
+            }
+            return new TodohubComment(issueId);
+        });
+    }
+    getIssueCommentsGql(issueNumber, after = null) {
+        const commentQuery = `query($owner: String!, $repo: String!, $issueNumber: Int!, $after: String = null) {
+      repository(owner: $owner, name: $repo)
+        {
+          issue(number: $issueNumber) {
+            id
+            comments(first: ${DEFAULT_ISSUE_PER_PAGE}, after: $after) {
+              nodes {
+                body 
+                id
+                author { login }
+              }
+            pageInfo {
+              endCursor
+              hasNextPage
+            }
+          }
+        }
+      }
+    }`;
+        const generator = (repo) => function () {
+            return __asyncGenerator(this, arguments, function* () {
+                let hasNext = false;
+                do {
+                    repo.API_HITS++;
+                    const response = (yield __await(repo.octokit.graphql(commentQuery, {
+                        issueNumber,
+                        after,
+                        owner: repo.owner,
+                        repo: repo.repo
+                    })));
+                    yield yield __await(response.repository.issue);
+                    after = response.repository.issue.comments.pageInfo.endCursor;
+                    hasNext = response.repository.issue.comments.pageInfo.hasNextPage;
+                } while (hasNext);
+            });
+        };
+        return generator(this);
+    }
+    // async findTodoHubComment(issueNumber: number) {
+    //   const commentsPages = this.octokit.paginate.iterator(
+    //     this.octokit.rest.issues.listComments, {
+    //     owner: this.owner,
+    //     repo: this.repo,
+    //     issue_number: issueNumber,
+    //     per_page: 100,
+    //   })
+    //   for await (const commentsPage of commentsPages) {
+    //     // TODO in app we can use 'performed_via_github_app' to find the comment?
+    //     for (const comment of commentsPage.data) {
+    //       // TODO search for exact tag
+    //       if (TodohubComment.isTodohubComment(comment.body)) {
+    //         return new TodohubComment(issueNumber, comment.body)
+    //       }
+    //     }
+    //   }
+    //   return new TodohubComment(issueNumber)
+    // }
+    // async getParsedIssue(issueNumber: number) {
+    //   const issue = await this.octokit.rest.issues.get({
+    //     owner: this.owner,
+    //     repo: this.repo,
+    //     issue_number: issueNumber
+    //   })
+    //   return new TodohubIssue(issue.data.body || '');
+    // }
+    updateCommentGQl(commentId, body) {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
+            return this.octokit.graphql(`
+      mutation($commentId: ID!, $body: String!) {
+        updateIssueComment(input: {id: $commentId, body: $body}) {
+          issueComment { id }
+        }
+      }`, {
+                commentId,
+                body,
+                owner: this.owner,
+                repo: this.repo
+            });
+        });
+    }
+    addCommentGQl(issueId, body) {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
+            return this.octokit.graphql(`
+      mutation($issueId: ID!, $body: String!) {
+        addComment(input: {subjectId: $issueId, body: $body}) {
+          commentEdge { node { id } }
+        }
+      }`, {
+                issueId,
+                body,
+                owner: this.owner,
+                repo: this.repo
+            });
+        });
+    }
+    createComment(issueNumber, body) {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
+            return this.octokit.rest.issues.createComment({
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber,
+                body
+            });
+        });
+    }
     createIssue(title, body) {
-        return __awaiter(this, void 0, void 0, function* () {
+        return github_repo_awaiter(this, void 0, void 0, function* () {
             return this.octokit.rest.issues.create({
                 owner: this.owner,
                 repo: this.repo,
@@ -33317,36 +33710,6 @@ class Repo {
         });
     }
 }
-
-;// CONCATENATED MODULE: ./src/cache.ts
-var cache_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-let cache;
-// class TodoStore {
-//   todos: Todo[] = [];
-//   add(todo: Todo) {
-//     if ()
-//   }
-// }
-const getCached = (owner, repo) => cache_awaiter(void 0, void 0, void 0, function* () {
-    if (cache) {
-        return cache;
-    }
-    return null;
-});
-const setCache = (owner, repo, commitSha, todos) => cache_awaiter(void 0, void 0, void 0, function* () {
-    cache = {
-        commitSha,
-        todos
-    };
-});
 
 ;// CONCATENATED MODULE: ./src/main.ts
 var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -33361,47 +33724,73 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
-
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 function run() {
-    var _a;
+    var _a, _b;
     return main_awaiter(this, void 0, void 0, function* () {
-        for (const [key, val] of Object.entries(process.env)) {
-            core.info('Envvar ' + key + ' --- ' + JSON.stringify(val));
-        }
-        for (const [key, val] of Object.entries(github.context)) {
-            core.info('Context ' + key + ' --- ' + JSON.stringify(val));
-        }
+        // for (const [key, val] of Object.entries(process.env)) {
+        //   core.info('Envvar ' + key + ' --- ' + JSON.stringify(val))
+        // }
+        // for (const [key, val] of Object.entries(github.context)) {
+        //   core.info('Context ' + key + ' --- ' + JSON.stringify(val))
+        // }
         const context = github.context;
         const githubToken = core.getInput('token');
         const ref = github.context.ref;
-        const branchName = github.context.ref.split('/').pop() || '';
+        const branchName = ref.split('/').pop() || '';
         const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/;
-        const featureBranchNumber = (_a = branchName.match(featureBranchRegex)) === null || _a === void 0 ? void 0 : _a[0];
+        const featureBranchNumber = (_b = (_a = branchName.match(featureBranchRegex)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b['featureBranch'];
         const isFeatureBranch = featureBranchNumber !== undefined;
+        const featureBranchNumberParsed = featureBranchNumber
+            ? Number.parseInt(featureBranchNumber)
+            : undefined;
+        if (isFeatureBranch && Number.isNaN(featureBranchNumberParsed)) {
+            throw new Error('featureBranchNumber is not an integer');
+        }
         // TODO check what happens for deleted branches?
         const commitSha = context.sha;
         const repo = new Repo(githubToken, context.repo.owner, context.repo.repo);
-        const cachedState = yield getCached(context.repo.owner, context.repo.repo);
-        if (!cachedState) {
-            const mainState = yield repo.downloadTarball(commitSha);
-            core.info(JSON.stringify(mainState));
-            console.log('---console teststest');
-            core.error('---core teststest');
+        // In App? const cachedState = await getCached(context.repo.owner, context.repo.repo)
+        // TODO handle errors
+        if (isFeatureBranch && featureBranchNumberParsed) {
+            // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment
+            // TODO apply diff
+            // TODO get and parse .todoignore to avoid unnecessary searching of files
+            // TODO parallelize stuff (+ add workers)
+            // TODO tests + organize Issues
+            const findTodohubComment = repo.findTodoHubComment(featureBranchNumberParsed);
+            const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber);
+            const [todohubComment, todoState] = yield Promise.all([
+                findTodohubComment,
+                getTodoState
+            ]);
+            const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed);
+            todohubComment.resetTag(); // TODO for now we reset the data and completley rewrite - this should be merged with existing data
+            todohubComment.setTodos(featureTodos, commitSha);
+            const existingCommentId = todohubComment.getExistingCommentId();
+            if (existingCommentId) {
+                // TODO add state hash to check whether anything needs to be updated?
+                yield repo.updateCommentGQl(existingCommentId, todohubComment.compose());
+            }
+            else {
+                yield repo.addCommentGQl(todohubComment.issueId, todohubComment.compose());
+            }
+        }
+        else {
+            // search all issues for todo comments
+            // search codebase for all todos
+            // for union of all issues with comments and todos with those numbers {
+            //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
+            //     apply changes (rewrite or add comment), and save state as main state
+            //   }
+            // }
+            // TODO let feature branch take over once one exists
         }
         try {
-            // const git = new Git(process.cwd())
-            // const githubSha = core.getInput('GITHUB_SHA')
-            // const githubRef = core.getInput('GITHUB_REF')
-            // const changes = await git.getFileChanges(`c251b72921dc4b2539c719cdf601747d670c17c3`, `046947fc365048be81222b4eb2e5ac802b51aba1`)
-            // const changes = await git.getFileChanges(`c251b72921dc4b2539c719cdf601747d670c17c3`, githubSha)
             yield new Promise(resolve => setTimeout(resolve, 6000));
-            // const newIssue = await repo.createIssue('Test issue', 'Test issue body');
-            // core.debug(newIssue.data.url)
-            // core.setOutput('new-issue', newIssue.data.url)
         }
         catch (error) {
             // if (error instanceof Error) core.setFailed(error.message)
