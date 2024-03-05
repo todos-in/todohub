@@ -23,8 +23,8 @@ let errorMock: jest.SpyInstance
 let getInputMock: jest.SpyInstance
 let getOctokit: jest.SpyInstance
 
-console.debug(env.default)
-
+console.debug(env.default
+)
 describe('action', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -35,7 +35,7 @@ describe('action', () => {
       .spyOn(core, 'getInput')
       .mockImplementation((name: string): string => {
         if (actionInputMock[name]) {
-          return actionInputMock[name]
+          return actionInputMock[name] as string
         }
         throw new Error(`Input not set: ${name}`)
       })
