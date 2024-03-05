@@ -10,7 +10,7 @@ export default class Todo {
       if (!this.todosByIssueNo[todo.issueNumber || 0]) {
         this.todosByIssueNo[todo.issueNumber || 0] = []
       }
-      this.todosByIssueNo[todo.issueNumber || 0].push(todo)
+      this.todosByIssueNo[todo.issueNumber || 0]?.push(todo)
     }
   }
 

@@ -6,6 +6,7 @@ export default class TodohubTag {
   todos: ITodo[] = []
   commitSha?: string
   raw?: string
+  trackedBranch?: string
 
   constructor(tag?: string) {
     if (tag) {
@@ -13,8 +14,22 @@ export default class TodohubTag {
       const decoded = this.decode(tag)
       // TODO check decoded JSON schema
       this.todos = decoded.todos
-      this.commitSha = decoded.commitSha  
+      this.commitSha = decoded.commitSha
+      this.trackedBranch = decoded.trackedBranch
     }
+  }
+
+  equals(todoState: ITodo[]) {
+    // TODO implement order (by filename, linenr?)
+
+  }
+
+  getTodoStateHash() {
+    // TODO 
+  }
+
+  getHash() {
+    // TODO implement
   }
 
   mergeTodos(todos: ITodo[]) {

@@ -2,6 +2,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import Repo from './github-repo.js'
 import { getCached } from './cache.js'
+import { TodohubAdminIssue } from './elements/admin_issue.js'
 
 /**
  * The main function for the action.
@@ -32,11 +33,19 @@ export async function run(): Promise<void> {
   // TODO check what happens for deleted branches?
   const commitSha = context.sha
 
-  try {
-    const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
-
-    // In App? const cachedState = await getCached(context.repo.owner, context.repo.repo)
   
+
+  try {
+
+    const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
+    const todohubIssue = await TodohubAdminIssue.get(repo)  
+  
+    const todoState = await repo.getTodosFromGitRef(commitSha, featureBranchNumber, {foundInCommit: commitSha})
+    // const [todohubIssue, todoState] = await Promise.all([
+    //   getTodohubIssue,
+    //   getTodoState
+    // ])
+
     // TODO handle errors
     if (isFeatureBranch && featureBranchNumberParsed) {
       core.debug(`Pushing feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`)
@@ -46,35 +55,36 @@ export async function run(): Promise<void> {
       // TODO get and parse .todoignore to avoid unnecessary searching of files
       // TODO parallelize stuff (+ add workers)
       // TODO tests + organize Issues
-      // TODO handle errors
-  
-      const findTodohubComment = repo.findTodoHubComment(
-        featureBranchNumberParsed
-      )
-      const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
-      const [todohubComment, todoState] = await Promise.all([
-        findTodohubComment,
-        getTodoState
-      ])
-  
+      
       const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
-      todohubComment.resetTag() // TODO for now we reset the data and completley rewrite - this should be merged with existing data
-      todohubComment.setTodos(featureTodos, commitSha)
-      const existingCommentId = todohubComment.getExistingCommentId()
+
+      // const trackedIssue = todohubIssue.data.getTrackedIssue(featureBranchNumberParsed)
+      // TODO use trackedIssue meta information (branch, sha) to merge from diff
+      todohubIssue.data.setTodoState(featureBranchNumberParsed, featureTodos || [], commitSha, ref)
+  
+      const existingCommentId = todohubIssue.data.getExistingCommentId(featureBranchNumberParsed)
+      const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed)
+
       if (existingCommentId) {
         // TODO add state hash to check whether anything needs to be updated?
-        await repo.updateCommentGQl(existingCommentId, todohubComment.compose())
+        // TODO handle: comment was deleted
+        await repo.updateComment(existingCommentId, composedComment)
       } else {
-        await repo.addCommentGQl(todohubComment.issueId, todohubComment.compose())
+        // TODO handle: issue doesnt exist
+        const created = await repo.createComment(featureBranchNumberParsed, composedComment)
+        todohubIssue.data.setCommentId(featureBranchNumberParsed, created.data.id as number)
       }
+
+      await todohubIssue.write(repo)
+
     } else {
-      const findTodohubComments = repo.findTodoHubComments()
-      const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
+      // const findTodohubComments = repo.findTodoHubComments()
+      // const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
   
-      const [todohubComments, todoState] = await Promise.all([
-        findTodohubComments,
-        getTodoState
-      ])
+      // const [todohubComments, todoState] = await Promise.all([
+      //   findTodohubComments,
+      //   getTodoState
+      // ])
       
       // for (const [issueId, todohubComment] of Object.entries(todohubComments)) {
       //   for (const [issueNr, todo] of Object.entries(todoState.todosByIssueNo)) {
@@ -103,7 +113,10 @@ export async function run(): Promise<void> {
     // TODO set output: all changes in workflow
     // core.setOutput('', )
   } catch (error) {
-    if (error instanceof Error) core.setFailed(error.message)
+    if (error instanceof Error){
+      core.error(error.message)
+      core.setFailed(error.message)
+    }
     else core.setFailed('Non error was thrown: ' + error)
   }
 }

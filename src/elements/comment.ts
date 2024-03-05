@@ -10,7 +10,7 @@ export default class TodohubComment {
   issueId: string
   commentId?: string
 
-  constructor(issueId: string, existingComment?: {body: string, id: string}) {
+  constructor(issueId: string, issueNumber?: number, existingComment?: {body: string, id: string}) {
     this.issueId = issueId
     if (existingComment) {
       const parsed = this.parseContent(existingComment.body)

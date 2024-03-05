@@ -86,15 +86,16 @@ export default class Repo {
     })
   }
 
-  async getTodosFromGitRef(ref?: string, issueNr?: string) {
+  async getTodosFromGitRef(ref?: string, issueNr?: string, todoMetadata?: Record<string, string>) {
     const tar = await this.downloadTarball(ref)
-    const todoState = await this.extractTodosFromTarGz(tar, issueNr)
+    const todoState = await this.extractTodosFromTarGz(tar, issueNr, todoMetadata)
     return todoState
   }
 
   async extractTodosFromTarGz(
     tarBallStream: IncomingMessage,
-    issueNr?: string
+    issueNr?: string,
+    todoMetadata?: Record<string, string>
   ): Promise<Todos> {
     // TODO move logic
     const extractStream = tar.extract()
@@ -102,15 +103,16 @@ export default class Repo {
 
     const todos = new Todos()
 
-    const newFindTodoStream = (filePath: string) => {
+    const newFindTodoStream = (filePath: string, todoMetadata?: Record<string, string>) => {
       return new Writable({
         write: function (chunk, encoding, next) {
           const filePathParts = filePath.split(path.sep)
           filePathParts.shift()
           const fileName = { fileName: path.join(...filePathParts) }
 
+          // TODO seach line by line + skip lines > n characters
           const todosFound = matchTodos(chunk.toString(), issueNr).map(todo =>
-            Object.assign(todo, fileName)
+            Object.assign(todoMetadata || {}, todo, fileName)
           )
           todos.addTodos(todosFound)
           next()
@@ -175,9 +177,9 @@ export default class Repo {
   }
 
   async getFeatureBranches() {
-    const isFeatureBranch = (branch: {name: string}) => /[0-9]+-.*/.test(branch.name)
+    const isFeatureBranch = (branch: { name: string }) => /[0-9]+-.*/.test(branch.name)
 
-    const featureBranches: {name: string, commit: {sha: string}}[] = []
+    const featureBranches: { name: string, commit: { sha: string } }[] = []
     const branchesPages = this.octokit.paginate.iterator(this.octokit.rest.repos.listBranches, {
       owner: this.owner,
       repo: this.repo,
@@ -253,7 +255,7 @@ export default class Repo {
       issuePageLoop: for (const issue of issuePage) {
         for (const comment of issue.comments.edges) {
           if (TodohubComment.isTodohubComment(comment.node.body)) {
-            commentByIssue[issue.id] = new TodohubComment(issue.id, issue.number {
+            commentByIssue[issue.id] = new TodohubComment(issue.id, issue.number, {
               id: comment.node.id,
               body: comment.node.body
             })
@@ -338,25 +340,39 @@ export default class Repo {
     return generator(this)
   }
 
-  // async findTodoHubComment(issueNumber: number) {
-  //   const commentsPages = this.octokit.paginate.iterator(
-  //     this.octokit.rest.issues.listComments, {
-  //     owner: this.owner,
-  //     repo: this.repo,
-  //     issue_number: issueNumber,
-  //     per_page: 100,
-  //   })
-  //   for await (const commentsPage of commentsPages) {
-  //     // TODO in app we can use 'performed_via_github_app' to find the comment?
-  //     for (const comment of commentsPage.data) {
-  //       // TODO search for exact tag
-  //       if (TodohubComment.isTodohubComment(comment.body)) {
-  //         return new TodohubComment(issueNumber, comment.body)
-  //       }
-  //     }
-  //   }
-  //   return new TodohubComment(issueNumber)
-  // }
+  async findTodoHubIssue() {
+    const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
+      // owner: this.owner,
+      // repo: this.repo,
+      per_page: 100,
+      q: 'todohub_ctrl_issue_data is:issue in:body repo:nigeisel/todohub author:@me'
+    });
+    if (todohubIssues.data.total_count > 1) {
+      // TODO check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
+      throw new Error('More than one Todohub Issue found');
+    }
+    if (todohubIssues.data.total_count === 1) {
+      return todohubIssues.data.items[0]
+    }
+    // const issuePages = this.octokit.paginate.iterator(
+    //   this.octokit.rest.search.issuesAndPullRequests, {
+    //   owner: this.owner,
+    //   repo: this.repo,
+    //   per_page: 1,
+    //   q: 'todohub_ctrl_issue label:todohub is:issue author:@me',
+    //   headers: {
+    //     Accept: 'application/vnd.github.text-match+json'
+    //   }
+    // })
+    // // return issuePages
+    // for await (const issuePage of issuePages) {
+    //   // TODO in app we can use 'performed_via_github_app' to find the comment?
+    //   for (const issue of issuePage.data) {
+    //     // TODO search for exact tag
+    //     return issue
+    //   }
+    // }
+  }
 
   // async getParsedIssue(issueNumber: number) {
   //   const issue = await this.octokit.rest.issues.get({
@@ -402,21 +418,73 @@ export default class Repo {
     )
   }
 
+  async updateComment(commentId: number, body: string) {
+    return this.octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+      owner: this.owner,
+      repo: this.repo,
+      comment_id: commentId,
+      body
+    })
+  }
+
   async createComment(issueNumber: number, body: string) {
-    return this.octokit.rest.issues.createComment({
+    // endpoint.headers = Object.assign(endpoint.headers, { Authorization: `Bearer ${this.githubToken}` })
+
+    return this.octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
       owner: this.owner,
       repo: this.repo,
       issue_number: issueNumber,
       body
     })
+
+    // return new Promise((resolve, reject) => {
+    //   const getReq = request(
+    //     url,
+    //     {
+    //       method,
+    //       headers: Object.assign(headers, {
+    //         Authorization: `Bearer ${this.githubToken}`
+    //       })
+    //     },
+    //     res => {
+    //       if (res.statusCode && res.statusCode >= 200 && res.statusCode < 399) {
+    //         resolve(res)
+    //       }
+    //       reject(
+    //         new Error(`Getting tarball URL request failed: ${res.statusCode}`)
+    //       )
+    //     }
+    //   )
+    //   getReq.end()
+    // })
+
+
+    // return this.octokit.rest.issues.createComment({
+    //   owner: this.owner,
+    //   repo: this.repo,
+    //   issue_number: issueNumber,
+    //   body
+    // })
   }
 
-  async createIssue(title: string, body: string) {
+  async updateIssue(issueNumber: number, title?: string, body?: string, state?: 'open' | 'closed') {
+    return this.octokit.rest.issues.update({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+      title,
+      body,
+      state
+    })
+  }
+
+  async createIssue(title: string, body: string, labels?: { name: string, description: string, color: string }[]) {
     return this.octokit.rest.issues.create({
       owner: this.owner,
       repo: this.repo,
       title,
-      body
+      body,
+      labels
     })
   }
 }

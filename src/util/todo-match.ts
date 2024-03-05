@@ -35,10 +35,8 @@ export const matchTodos = (text: string, issueNumber?: string) => {
   const matches = text.matchAll(regex)
   const todos: TodoRegexMatch[] = []
   for (const match of matches) {
-    if (!match.groups?.keyword) {
-      console.warn(
-        'Regex issue: keyword not found in match - this should not happen.'
-      )
+    if (!match.groups || !match.groups?.keyword || !match.groups?.issueNumber || !match.groups?.issueNumber || !match.groups?.todoText) {
+      console.warn('Todo could not be parsed from cide: keyword not found in match.')
       continue
     }
 
