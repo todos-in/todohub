@@ -9,10 +9,10 @@ import { getCached } from './cache.js'
  */
 export async function run(): Promise<void> {
   // for (const [key, val] of Object.entries(process.env)) {
-  //   core.info('Envvar ' + key + ' --- ' + JSON.stringify(val))
+  //   core.debug('Envvar ' + key + ' --- ' + JSON.stringify(val))
   // }
   // for (const [key, val] of Object.entries(github.context)) {
-  //   core.info('Context ' + key + ' --- ' + JSON.stringify(val))
+  //   core.debug('Context ' + key + ' --- ' + JSON.stringify(val))
   // }
 
   const context = github.context
@@ -32,54 +32,60 @@ export async function run(): Promise<void> {
   // TODO check what happens for deleted branches?
   const commitSha = context.sha
 
-  const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
-
-  // In App? const cachedState = await getCached(context.repo.owner, context.repo.repo)
-
-  // TODO handle errors
-  if (isFeatureBranch && featureBranchNumberParsed) {
-    // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment
-    // TODO apply diff
-
-    // TODO get and parse .todoignore to avoid unnecessary searching of files
-    // TODO parallelize stuff (+ add workers)
-    // TODO tests + organize Issues
-
-    const findTodohubComment = repo.findTodoHubComment(
-      featureBranchNumberParsed
-    )
-    const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
-
-    const [todohubComment, todoState] = await Promise.all([
-      findTodohubComment,
-      getTodoState
-    ])
-
-    const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
-    todohubComment.resetTag() // TODO for now we reset the data and completley rewrite - this should be merged with existing data
-    todohubComment.setTodos(featureTodos, commitSha)
-    const existingCommentId = todohubComment.getExistingCommentId()
-    if (existingCommentId) {
-      // TODO add state hash to check whether anything needs to be updated?
-      await repo.updateCommentGQl(existingCommentId, todohubComment.compose())
-    } else {
-      await repo.addCommentGQl(todohubComment.issueId, todohubComment.compose())
-    }
-  } else {
-    // search all issues for todo comments
-    // search codebase for all todos
-    // for union of all issues with comments and todos with those numbers {
-    //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
-    //     apply changes (rewrite or add comment), and save state as main state
-    //   }
-    // }
-    // TODO let feature branch take over once one exists
-  }
-
   try {
-    await new Promise(resolve => setTimeout(resolve, 6000))
+    const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
+
+    // In App? const cachedState = await getCached(context.repo.owner, context.repo.repo)
+  
+    // TODO handle errors
+    if (isFeatureBranch && featureBranchNumberParsed) {
+      core.debug(`Pushing feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`)
+      // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment
+      // TODO apply diff
+  
+      // TODO get and parse .todoignore to avoid unnecessary searching of files
+      // TODO parallelize stuff (+ add workers)
+      // TODO tests + organize Issues
+      // TODO handle errors
+  
+      const findTodohubComment = repo.findTodoHubComment(
+        featureBranchNumberParsed
+      )
+
+      const featureBranches = await repo.getFeatureBranches();
+
+      const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
+  
+      const [todohubComment, todoState] = await Promise.all([
+        findTodohubComment,
+        getTodoState
+      ])
+  
+      const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
+      todohubComment.resetTag() // TODO for now we reset the data and completley rewrite - this should be merged with existing data
+      todohubComment.setTodos(featureTodos, commitSha)
+      const existingCommentId = todohubComment.getExistingCommentId()
+      if (existingCommentId) {
+        // TODO add state hash to check whether anything needs to be updated?
+        await repo.updateCommentGQl(existingCommentId, todohubComment.compose())
+      } else {
+        await repo.addCommentGQl(todohubComment.issueId, todohubComment.compose())
+      }
+    } else {
+      // search all issues for todo comments
+      // search codebase for all todos
+      // for union of all issues with comments and todos with those numbers {
+      //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
+      //     apply changes (rewrite or add comment), and save state as main state
+      //   }
+      // }
+      // TODO how does feature branch take over once one exists?
+    }
+  
+    // TODO set output: all changes in workflow
+    // core.setOutput('', )
   } catch (error) {
-    // if (error instanceof Error) core.setFailed(error.message)
-    // else core.setFailed('Something bad happened')
+    if (error instanceof Error) core.setFailed(error.message)
+    else core.setFailed('Non error was thrown: ' + error)
   }
 }

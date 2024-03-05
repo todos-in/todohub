@@ -165,12 +165,27 @@ export default class Repo {
     return this.getTarballStream(url)
   }
 
+  // TODO support closed issues.. ()
   async getIssue(issueNumber: number) {
     return this.octokit.rest.issues.get({
       owner: this.owner,
       repo: this.repo,
       issue_number: issueNumber
     })
+  }
+
+  async getFeatureBranches() {
+    const isFeatureBranch = (branch: {name: string}) => /[0-9]+-.*/.test(branch.name)
+
+    const featureBranches: {name: string, commit: {sha: string}}[] = []
+    const branchesPages = this.octokit.paginate.iterator(this.octokit.rest.repos.listBranches, {
+      owner: this.owner,
+      repo: this.repo,
+    })
+    for await (const branchesPage of branchesPages) {
+      featureBranches.push(...(branchesPage.data.filter(isFeatureBranch)))
+    }
+    return featureBranches
   }
 
   getIssuesWithComments() {
