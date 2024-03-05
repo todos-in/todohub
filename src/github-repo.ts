@@ -253,7 +253,7 @@ export default class Repo {
       issuePageLoop: for (const issue of issuePage) {
         for (const comment of issue.comments.edges) {
           if (TodohubComment.isTodohubComment(comment.node.body)) {
-            commentByIssue[issue.id] = new TodohubComment(issue.id, {
+            commentByIssue[issue.id] = new TodohubComment(issue.id, issue.number {
               id: comment.node.id,
               body: comment.node.body
             })
@@ -266,7 +266,7 @@ export default class Repo {
             issue.comments.pageInfo.endCursor
           )
         }
-        commentByIssue[issue.id] = new TodohubComment(issue.id)
+        commentByIssue[issue.id] = new TodohubComment(issue.id, issue.number)
       }
     }
 
@@ -275,12 +275,12 @@ export default class Repo {
 
   async findTodoHubComment(issueNumber: number, after?: string | null) {
     const findCommentGenerator = this.getIssueCommentsGql(issueNumber, after)
-    let issueId: string | undefined = undefined
+    let issueId: string | undefined
     for await (const issueCommentsPage of findCommentGenerator()) {
       issueId = issueCommentsPage.id
       for (const comment of issueCommentsPage.comments.nodes) {
         if (TodohubComment.isTodohubComment(comment.body)) {
-          return new TodohubComment(issueCommentsPage.id, {
+          return new TodohubComment(issueCommentsPage.id, issueCommentsPage.number, {
             id: comment.id,
             body: comment.body
           })
@@ -291,7 +291,7 @@ export default class Repo {
       // TODO should fail earlier (graphql should return not found) - handle this
       throw new Error('Not found')
     }
-    return new TodohubComment(issueId)
+    return new TodohubComment(issueId, issueNumber)
   }
 
   getIssueCommentsGql(issueNumber: number, after: string | null = null) {
@@ -300,6 +300,7 @@ export default class Repo {
         {
           issue(number: $issueNumber) {
             id
+            number
             comments(first: ${DEFAULT_ISSUE_PER_PAGE}, after: $after) {
               nodes {
                 body 

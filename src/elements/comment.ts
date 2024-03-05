@@ -70,6 +70,7 @@ export default class TodohubComment {
   }
 
   compose() {
+    this.midTag += `\n TODOs (in branch ${this.tag.trackedBranch})`
     for (const todo of this.tag.todos) {
       this.midTag += `\n* [ ] \`${todo.fileName}\`: ${todo.keyword} ${todo.todoText}`
     }

@@ -51,11 +51,7 @@ export async function run(): Promise<void> {
       const findTodohubComment = repo.findTodoHubComment(
         featureBranchNumberParsed
       )
-
-      const featureBranches = await repo.getFeatureBranches();
-
       const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
-  
       const [todohubComment, todoState] = await Promise.all([
         findTodohubComment,
         getTodoState
@@ -72,14 +68,36 @@ export async function run(): Promise<void> {
         await repo.addCommentGQl(todohubComment.issueId, todohubComment.compose())
       }
     } else {
+      const findTodohubComments = repo.findTodoHubComments()
+      const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
+  
+      const [todohubComments, todoState] = await Promise.all([
+        findTodohubComments,
+        getTodoState
+      ])
+      
+      // for (const [issueId, todohubComment] of Object.entries(todohubComments)) {
+      //   for (const [issueNr, todo] of Object.entries(todoState.todosByIssueNo)) {
+          
+      //   }
+      // }
+
+      // const featureBranches = await repo.getFeatureBranches();
+
+
       // search all issues for todo comments
       // search codebase for all todos
+      
       // for union of all issues with comments and todos with those numbers {
       //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
       //     apply changes (rewrite or add comment), and save state as main state
       //   }
+      //   if (comment does not exist) { createwith main-branch tracking }
+      //   if (comment exists) but state has not changes { do nothing (set track main-branch?) }
+      //   if (comment exists && state has changed && feature branch is ahead) { do nothing ? }
       // }
       // TODO how does feature branch take over once one exists?
+      // TODO get closes issues + reopen if necessary
     }
   
     // TODO set output: all changes in workflow

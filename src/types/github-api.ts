@@ -15,6 +15,7 @@ export interface ICommentsResponse {
   repository: {
     issue: {
       id: string
+      number: number
       comments: {
         nodes: [IComment],
         pageInfo: TPageInfo
