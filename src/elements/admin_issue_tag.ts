@@ -16,6 +16,10 @@ export default class TodohubDataTag {
     }
   }
   
+  getTrackedIssuesNumbers() {
+    return new Set(Object.keys(this.decodedData))
+  }
+
   getTrackedIssue(issueNr: number): TrackedIssue | undefined {
     return this.decodedData[issueNr];
   }
@@ -51,9 +55,9 @@ export default class TodohubDataTag {
     }
     let composed = '#### TODOs:'
     for (const todo of trackedIssue.todoState) {
-      composed += `\n    * [ ] \`${todo.fileName}\`${todo.lineNumber ? ':' + todo.lineNumber : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? '(' + todo.link + ')' : ''}`
+      composed += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? ':' + todo.lineNumber : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? '(' + todo.link + ')' : ''}`
     }
-    composed += '\n\n<sub><sup>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** ${trackedIssue.trackedBranch}<sub><sup>'
+    composed += `\n\n<sup>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`<sub>`
     
     return composed
   }

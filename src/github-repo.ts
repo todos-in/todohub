@@ -6,7 +6,7 @@ import { Writable } from 'node:stream'
 import { createGunzip } from 'node:zlib'
 import { IncomingMessage } from 'node:http'
 import { matchTodos } from './util/todo-match.js'
-import Todos from './todos.js'
+import TodoState from './todo-state.js'
 import * as path from 'node:path'
 import TodohubComment from './elements/comment.js'
 import { ICommentsResponse, IIssuesResponse } from './types/github-api.js'
@@ -14,6 +14,7 @@ import { ICommentsResponse, IIssuesResponse } from './types/github-api.js'
 const DEFAULT_ISSUE_PER_PAGE = 100
 const DEFAULT_COMMENTS_PER_PAGE = 30
 
+// TODO use graphql where possible to reduce data transfer
 export default class Repo {
   API_HITS = 0
   githubToken: string
@@ -96,12 +97,12 @@ export default class Repo {
     tarBallStream: IncomingMessage,
     issueNr?: string,
     todoMetadata?: Record<string, string>
-  ): Promise<Todos> {
+  ): Promise<TodoState> {
     // TODO move logic
     const extractStream = tar.extract()
     const unzipStream = createGunzip()
 
-    const todos = new Todos()
+    const todos = new TodoState()
 
     const newFindTodoStream = (filePath: string, todoMetadata?: Record<string, string>) => {
       return new Writable({
@@ -475,6 +476,14 @@ export default class Repo {
       title,
       body,
       state
+    })
+  }
+
+  async compareCommits(base: string, head: string) {
+    return this.octokit.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
+      owner: this.owner,
+      repo: this.repo,
+      basehead: `${base}...${head}`
     })
   }
 

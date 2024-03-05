@@ -1,7 +1,6 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import Repo from './github-repo.js'
-import { getCached } from './cache.js'
 import { TodohubAdminIssue } from './elements/admin_issue.js'
 
 /**
@@ -18,9 +17,11 @@ export async function run(): Promise<void> {
 
   const context = github.context
   const githubToken = core.getInput('token')
+  const defaultBranch = context.payload?.repository?.default_branch as string
   const ref = github.context.ref
   const branchName = ref.split('/').pop() || ''
   const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/
+  const isDefaultBranch = branchName === defaultBranch
   const featureBranchNumber =
     branchName.match(featureBranchRegex)?.groups?.['featureBranch']
   const isFeatureBranch = featureBranchNumber !== undefined
@@ -33,33 +34,25 @@ export async function run(): Promise<void> {
   // TODO check what happens for deleted branches?
   const commitSha = context.sha
 
-  
-
   try {
-
     const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
-    const todohubIssue = await TodohubAdminIssue.get(repo)  
-  
-    const todoState = await repo.getTodosFromGitRef(commitSha, featureBranchNumber, {foundInCommit: commitSha})
-    // const [todohubIssue, todoState] = await Promise.all([
-    //   getTodohubIssue,
-    //   getTodoState
-    // ])
 
     // TODO handle errors
     if (isFeatureBranch && featureBranchNumberParsed) {
       core.debug(`Pushing feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`)
-      // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment
-      // TODO apply diff
-  
-      // TODO get and parse .todoignore to avoid unnecessary searching of files
+      // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
       // TODO parallelize stuff (+ add workers)
+      // TODO get and parse .todoignore to avoid unnecessary searching of files
       // TODO tests + organize Issues
+
+      const getTodohubIssue = TodohubAdminIssue.get(repo)  
+      const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber, {foundInCommit: commitSha})
+      const [todohubIssue, todoState] = await Promise.all([
+        getTodohubIssue,
+        getTodoState
+      ])  
       
       const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
-
-      // const trackedIssue = todohubIssue.data.getTrackedIssue(featureBranchNumberParsed)
-      // TODO use trackedIssue meta information (branch, sha) to merge from diff
       todohubIssue.data.setTodoState(featureBranchNumberParsed, featureTodos || [], commitSha, ref)
   
       const existingCommentId = todohubIssue.data.getExistingCommentId(featureBranchNumberParsed)
@@ -68,6 +61,7 @@ export async function run(): Promise<void> {
       if (existingCommentId) {
         // TODO add state hash to check whether anything needs to be updated?
         // TODO handle: comment was deleted
+        // TODO refactor (do no call repo directly, but via AdminIssue?)
         await repo.updateComment(existingCommentId, composedComment)
       } else {
         // TODO handle: issue doesnt exist
@@ -75,9 +69,40 @@ export async function run(): Promise<void> {
         todohubIssue.data.setCommentId(featureBranchNumberParsed, created.data.id as number)
       }
 
-      await todohubIssue.write(repo)
+      // TODO parallelize
+      if (!todohubIssue.data.isEmpty(featureBranchNumberParsed)) {
+        await repo.updateIssue(featureBranchNumberParsed, undefined, undefined, 'open')
+      }
 
-    } else {
+      await todohubIssue.write(repo)
+    } else if (isDefaultBranch) {
+      const getTodohubIssue = TodohubAdminIssue.get(repo)  
+      const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {foundInCommit: commitSha})
+      const [todohubIssue, todoState] = await Promise.all([
+        getTodohubIssue,
+        getTodoState
+      ])
+
+      const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers()
+      const issuesWithTodosInCode = todoState.getIssuesNumbers()
+
+      const issueUnion = new Set([...trackedIssues, ...issuesWithTodosInCode])
+
+      const featureBranches = await repo.getFeatureBranches();
+
+      const trackedFeatureBranches = featureBranches.filter((branch) => {
+        for (const issue of issueUnion) {
+          if (branch.name.startsWith(`${issue}-`)) {
+            return true
+          }
+        }
+        return false
+      })
+
+      const getComparisons = trackedFeatureBranches.map((branch) => repo.compareCommits('main', branch.name))
+      const comparisons = await Promise.all(getComparisons)
+      const featureBranchesAhead = comparisons.map((comparison) => comparison.data.ahead_by > 0)
+  
       // const findTodohubComments = repo.findTodoHubComments()
       // const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
   
@@ -92,7 +117,6 @@ export async function run(): Promise<void> {
       //   }
       // }
 
-      // const featureBranches = await repo.getFeatureBranches();
 
 
       // search all issues for todo comments

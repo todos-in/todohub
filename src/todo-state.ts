@@ -1,6 +1,6 @@
 import { ITodo } from './types/todo.js'
 
-export default class Todo {
+export default class TodoState {
   // todos: ITodo[] = []
   todosByIssueNo: Record<number, ITodo[]> = {}
 
@@ -12,6 +12,10 @@ export default class Todo {
       }
       this.todosByIssueNo[todo.issueNumber || 0]?.push(todo)
     }
+  }
+
+  getIssuesNumbers() {
+    return new Set(Object.keys(this.todosByIssueNo))
   }
 
   getByIssueNo(issueNo: number) {
