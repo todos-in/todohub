@@ -1,5 +1,5 @@
-import { ITodo } from 'src/types/todo.js';
-import TodohubTag from './tag.js';
+import { ITodo } from 'src/types/todo.js'
+import TodohubTag from './tag.js'
 
 export default class TodohubComment {
   rawText?: string
@@ -10,12 +10,18 @@ export default class TodohubComment {
   issueId: string
   commentId?: string
 
-  constructor(issueId: string, issueNumber?: number, existingComment?: {body: string, id: string}) {
+  constructor(
+    issueId: string,
+    issueNumber?: number,
+    existingComment?: { body: string; id: string },
+  ) {
     this.issueId = issueId
     if (existingComment) {
       const parsed = this.parseContent(existingComment.body)
       if (!parsed) {
-        throw new Error('Trying to instantiate TodoComment which cant be parsed.')
+        throw new Error(
+          'Trying to instantiate TodoComment which cant be parsed.',
+        )
       }
       // TODO check if all parts were parsed
       this.rawText = existingComment.body
@@ -23,7 +29,7 @@ export default class TodohubComment {
       this.preTag = parsed.preTag
       this.midTag = parsed.midTag
       this.postTag = parsed.postTag
-      this.tag = new TodohubTag(parsed.tagData)  
+      this.tag = new TodohubTag(parsed.tagData)
     } else {
       this.tag = new TodohubTag()
     }
@@ -43,7 +49,7 @@ export default class TodohubComment {
 
   resetTag() {
     this.midTag = ''
-    this.tag = new TodohubTag()  
+    this.tag = new TodohubTag()
   }
 
   setTodos(todos: ITodo[], commitSha: string) {
@@ -56,14 +62,15 @@ export default class TodohubComment {
   }
 
   private parseContent(commentBody: string) {
-    const regex = /(?<preTag>[\s\S]*)<!--todohub_data="(?<tagData>.*)"-->(?<midTag>[\s\S]*)<!--todohub_end-->(?<postTag>[\s\S]*)/
-    const parsed = commentBody.match(regex);
+    const regex =
+      /(?<preTag>[\s\S]*)<!--todohub_data="(?<tagData>.*)"-->(?<midTag>[\s\S]*)<!--todohub_end-->(?<postTag>[\s\S]*)/
+    const parsed = commentBody.match(regex)
     if (parsed) {
       return {
         preTag: parsed.groups?.['preTag'],
         postTag: parsed.groups?.['postTag'],
         tagData: parsed.groups?.['tagData'],
-        midTag: parsed.groups?.['midTag']
+        midTag: parsed.groups?.['midTag'],
       }
     }
     throw new Error('Could not parse todohub comment content')
@@ -78,4 +85,3 @@ export default class TodohubComment {
     return `${this.preTag || ''}<!--todohub_data="${this.tag.encode()}"-->${this.midTag || ''}<!--todohub_end-->${this.postTag || ''}`
   }
 }
-

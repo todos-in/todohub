@@ -1,27 +1,26 @@
 export type TCursor = string
 export type TPageInfo = {
-  endCursor: TCursor,
-  hasNextPage: boolean
+  endCursor: TCursor;
+  hasNextPage: boolean;
 }
 
 export interface IComment {
-  body: string,
-  id: string,
-  author: { login: string }
+  body: string;
+  id: string;
+  author: { login: string };
 }
-
 
 export interface ICommentsResponse {
   repository: {
     issue: {
-      id: string
-      number: number
+      id: string;
+      number: number;
       comments: {
-        nodes: [IComment],
-        pageInfo: TPageInfo
-      }
-    }
-  }
+        nodes: [IComment];
+        pageInfo: TPageInfo;
+      };
+    };
+  };
 }
 
 export interface IIssuesResponse {
@@ -29,20 +28,19 @@ export interface IIssuesResponse {
     issues: {
       nodes: [
         {
-          title: string,
-          number: number,
-          id: string,
-          body: string,
-          author: { login: string },
+          title: string;
+          number: number;
+          id: string;
+          body: string;
+          author: { login: string };
           comments: {
-            totalCount: number
-            edges: [{ node: IComment }],
-            pageInfo: TPageInfo
-          }
-        }
-      ],
-      pageInfo: TPageInfo
-    }
-  }
+            totalCount: number;
+            edges: [{ node: IComment }];
+            pageInfo: TPageInfo;
+          };
+        },
+      ];
+      pageInfo: TPageInfo;
+    };
+  };
 }
-

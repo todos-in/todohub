@@ -12,31 +12,44 @@
  * Matches example: "TODO (#1823) Fix this here"
  */
 // const todoRegex = /(?<todo_keyword>TODO)[^\S\r\n]*\(?#?(?<issue_number>[0-9]+)\)?[^\S\r\n]+(?<todo_text>.*)/gmi
-const todoRegexWithOrWithoutNumber = /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]+(?<todoText>.*)/gim
-const todoRegexForIssueNumber = (issueNumber: string) => new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)[^\\S\\r\\n]+(?<todoText>.*)`, 'gim')
+const todoRegexWithOrWithoutNumber =
+  /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]+(?<todoText>.*)/gim
+const todoRegexForIssueNumber = (issueNumber: string) =>
+  new RegExp(
+    `(?<keyword>TODO)[^\\S\\r\\n]*(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)[^\\S\\r\\n]+(?<todoText>.*)`,
+    'gim',
+  )
 
 interface TodoRegexMatch {
-  rawLine: string
-  keyword: string
-  issueNumber?: number
-  todoText: string
+  rawLine: string;
+  keyword: string;
+  issueNumber?: number;
+  todoText: string;
 }
 
 export const matchTodos = (text: string, issueNumber?: string) => {
-  let regex;
+  let regex
   if (issueNumber) {
     if (Number.isNaN(Number.parseInt(issueNumber))) {
       throw new Error('issueNumber is not an integer')
     }
-    regex = todoRegexForIssueNumber(issueNumber);
+    regex = todoRegexForIssueNumber(issueNumber)
   } else {
-    regex = todoRegexWithOrWithoutNumber;
+    regex = todoRegexWithOrWithoutNumber
   }
   const matches = text.matchAll(regex)
   const todos: TodoRegexMatch[] = []
   for (const match of matches) {
-    if (!match.groups || !match.groups?.keyword || !match.groups?.issueNumber || !match.groups?.issueNumber || !match.groups?.todoText) {
-      console.warn('Todo could not be parsed from cide: keyword not found in match.')
+    if (
+      !match.groups ||
+      !match.groups?.keyword ||
+      !match.groups?.issueNumber ||
+      !match.groups?.issueNumber ||
+      !match.groups?.todoText
+    ) {
+      console.warn(
+        'Todo could not be parsed from cide: keyword not found in match.',
+      )
       continue
     }
 
@@ -45,7 +58,7 @@ export const matchTodos = (text: string, issueNumber?: string) => {
       issueNumber = parseInt(match.groups?.issueNumber)
       if (Number.isNaN(issueNumber)) {
         console.warn(
-          'Regex issue: issueNumber could not be parsed from match - this should not happen.'
+          'Regex issue: issueNumber could not be parsed from match - this should not happen.',
         )
         continue
       }
@@ -55,7 +68,7 @@ export const matchTodos = (text: string, issueNumber?: string) => {
       rawLine: match[0],
       keyword: match.groups?.keyword,
       issueNumber,
-      todoText: match.groups?.todoText
+      todoText: match.groups?.todoText,
     })
   }
   return todos

@@ -1,5 +1,5 @@
-import { gunzipSync, gzipSync } from "node:zlib"
-import { ITodo, TrackedIssue } from "src/types/todo.js"
+import { gunzipSync, gzipSync } from 'node:zlib'
+import { ITodo, TrackedIssue } from 'src/types/todo.js'
 
 export default class TodohubDataTag {
   // TODO order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
@@ -15,17 +15,26 @@ export default class TodohubDataTag {
       this.decodedData = {}
     }
   }
-  
+
   getTrackedIssuesNumbers() {
     return new Set(Object.keys(this.decodedData))
   }
 
   getTrackedIssue(issueNr: number): TrackedIssue | undefined {
-    return this.decodedData[issueNr];
+    return this.decodedData[issueNr]
   }
 
-  setTodoState(issueNr: number, todoState: ITodo[], commitSha: string, trackedBranch: string) {
-   this.decodedData[issueNr] = Object.assign(this.decodedData[issueNr] || {}, {todoState, commitSha, trackedBranch})
+  setTodoState(
+    issueNr: number,
+    todoState: ITodo[],
+    commitSha: string,
+    trackedBranch: string,
+  ) {
+    this.decodedData[issueNr] = Object.assign(this.decodedData[issueNr] || {}, {
+      todoState,
+      commitSha,
+      trackedBranch,
+    })
   }
 
   isEmpty(issueNr: number) {
@@ -41,7 +50,7 @@ export default class TodohubDataTag {
     if (!trackedIssue) {
       throw new Error('Cannot set commentId without tracked Issue')
     }
-    this.decodedData[issueNr] = Object.assign(trackedIssue, {commentId})
+    this.decodedData[issueNr] = Object.assign(trackedIssue, { commentId })
   }
 
   getExistingCommentId(issueNr: number) {
@@ -51,14 +60,16 @@ export default class TodohubDataTag {
   composeTrackedIssueComment(issueNr: number) {
     const trackedIssue = this.decodedData[issueNr]
     if (!trackedIssue) {
-      throw new Error('Issue Comment to be composed does not exist: ' + issueNr) 
+      throw new Error(
+        `Issue Comment to be composed does not exist: ${issueNr}`,
+      )
     }
     let composed = '#### TODOs:'
     for (const todo of trackedIssue.todoState) {
-      composed += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? ':' + todo.lineNumber : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? '(' + todo.link + ')' : ''}`
+      composed += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
     }
     composed += `\n\n<sup>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`<sub>`
-    
+
     return composed
   }
 
@@ -67,7 +78,7 @@ export default class TodohubDataTag {
   }
 
   getTodoStateHash() {
-    // TODO 
+    // TODO
   }
 
   getHash() {
@@ -78,7 +89,7 @@ export default class TodohubDataTag {
     const b64Decoded = Buffer.from(tag, 'base64')
     const unzipped = gunzipSync(b64Decoded)
     const parsed = JSON.parse(unzipped.toString('utf-8'))
-    return parsed;
+    return parsed
   }
 
   encode() {

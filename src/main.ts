@@ -39,24 +39,39 @@ export async function run(): Promise<void> {
 
     // TODO handle errors
     if (isFeatureBranch && featureBranchNumberParsed) {
-      core.debug(`Pushing feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`)
+      core.debug(
+        `Pushing feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`,
+      )
       // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
       // TODO parallelize stuff (+ add workers)
       // TODO get and parse .todoignore to avoid unnecessary searching of files
       // TODO tests + organize Issues
 
-      const getTodohubIssue = TodohubAdminIssue.get(repo)  
-      const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber, {foundInCommit: commitSha})
+      const getTodohubIssue = TodohubAdminIssue.get(repo)
+      const getTodoState = repo.getTodosFromGitRef(
+        commitSha,
+        featureBranchNumber,
+        { foundInCommit: commitSha },
+      )
       const [todohubIssue, todoState] = await Promise.all([
         getTodohubIssue,
-        getTodoState
-      ])  
-      
+        getTodoState,
+      ])
+
       const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
-      todohubIssue.data.setTodoState(featureBranchNumberParsed, featureTodos || [], commitSha, ref)
-  
-      const existingCommentId = todohubIssue.data.getExistingCommentId(featureBranchNumberParsed)
-      const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed)
+      todohubIssue.data.setTodoState(
+        featureBranchNumberParsed,
+        featureTodos || [],
+        commitSha,
+        ref,
+      )
+
+      const existingCommentId = todohubIssue.data.getExistingCommentId(
+        featureBranchNumberParsed,
+      )
+      const composedComment = todohubIssue.data.composeTrackedIssueComment(
+        featureBranchNumberParsed,
+      )
 
       if (existingCommentId) {
         // TODO add state hash to check whether anything needs to be updated?
@@ -65,22 +80,35 @@ export async function run(): Promise<void> {
         await repo.updateComment(existingCommentId, composedComment)
       } else {
         // TODO handle: issue doesnt exist
-        const created = await repo.createComment(featureBranchNumberParsed, composedComment)
-        todohubIssue.data.setCommentId(featureBranchNumberParsed, created.data.id as number)
+        const created = await repo.createComment(
+          featureBranchNumberParsed,
+          composedComment,
+        )
+        todohubIssue.data.setCommentId(
+          featureBranchNumberParsed,
+          created.data.id,
+        )
       }
 
       // TODO parallelize
       if (!todohubIssue.data.isEmpty(featureBranchNumberParsed)) {
-        await repo.updateIssue(featureBranchNumberParsed, undefined, undefined, 'open')
+        await repo.updateIssue(
+          featureBranchNumberParsed,
+          undefined,
+          undefined,
+          'open',
+        )
       }
 
       await todohubIssue.write(repo)
     } else if (isDefaultBranch) {
-      const getTodohubIssue = TodohubAdminIssue.get(repo)  
-      const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {foundInCommit: commitSha})
+      const getTodohubIssue = TodohubAdminIssue.get(repo)
+      const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {
+        foundInCommit: commitSha,
+      })
       const [todohubIssue, todoState] = await Promise.all([
         getTodohubIssue,
-        getTodoState
+        getTodoState,
       ])
 
       const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers()
@@ -88,7 +116,7 @@ export async function run(): Promise<void> {
 
       const issueUnion = new Set([...trackedIssues, ...issuesWithTodosInCode])
 
-      const featureBranches = await repo.getFeatureBranches();
+      const featureBranches = await repo.getFeatureBranches()
 
       const trackedFeatureBranches = featureBranches.filter((branch) => {
         for (const issue of issueUnion) {
@@ -99,29 +127,31 @@ export async function run(): Promise<void> {
         return false
       })
 
-      const getComparisons = trackedFeatureBranches.map((branch) => repo.compareCommits('main', branch.name))
+      const getComparisons = trackedFeatureBranches.map(async (branch) =>
+        repo.compareCommits('main', branch.name),
+      )
       const comparisons = await Promise.all(getComparisons)
-      const featureBranchesAhead = comparisons.map((comparison) => comparison.data.ahead_by > 0)
-  
+      const featureBranchesAhead = comparisons.map(
+        (comparison) => comparison.data.ahead_by > 0,
+      )
+
       // const findTodohubComments = repo.findTodoHubComments()
       // const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
-  
+
       // const [todohubComments, todoState] = await Promise.all([
       //   findTodohubComments,
       //   getTodoState
       // ])
-      
+
       // for (const [issueId, todohubComment] of Object.entries(todohubComments)) {
       //   for (const [issueNr, todo] of Object.entries(todoState.todosByIssueNo)) {
-          
+
       //   }
       // }
 
-
-
       // search all issues for todo comments
       // search codebase for all todos
-      
+
       // for union of all issues with comments and todos with those numbers {
       //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
       //     apply changes (rewrite or add comment), and save state as main state
@@ -133,14 +163,13 @@ export async function run(): Promise<void> {
       // TODO how does feature branch take over once one exists?
       // TODO get closes issues + reopen if necessary
     }
-  
+
     // TODO set output: all changes in workflow
     // core.setOutput('', )
   } catch (error) {
-    if (error instanceof Error){
+    if (error instanceof Error) {
       core.error(error.message)
       core.setFailed(error.message)
-    }
-    else core.setFailed('Non error was thrown: ' + error)
+    } else core.setFailed(`Non error was thrown: ${error}`)
   }
 }

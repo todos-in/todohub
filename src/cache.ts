@@ -1,15 +1,15 @@
 interface Todo {
-  file: string
-  line: number
-  rawLine: string
-  keyword: string
-  issueNumber?: number
-  todoText: string
+  file: string;
+  line: number;
+  rawLine: string;
+  keyword: string;
+  issueNumber?: number;
+  todoText: string;
 }
 
 interface Cache {
-  commitSha: string
-  todos: Todo[]
+  commitSha: string;
+  todos: Todo[];
 }
 
 let cache: Cache
@@ -33,10 +33,10 @@ export const setCache = async (
   owner: string,
   repo: string,
   commitSha: string,
-  todos: Todo[]
+  todos: Todo[],
 ) => {
   cache = {
     commitSha,
-    todos
+    todos,
   }
 }
