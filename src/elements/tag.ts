@@ -19,7 +19,7 @@ export default class TodohubTag {
     }
   }
 
-  equals(todoState: ITodo[]) {
+  equals(_todoState: ITodo[]) {
     // TODO implement order (by filename, linenr?)
   }
 
@@ -31,7 +31,7 @@ export default class TodohubTag {
     // TODO implement
   }
 
-  mergeTodos(todos: ITodo[]) {
+  mergeTodos(_todos: ITodo[]) {
     // TODO implement
   }
 

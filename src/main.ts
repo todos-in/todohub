@@ -131,7 +131,7 @@ export async function run(): Promise<void> {
         repo.compareCommits('main', branch.name),
       )
       const comparisons = await Promise.all(getComparisons)
-      const featureBranchesAhead = comparisons.map(
+      const _featureBranchesAhead = comparisons.map(
         (comparison) => comparison.data.ahead_by > 0,
       )
 

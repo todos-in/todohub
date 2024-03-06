@@ -33130,7 +33130,7 @@ const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(impo
 const todoRegexWithOrWithoutNumber = /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]+(?<todoText>.*)/gim;
 const todoRegexForIssueNumber = (issueNumber) => new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)[^\\S\\r\\n]+(?<todoText>.*)`, 'gim');
 const matchTodos = (text, issueNumber) => {
-    var _a, _b, _c, _d, _e;
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     let regex;
     if (issueNumber) {
         if (Number.isNaN(Number.parseInt(issueNumber))) {
@@ -33144,13 +33144,17 @@ const matchTodos = (text, issueNumber) => {
     const matches = text.matchAll(regex);
     const todos = [];
     for (const match of matches) {
-        if (!((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword)) {
-            console.warn('Regex issue: keyword not found in match - this should not happen.');
+        if (!match.groups ||
+            !((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword) ||
+            !((_b = match.groups) === null || _b === void 0 ? void 0 : _b.issueNumber) ||
+            !((_c = match.groups) === null || _c === void 0 ? void 0 : _c.issueNumber) ||
+            !((_d = match.groups) === null || _d === void 0 ? void 0 : _d.todoText)) {
+            console.warn('Todo could not be parsed from cide: keyword not found in match.');
             continue;
         }
         let issueNumber = undefined;
-        if ((_b = match.groups) === null || _b === void 0 ? void 0 : _b.issueNumber) {
-            issueNumber = parseInt((_c = match.groups) === null || _c === void 0 ? void 0 : _c.issueNumber);
+        if ((_e = match.groups) === null || _e === void 0 ? void 0 : _e.issueNumber) {
+            issueNumber = parseInt((_f = match.groups) === null || _f === void 0 ? void 0 : _f.issueNumber);
             if (Number.isNaN(issueNumber)) {
                 console.warn('Regex issue: issueNumber could not be parsed from match - this should not happen.');
                 continue;
@@ -33158,28 +33162,32 @@ const matchTodos = (text, issueNumber) => {
         }
         todos.push({
             rawLine: match[0],
-            keyword: (_d = match.groups) === null || _d === void 0 ? void 0 : _d.keyword,
+            keyword: (_g = match.groups) === null || _g === void 0 ? void 0 : _g.keyword,
             issueNumber,
-            todoText: (_e = match.groups) === null || _e === void 0 ? void 0 : _e.todoText
+            todoText: (_h = match.groups) === null || _h === void 0 ? void 0 : _h.todoText,
         });
     }
     return todos;
 };
 
-;// CONCATENATED MODULE: ./src/todos.ts
-class Todo {
+;// CONCATENATED MODULE: ./src/todo-state.ts
+class TodoState {
     constructor() {
         // todos: ITodo[] = []
         this.todosByIssueNo = {};
     }
     addTodos(todos) {
+        var _a;
         // this.todos = this.todos.concat(todos)
         for (const todo of todos) {
             if (!this.todosByIssueNo[todo.issueNumber || 0]) {
                 this.todosByIssueNo[todo.issueNumber || 0] = [];
             }
-            this.todosByIssueNo[todo.issueNumber || 0].push(todo);
+            (_a = this.todosByIssueNo[todo.issueNumber || 0]) === null || _a === void 0 ? void 0 : _a.push(todo);
         }
+    }
+    getIssuesNumbers() {
+        return new Set(Object.keys(this.todosByIssueNo));
     }
     getByIssueNo(issueNo) {
         return this.todosByIssueNo[issueNo];
@@ -33188,42 +33196,7 @@ class Todo {
 
 ;// CONCATENATED MODULE: external "node:path"
 const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
-;// CONCATENATED MODULE: ./src/elements/tag.ts
-
-class TodohubTag {
-    constructor(tag) {
-        // TODO order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
-        this.todos = [];
-        if (tag) {
-            this.raw = tag;
-            const decoded = this.decode(tag);
-            // TODO check decoded JSON schema
-            this.todos = decoded.todos;
-            this.commitSha = decoded.commitSha;
-        }
-    }
-    mergeTodos(todos) {
-        // TODO implement
-    }
-    setTodos(todos, commitSha) {
-        this.todos = todos;
-        this.commitSha = commitSha;
-    }
-    decode(tag) {
-        const b64Decoded = Buffer.from(tag, 'base64');
-        const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
-        const parsed = JSON.parse(unzipped.toString('utf-8'));
-        return parsed;
-    }
-    encode() {
-        const stringified = JSON.stringify({ commitSha: this.commitSha, todos: this.todos });
-        const zipped = (0,external_node_zlib_namespaceObject.gzipSync)(Buffer.from(stringified, 'utf-8'));
-        const b64Encoded = zipped.toString('base64');
-        return b64Encoded;
-    }
-}
-
-;// CONCATENATED MODULE: ./src/elements/comment.ts
+;// CONCATENATED MODULE: ./src/github-repo.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -33232,95 +33205,6 @@ var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _argume
         function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
-};
-
-class TodohubComment {
-    constructor(issueId, existingComment) {
-        this.issueId = issueId;
-        if (existingComment) {
-            const parsed = this.parseContent(existingComment.body);
-            if (!parsed) {
-                throw new Error('Trying to instantiate TodoComment which cant be parsed.');
-            }
-            // TODO check if all parts were parsed
-            this.rawText = existingComment.body;
-            this.commentId = existingComment.id;
-            this.preTag = parsed.preTag;
-            this.midTag = parsed.midTag;
-            this.postTag = parsed.postTag;
-            this.tag = new TodohubTag(parsed.tagData);
-        }
-        else {
-            this.tag = new TodohubTag();
-        }
-    }
-    getExistingCommentId() {
-        return this.commentId;
-    }
-    write() {
-        return __awaiter(this, void 0, void 0, function* () {
-            // TODO implement
-        });
-    }
-    mergeTodos(todos) {
-        this.tag.mergeTodos(todos);
-    }
-    resetTag() {
-        this.midTag = '';
-        this.tag = new TodohubTag();
-    }
-    setTodos(todos, commitSha) {
-        this.tag.setTodos(todos, commitSha);
-    }
-    static isTodohubComment(commentBody) {
-        // TODO make sure this always works
-        return !!(commentBody === null || commentBody === void 0 ? void 0 : commentBody.includes('<!--'));
-    }
-    parseContent(commentBody) {
-        var _a, _b, _c, _d;
-        const regex = /(?<preTag>[\s\S]*)<!--todohub_data="(?<tagData>.*)"-->(?<midTag>[\s\S]*)<!--todohub_end-->(?<postTag>[\s\S]*)/;
-        const parsed = commentBody.match(regex);
-        if (parsed) {
-            return {
-                preTag: (_a = parsed.groups) === null || _a === void 0 ? void 0 : _a['preTag'],
-                postTag: (_b = parsed.groups) === null || _b === void 0 ? void 0 : _b['postTag'],
-                tagData: (_c = parsed.groups) === null || _c === void 0 ? void 0 : _c['tagData'],
-                midTag: (_d = parsed.groups) === null || _d === void 0 ? void 0 : _d['midTag']
-            };
-        }
-        throw new Error('Could not parse todohub comment content');
-    }
-    compose() {
-        for (const todo of this.tag.todos) {
-            this.midTag += `\n* [ ] \`${todo.fileName}\`: ${todo.keyword} ${todo.todoText}`;
-        }
-        this.midTag += '\n';
-        return `${this.preTag || ''}<!--todohub_data="${this.tag.encode()}"-->${this.midTag || ''}<!--todohub_end-->${this.postTag || ''}`;
-    }
-}
-
-;// CONCATENATED MODULE: ./src/github-repo.ts
-var github_repo_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
-var __await = (undefined && undefined.__await) || function (v) { return this instanceof __await ? (this.v = v, this) : new __await(v); }
-var __asyncGenerator = (undefined && undefined.__asyncGenerator) || function (thisArg, _arguments, generator) {
-    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-    var g = generator.apply(thisArg, _arguments || []), i, q = [];
-    return i = {}, verb("next"), verb("throw"), verb("return", awaitReturn), i[Symbol.asyncIterator] = function () { return this; }, i;
-    function awaitReturn(f) { return function (v) { return Promise.resolve(v).then(f, reject); }; }
-    function verb(n, f) { if (g[n]) { i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; if (f) i[n] = f(i[n]); } }
-    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
-    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r); }
-    function fulfill(value) { resume("next", value); }
-    function reject(value) { resume("throw", value); }
-    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
 };
 var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
     if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
@@ -33337,9 +33221,7 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
 
 
 
-
-const DEFAULT_ISSUE_PER_PAGE = 100;
-const DEFAULT_COMMENTS_PER_PAGE = 30;
+// TODO use graphql where possible to reduce data transfer
 class Repo {
     constructor(githubToken, owner, repo) {
         this.API_HITS = 0;
@@ -33349,25 +33231,25 @@ class Repo {
         this.repo = repo;
     }
     getTarballUrl(ref) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
+        return __awaiter(this, void 0, void 0, function* () {
             const { url, headers, method } = this.octokit.request.endpoint('GET /repos/{owner}/{repo}/tarball/{ref}', {
                 owner: this.owner,
                 repo: this.repo,
-                ref: ref || ''
+                ref: ref || '',
             });
             return new Promise((resolve, reject) => {
                 const getReq = (0,external_node_https_namespaceObject.request)(url, {
                     method,
                     headers: Object.assign(headers, {
-                        Authorization: `Bearer ${this.githubToken}`
-                    })
-                }, res => {
+                        Authorization: `Bearer ${this.githubToken}`,
+                    }),
+                }, (res) => {
                     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 399) {
                         if (res.headers['location']) {
                             return resolve(res.headers['location']);
                         }
                         else {
-                            reject(new Error(`Getting tarball URL request failed due to missing location header.`));
+                            reject(new Error('Getting tarball URL request failed due to missing location header.'));
                         }
                     }
                     reject(new Error(`Getting tarball URL request failed: ${res.statusCode}`));
@@ -33377,9 +33259,9 @@ class Repo {
         });
     }
     getTarballStream(url) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
+        return __awaiter(this, void 0, void 0, function* () {
             return new Promise((resolve, reject) => {
-                const downloadRequest = (0,external_node_https_namespaceObject.request)(url, { method: 'GET', timeout: 5000 }, res => {
+                const downloadRequest = (0,external_node_https_namespaceObject.request)(url, { method: 'GET', timeout: 5000 }, (res) => {
                     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 299) {
                         return resolve(res);
                     }
@@ -33389,29 +33271,30 @@ class Repo {
             });
         });
     }
-    getTodosFromGitRef(ref, issueNr) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
+    getTodosFromGitRef(ref, issueNr, todoMetadata) {
+        return __awaiter(this, void 0, void 0, function* () {
             const tar = yield this.downloadTarball(ref);
-            const todoState = yield this.extractTodosFromTarGz(tar, issueNr);
+            const todoState = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata);
             return todoState;
         });
     }
-    extractTodosFromTarGz(tarBallStream, issueNr) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
+    extractTodosFromTarGz(tarBallStream, issueNr, todoMetadata) {
+        return __awaiter(this, void 0, void 0, function* () {
             // TODO move logic
             const extractStream = tar_stream.extract();
             const unzipStream = (0,external_node_zlib_namespaceObject.createGunzip)();
-            const todos = new Todo();
+            const todos = new TodoState();
             const newFindTodoStream = (filePath) => {
                 return new external_node_stream_.Writable({
-                    write: function (chunk, encoding, next) {
+                    write(chunk, encoding, next) {
                         const filePathParts = filePath.split(external_node_path_namespaceObject.sep);
                         filePathParts.shift();
                         const fileName = { fileName: external_node_path_namespaceObject.join(...filePathParts) };
-                        const todosFound = matchTodos(chunk.toString(), issueNr).map(todo => Object.assign(todo, fileName));
+                        // TODO seach line by line + skip lines > n characters
+                        const todosFound = matchTodos(chunk.toString(), issueNr).map((todo) => Object.assign(todoMetadata || {}, todo, fileName));
                         todos.addTodos(todosFound);
                         next();
-                    }
+                    },
                 });
             };
             tarBallStream.pipe(unzipStream).pipe(extractStream);
@@ -33420,11 +33303,11 @@ class Repo {
             //   // testStream.end();
             // });
             return new Promise((resolve, reject) => {
-                unzipStream.on('error', err => {
-                    reject('Error unzipping tarball stream: ' + err.message);
+                unzipStream.on('error', (err) => {
+                    reject(`Error unzipping tarball stream: ${err.message}`);
                 });
                 extractStream.on('error', (err) => {
-                    reject(new Error('Error reading tarball stream: ' + err.message));
+                    reject(new Error(`Error reading tarball stream: ${err.message}`));
                 });
                 extractStream.on('finish', () => {
                     console.log('Todos extraction completed successfully.');
@@ -33435,7 +33318,7 @@ class Repo {
                         const findTodosStream = newFindTodoStream(header.name);
                         stream.pipe(findTodosStream);
                         stream.on('error', () => {
-                            console.warn('Error extracting Todos from file: ' + header.name);
+                            console.warn(`Error extracting Todos from file: ${header.name}`);
                             findTodosStream.end();
                             next();
                         });
@@ -33453,260 +33336,298 @@ class Repo {
         });
     }
     downloadTarball(ref) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
+        return __awaiter(this, void 0, void 0, function* () {
             // TODO try catch
             const url = yield this.getTarballUrl(ref);
             return this.getTarballStream(url);
         });
     }
+    // TODO support closed issues.. ()
     getIssue(issueNumber) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
+        return __awaiter(this, void 0, void 0, function* () {
             return this.octokit.rest.issues.get({
                 owner: this.owner,
                 repo: this.repo,
-                issue_number: issueNumber
+                issue_number: issueNumber,
             });
         });
     }
-    getIssuesWithComments() {
-        const issueQuery = `
-    query($owner: String!, $repo: String!, $after: String = null) {
-      repository(owner: $owner, name: $repo)
-        {
-          issues(first: ${DEFAULT_ISSUE_PER_PAGE}, after: $after) {
-            nodes {
-              title
-              number
-              id
-              body
-              author { login }
-              comments(first: ${DEFAULT_COMMENTS_PER_PAGE}) {
-                totalCount
-                edges {
-                  node {
-                    author { login }
-                    body 
-                    id
-                  }
-                }
-                pageInfo {
-                  endCursor
-                  hasNextPage
-                }
-              }
-            }
-          pageInfo {
-            endCursor
-            hasNextPage
-          }
-        }
-      }
-    }`;
-        const generator = (repo) => function () {
-            return __asyncGenerator(this, arguments, function* () {
-                let after = null;
-                let hasNext = false;
-                do {
-                    repo.API_HITS++;
-                    const response = (yield __await(repo.octokit.graphql(issueQuery, {
-                        after,
-                        owner: repo.owner,
-                        repo: repo.repo
-                    })));
-                    yield yield __await(response.repository.issues.nodes);
-                    after = response.repository.issues.pageInfo.endCursor;
-                    hasNext = response.repository.issues.pageInfo.hasNextPage;
-                } while (hasNext);
-            });
-        };
-        return generator(this);
-    }
-    findTodoHubComments() {
+    getFeatureBranches() {
         var _a, e_1, _b, _c;
-        return github_repo_awaiter(this, void 0, void 0, function* () {
-            const commentByIssue = {};
-            const getIssuesGenerator = this.getIssuesWithComments();
+        return __awaiter(this, void 0, void 0, function* () {
+            const isFeatureBranch = (branch) => /[0-9]+-.*/.test(branch.name);
+            const featureBranches = [];
+            const branchesPages = this.octokit.paginate.iterator(this.octokit.rest.repos.listBranches, {
+                owner: this.owner,
+                repo: this.repo,
+            });
             try {
-                for (var _d = true, _e = __asyncValues(getIssuesGenerator()), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
-                    _c = _f.value;
+                for (var _d = true, branchesPages_1 = __asyncValues(branchesPages), branchesPages_1_1; branchesPages_1_1 = yield branchesPages_1.next(), _a = branchesPages_1_1.done, !_a; _d = true) {
+                    _c = branchesPages_1_1.value;
                     _d = false;
-                    const issuePage = _c;
-                    issuePageLoop: for (const issue of issuePage) {
-                        for (const comment of issue.comments.edges) {
-                            if (TodohubComment.isTodohubComment(comment.node.body)) {
-                                commentByIssue[issue.id] = new TodohubComment(issue.id, {
-                                    id: comment.node.id,
-                                    body: comment.node.body
-                                });
-                                continue issuePageLoop;
-                            }
-                        }
-                        if (issue.comments.pageInfo.hasNextPage) {
-                            commentByIssue[issue.id] = yield this.findTodoHubComment(issue.number, issue.comments.pageInfo.endCursor);
-                        }
-                        commentByIssue[issue.id] = new TodohubComment(issue.id);
-                    }
+                    const branchesPage = _c;
+                    featureBranches.push(...branchesPage.data.filter(isFeatureBranch));
                 }
             }
             catch (e_1_1) { e_1 = { error: e_1_1 }; }
             finally {
                 try {
-                    if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
+                    if (!_d && !_a && (_b = branchesPages_1.return)) yield _b.call(branchesPages_1);
                 }
                 finally { if (e_1) throw e_1.error; }
             }
-            return commentByIssue;
+            return featureBranches;
         });
     }
-    findTodoHubComment(issueNumber, after) {
-        var _a, e_2, _b, _c;
-        return github_repo_awaiter(this, void 0, void 0, function* () {
-            const findCommentGenerator = this.getIssueCommentsGql(issueNumber, after);
-            let issueId = undefined;
-            try {
-                for (var _d = true, _e = __asyncValues(findCommentGenerator()), _f; _f = yield _e.next(), _a = _f.done, !_a; _d = true) {
-                    _c = _f.value;
-                    _d = false;
-                    const issueCommentsPage = _c;
-                    issueId = issueCommentsPage.id;
-                    for (const comment of issueCommentsPage.comments.nodes) {
-                        if (TodohubComment.isTodohubComment(comment.body)) {
-                            return new TodohubComment(issueCommentsPage.id, {
-                                id: comment.id,
-                                body: comment.body
-                            });
-                        }
-                    }
-                }
-            }
-            catch (e_2_1) { e_2 = { error: e_2_1 }; }
-            finally {
-                try {
-                    if (!_d && !_a && (_b = _e.return)) yield _b.call(_e);
-                }
-                finally { if (e_2) throw e_2.error; }
-            }
-            if (!issueId) {
-                // TODO should fail earlier (graphql should return not found) - handle this
-                throw new Error('Not found');
-            }
-            return new TodohubComment(issueId);
-        });
-    }
-    getIssueCommentsGql(issueNumber, after = null) {
-        const commentQuery = `query($owner: String!, $repo: String!, $issueNumber: Int!, $after: String = null) {
-      repository(owner: $owner, name: $repo)
-        {
-          issue(number: $issueNumber) {
-            id
-            comments(first: ${DEFAULT_ISSUE_PER_PAGE}, after: $after) {
-              nodes {
-                body 
-                id
-                author { login }
-              }
-            pageInfo {
-              endCursor
-              hasNextPage
-            }
-          }
-        }
-      }
-    }`;
-        const generator = (repo) => function () {
-            return __asyncGenerator(this, arguments, function* () {
-                let hasNext = false;
-                do {
-                    repo.API_HITS++;
-                    const response = (yield __await(repo.octokit.graphql(commentQuery, {
-                        issueNumber,
-                        after,
-                        owner: repo.owner,
-                        repo: repo.repo
-                    })));
-                    yield yield __await(response.repository.issue);
-                    after = response.repository.issue.comments.pageInfo.endCursor;
-                    hasNext = response.repository.issue.comments.pageInfo.hasNextPage;
-                } while (hasNext);
+    findTodoHubIssue() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const todohubIssues = yield this.octokit.rest.search.issuesAndPullRequests({
+                // owner: this.owner,
+                // repo: this.repo,
+                per_page: 100,
+                q: 'todohub_ctrl_issue_data is:issue in:body repo:nigeisel/todohub author:@me',
             });
-        };
-        return generator(this);
-    }
-    // async findTodoHubComment(issueNumber: number) {
-    //   const commentsPages = this.octokit.paginate.iterator(
-    //     this.octokit.rest.issues.listComments, {
-    //     owner: this.owner,
-    //     repo: this.repo,
-    //     issue_number: issueNumber,
-    //     per_page: 100,
-    //   })
-    //   for await (const commentsPage of commentsPages) {
-    //     // TODO in app we can use 'performed_via_github_app' to find the comment?
-    //     for (const comment of commentsPage.data) {
-    //       // TODO search for exact tag
-    //       if (TodohubComment.isTodohubComment(comment.body)) {
-    //         return new TodohubComment(issueNumber, comment.body)
-    //       }
-    //     }
-    //   }
-    //   return new TodohubComment(issueNumber)
-    // }
-    // async getParsedIssue(issueNumber: number) {
-    //   const issue = await this.octokit.rest.issues.get({
-    //     owner: this.owner,
-    //     repo: this.repo,
-    //     issue_number: issueNumber
-    //   })
-    //   return new TodohubIssue(issue.data.body || '');
-    // }
-    updateCommentGQl(commentId, body) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
-            return this.octokit.graphql(`
-      mutation($commentId: ID!, $body: String!) {
-        updateIssueComment(input: {id: $commentId, body: $body}) {
-          issueComment { id }
-        }
-      }`, {
-                commentId,
-                body,
-                owner: this.owner,
-                repo: this.repo
-            });
+            if (todohubIssues.data.total_count > 1) {
+                // TODO check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
+                throw new Error('More than one Todohub Issue found');
+            }
+            if (todohubIssues.data.total_count === 1) {
+                return todohubIssues.data.items[0];
+            }
+            // const issuePages = this.octokit.paginate.iterator(
+            //   this.octokit.rest.search.issuesAndPullRequests, {
+            //   owner: this.owner,
+            //   repo: this.repo,
+            //   per_page: 1,
+            //   q: 'todohub_ctrl_issue label:todohub is:issue author:@me',
+            //   headers: {
+            //     Accept: 'application/vnd.github.text-match+json'
+            //   }
+            // })
+            // // return issuePages
+            // for await (const issuePage of issuePages) {
+            //   // TODO in app we can use 'performed_via_github_app' to find the comment?
+            //   for (const issue of issuePage.data) {
+            //     // TODO search for exact tag
+            //     return issue
+            //   }
+            // }
         });
     }
-    addCommentGQl(issueId, body) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
-            return this.octokit.graphql(`
-      mutation($issueId: ID!, $body: String!) {
-        addComment(input: {subjectId: $issueId, body: $body}) {
-          commentEdge { node { id } }
-        }
-      }`, {
-                issueId,
-                body,
+    updateComment(commentId, body) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
                 owner: this.owner,
-                repo: this.repo
+                repo: this.repo,
+                comment_id: commentId,
+                body,
             });
         });
     }
     createComment(issueNumber, body) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
-            return this.octokit.rest.issues.createComment({
+        return __awaiter(this, void 0, void 0, function* () {
+            // endpoint.headers = Object.assign(endpoint.headers, { Authorization: `Bearer ${this.githubToken}` })
+            return this.octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
                 owner: this.owner,
                 repo: this.repo,
                 issue_number: issueNumber,
-                body
+                body,
             });
         });
     }
-    createIssue(title, body) {
-        return github_repo_awaiter(this, void 0, void 0, function* () {
+    updateIssue(issueNumber, title, body, state) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.octokit.rest.issues.update({
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber,
+                title,
+                body,
+                state,
+            });
+        });
+    }
+    compareCommits(base, head) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.octokit.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
+                owner: this.owner,
+                repo: this.repo,
+                basehead: `${base}...${head}`,
+            });
+        });
+    }
+    createIssue(title, body, labels) {
+        return __awaiter(this, void 0, void 0, function* () {
             return this.octokit.rest.issues.create({
                 owner: this.owner,
                 repo: this.repo,
                 title,
-                body
+                body,
+                labels,
             });
+        });
+    }
+}
+
+;// CONCATENATED MODULE: ./src/elements/admin_issue_tag.ts
+
+class TodohubDataTag {
+    constructor(tag) {
+        if (tag) {
+            this.raw = tag;
+            this.decodedData = this.decode(tag);
+            // TODO check decoded JSON schema
+        }
+        else {
+            this.decodedData = {};
+        }
+    }
+    getTrackedIssuesNumbers() {
+        return new Set(Object.keys(this.decodedData));
+    }
+    getTrackedIssue(issueNr) {
+        return this.decodedData[issueNr];
+    }
+    setTodoState(issueNr, todoState, commitSha, trackedBranch) {
+        this.decodedData[issueNr] = Object.assign(this.decodedData[issueNr] || {}, {
+            todoState,
+            commitSha,
+            trackedBranch,
+        });
+    }
+    isEmpty(issueNr) {
+        const trackedIssue = this.decodedData[issueNr];
+        if (!trackedIssue) {
+            return true;
+        }
+        return trackedIssue.todoState.length === 0;
+    }
+    setCommentId(issueNr, commentId) {
+        const trackedIssue = this.decodedData[issueNr];
+        if (!trackedIssue) {
+            throw new Error('Cannot set commentId without tracked Issue');
+        }
+        this.decodedData[issueNr] = Object.assign(trackedIssue, { commentId });
+    }
+    getExistingCommentId(issueNr) {
+        var _a;
+        return (_a = this.decodedData[issueNr]) === null || _a === void 0 ? void 0 : _a.commentId;
+    }
+    composeTrackedIssueComment(issueNr) {
+        const trackedIssue = this.decodedData[issueNr];
+        if (!trackedIssue) {
+            throw new Error(`Issue Comment to be composed does not exist: ${issueNr}`);
+        }
+        let composed = '#### TODOs:';
+        for (const todo of trackedIssue.todoState) {
+            composed += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
+        }
+        composed += `\n\n<sup>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`<sub>`;
+        return composed;
+    }
+    equals(_todoState) {
+        // TODO implement order (by filename, linenr?)
+    }
+    getTodoStateHash() {
+        // TODO
+    }
+    getHash() {
+        // TODO implement
+    }
+    decode(tag) {
+        const b64Decoded = Buffer.from(tag, 'base64');
+        const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
+        const parsed = JSON.parse(unzipped.toString('utf-8'));
+        return parsed;
+    }
+    encode() {
+        const stringified = JSON.stringify(this.decodedData);
+        const zipped = (0,external_node_zlib_namespaceObject.gzipSync)(Buffer.from(stringified, 'utf-8'));
+        const b64Encoded = zipped.toString('base64');
+        return b64Encoded;
+    }
+}
+
+;// CONCATENATED MODULE: ./src/elements/admin_issue.ts
+var admin_issue_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+
+// TODO move to config file
+const TODOHUB_LABEL = {
+    name: 'todohub',
+    description: 'todohub control issue',
+    color: '1D76DB',
+};
+class TodohubAdminIssue {
+    constructor(existingIssue) {
+        if (existingIssue) {
+            this.existingIssueNumber = existingIssue.number;
+            this.isClosed = existingIssue.isClosed;
+            const components = this.parseContent(existingIssue.body);
+            this.data = new TodohubDataTag(components.data);
+            this.preTag = components.preTag;
+            this.midTag = components.midTag;
+            this.postTag = components.postTag;
+        }
+        else {
+            this.data = new TodohubDataTag();
+        }
+    }
+    exists() {
+        return this.existingIssueNumber !== undefined;
+    }
+    compose() {
+        // TODO implement
+        this.midTag = '\n### Tracked Issues:';
+        for (const [issueNr, trackedIssue] of Object.entries(this.data.decodedData)) {
+            this.midTag += `\n* [Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''}): *${trackedIssue.todoState.length}* open TODOs`;
+        }
+        this.midTag += '\n';
+        return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
+    }
+    write(repo) {
+        return admin_issue_awaiter(this, void 0, void 0, function* () {
+            // TODO implement
+            if (this.existingIssueNumber) {
+                return repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
+            }
+            // TODO label is not created with right config (color + description)
+            return repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL]);
+            // TODO return updated issues - can be used to update the respective feature comments
+        });
+    }
+    parseContent(commentBody) {
+        const regex = /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/;
+        const parsed = commentBody.match(regex);
+        if (!parsed ||
+            !parsed.groups ||
+            parsed.groups.preTag === undefined ||
+            parsed.groups.data === undefined ||
+            parsed.groups.midTag === undefined ||
+            parsed.groups.postTag === undefined) {
+            throw new Error(`Error parsing Todohub Issue: ${commentBody}`);
+        }
+        return parsed.groups;
+    }
+    static get(repo) {
+        return admin_issue_awaiter(this, void 0, void 0, function* () {
+            const issue = yield repo.findTodoHubIssue();
+            if (issue) {
+                // TODO handle error and keep searching if parsing fails?
+                return new TodohubAdminIssue({
+                    body: issue.body || '',
+                    number: issue.number,
+                    isClosed: issue.state === 'closed',
+                });
+            }
+            return new TodohubAdminIssue();
         });
     }
 }
@@ -33724,25 +33645,28 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
+
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 function run() {
-    var _a, _b;
+    var _a, _b, _c, _d;
     return main_awaiter(this, void 0, void 0, function* () {
         // for (const [key, val] of Object.entries(process.env)) {
-        //   core.info('Envvar ' + key + ' --- ' + JSON.stringify(val))
+        //   core.debug('Envvar ' + key + ' --- ' + JSON.stringify(val))
         // }
         // for (const [key, val] of Object.entries(github.context)) {
-        //   core.info('Context ' + key + ' --- ' + JSON.stringify(val))
+        //   core.debug('Context ' + key + ' --- ' + JSON.stringify(val))
         // }
         const context = github.context;
         const githubToken = core.getInput('token');
+        const defaultBranch = (_b = (_a = context.payload) === null || _a === void 0 ? void 0 : _a.repository) === null || _b === void 0 ? void 0 : _b.default_branch;
         const ref = github.context.ref;
         const branchName = ref.split('/').pop() || '';
         const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/;
-        const featureBranchNumber = (_b = (_a = branchName.match(featureBranchRegex)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b['featureBranch'];
+        const isDefaultBranch = branchName === defaultBranch;
+        const featureBranchNumber = (_d = (_c = branchName.match(featureBranchRegex)) === null || _c === void 0 ? void 0 : _c.groups) === null || _d === void 0 ? void 0 : _d['featureBranch'];
         const isFeatureBranch = featureBranchNumber !== undefined;
         const featureBranchNumberParsed = featureBranchNumber
             ? Number.parseInt(featureBranchNumber)
@@ -33752,49 +33676,99 @@ function run() {
         }
         // TODO check what happens for deleted branches?
         const commitSha = context.sha;
-        const repo = new Repo(githubToken, context.repo.owner, context.repo.repo);
-        // In App? const cachedState = await getCached(context.repo.owner, context.repo.repo)
-        // TODO handle errors
-        if (isFeatureBranch && featureBranchNumberParsed) {
-            // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment
-            // TODO apply diff
-            // TODO get and parse .todoignore to avoid unnecessary searching of files
-            // TODO parallelize stuff (+ add workers)
-            // TODO tests + organize Issues
-            const findTodohubComment = repo.findTodoHubComment(featureBranchNumberParsed);
-            const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber);
-            const [todohubComment, todoState] = yield Promise.all([
-                findTodohubComment,
-                getTodoState
-            ]);
-            const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed);
-            todohubComment.resetTag(); // TODO for now we reset the data and completley rewrite - this should be merged with existing data
-            todohubComment.setTodos(featureTodos, commitSha);
-            const existingCommentId = todohubComment.getExistingCommentId();
-            if (existingCommentId) {
-                // TODO add state hash to check whether anything needs to be updated?
-                yield repo.updateCommentGQl(existingCommentId, todohubComment.compose());
-            }
-            else {
-                yield repo.addCommentGQl(todohubComment.issueId, todohubComment.compose());
-            }
-        }
-        else {
-            // search all issues for todo comments
-            // search codebase for all todos
-            // for union of all issues with comments and todos with those numbers {
-            //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
-            //     apply changes (rewrite or add comment), and save state as main state
-            //   }
-            // }
-            // TODO let feature branch take over once one exists
-        }
         try {
-            yield new Promise(resolve => setTimeout(resolve, 6000));
+            const repo = new Repo(githubToken, context.repo.owner, context.repo.repo);
+            // TODO handle errors
+            if (isFeatureBranch && featureBranchNumberParsed) {
+                core.debug(`Pushing feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`);
+                // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
+                // TODO parallelize stuff (+ add workers)
+                // TODO get and parse .todoignore to avoid unnecessary searching of files
+                // TODO tests + organize Issues
+                const getTodohubIssue = TodohubAdminIssue.get(repo);
+                const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber, { foundInCommit: commitSha });
+                const [todohubIssue, todoState] = yield Promise.all([
+                    getTodohubIssue,
+                    getTodoState,
+                ]);
+                const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed);
+                todohubIssue.data.setTodoState(featureBranchNumberParsed, featureTodos || [], commitSha, ref);
+                const existingCommentId = todohubIssue.data.getExistingCommentId(featureBranchNumberParsed);
+                const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed);
+                if (existingCommentId) {
+                    // TODO add state hash to check whether anything needs to be updated?
+                    // TODO handle: comment was deleted
+                    // TODO refactor (do no call repo directly, but via AdminIssue?)
+                    yield repo.updateComment(existingCommentId, composedComment);
+                }
+                else {
+                    // TODO handle: issue doesnt exist
+                    const created = yield repo.createComment(featureBranchNumberParsed, composedComment);
+                    todohubIssue.data.setCommentId(featureBranchNumberParsed, created.data.id);
+                }
+                // TODO parallelize
+                if (!todohubIssue.data.isEmpty(featureBranchNumberParsed)) {
+                    yield repo.updateIssue(featureBranchNumberParsed, undefined, undefined, 'open');
+                }
+                yield todohubIssue.write(repo);
+            }
+            else if (isDefaultBranch) {
+                const getTodohubIssue = TodohubAdminIssue.get(repo);
+                const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {
+                    foundInCommit: commitSha,
+                });
+                const [todohubIssue, todoState] = yield Promise.all([
+                    getTodohubIssue,
+                    getTodoState,
+                ]);
+                const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers();
+                const issuesWithTodosInCode = todoState.getIssuesNumbers();
+                const issueUnion = new Set([...trackedIssues, ...issuesWithTodosInCode]);
+                const featureBranches = yield repo.getFeatureBranches();
+                const trackedFeatureBranches = featureBranches.filter((branch) => {
+                    for (const issue of issueUnion) {
+                        if (branch.name.startsWith(`${issue}-`)) {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+                const getComparisons = trackedFeatureBranches.map((branch) => main_awaiter(this, void 0, void 0, function* () { return repo.compareCommits('main', branch.name); }));
+                const comparisons = yield Promise.all(getComparisons);
+                const _featureBranchesAhead = comparisons.map((comparison) => comparison.data.ahead_by > 0);
+                // const findTodohubComments = repo.findTodoHubComments()
+                // const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
+                // const [todohubComments, todoState] = await Promise.all([
+                //   findTodohubComments,
+                //   getTodoState
+                // ])
+                // for (const [issueId, todohubComment] of Object.entries(todohubComments)) {
+                //   for (const [issueNr, todo] of Object.entries(todoState.todosByIssueNo)) {
+                //   }
+                // }
+                // search all issues for todo comments
+                // search codebase for all todos
+                // for union of all issues with comments and todos with those numbers {
+                //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
+                //     apply changes (rewrite or add comment), and save state as main state
+                //   }
+                //   if (comment does not exist) { createwith main-branch tracking }
+                //   if (comment exists) but state has not changes { do nothing (set track main-branch?) }
+                //   if (comment exists && state has changed && feature branch is ahead) { do nothing ? }
+                // }
+                // TODO how does feature branch take over once one exists?
+                // TODO get closes issues + reopen if necessary
+            }
+            // TODO set output: all changes in workflow
+            // core.setOutput('', )
         }
         catch (error) {
-            // if (error instanceof Error) core.setFailed(error.message)
-            // else core.setFailed('Something bad happened')
+            if (error instanceof Error) {
+                core.error(error.message);
+                core.setFailed(error.message);
+            }
+            else
+                core.setFailed(`Non error was thrown: ${error}`);
         }
     });
 }

@@ -73,7 +73,7 @@ export default class TodohubDataTag {
     return composed
   }
 
-  equals(todoState: ITodo[]) {
+  equals(_todoState: ITodo[]) {
     // TODO implement order (by filename, linenr?)
   }
 
