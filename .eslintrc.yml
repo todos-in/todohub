@@ -9,10 +9,10 @@ globals:
 
 ignorePatterns:
   - '!.*'
-  - '**/node_modules/.*'
-  - '**/dist/.*'
-  - '**/coverage/.*'
-  - '*.json'
+  - 'node_modules/'
+  - 'dist/'
+  - 'coverage/'
+  - '__tests__/'
 
 parser: '@typescript-eslint/parser'
 
@@ -20,39 +20,29 @@ parserOptions:
   ecmaVersion: 2023
   sourceType: module
   project:
-    - './.github/linters/tsconfig.json'
     - './tsconfig.json'
 
 plugins:
   - jest
   - '@typescript-eslint'
+  - '@stylistic/js'
 
 extends:
   - eslint:recommended
-  - plugin:@typescript-eslint/eslint-recommended
   - plugin:@typescript-eslint/recommended
-  - plugin:github/recommended
   - plugin:jest/recommended
 
 rules:
   {
-    'camelcase': 'off',
-    'eslint-comments/no-use': 'off',
-    'eslint-comments/no-unused-disable': 'off',
-    'i18n-text/no-en': 'off',
-    'import/no-namespace': 'off',
-    'no-console': 'off',
-    'no-unused-vars': 'off',
-    'prettier/prettier': 'error',
-    'semi': 'off',
+    '@stylistic/js/indent': ['error', 2],
+    '@stylistic/js/quote-props': ['error', 'consistent-as-needed'],
+    '@stylistic/js/quotes': ['error', 'single'],
     '@typescript-eslint/array-type': 'error',
     '@typescript-eslint/await-thenable': 'error',
     '@typescript-eslint/ban-ts-comment': 'error',
     '@typescript-eslint/consistent-type-assertions': 'error',
     '@typescript-eslint/explicit-member-accessibility':
       ['error', { 'accessibility': 'no-public' }],
-    '@typescript-eslint/explicit-function-return-type':
-      ['error', { 'allowExpressions': true }],
     '@typescript-eslint/func-call-spacing': ['error', 'never'],
     '@typescript-eslint/no-array-constructor': 'error',
     '@typescript-eslint/no-empty-interface': 'error',
