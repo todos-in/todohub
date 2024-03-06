@@ -7,8 +7,9 @@
  */
 
 import * as env from './load-env'
+import path from 'node:path'
+env.load('.prod.env.json', {GITHUB_EVENT_PATH: path.join(__dirname, '/context.feature-branch-push.json')})
 import * as core from '@actions/core'
-import * as github from '@actions/github'
 import * as main from '../src/main'
 
 // Mock the action's main function
@@ -23,14 +24,13 @@ let errorMock: jest.SpyInstance
 let getInputMock: jest.SpyInstance
 let getOctokit: jest.SpyInstance
 
-console.debug(env.default
-)
 describe('action', () => {
   beforeEach(() => {
     jest.clearAllMocks()
 
     debugMock = jest.spyOn(core, 'debug').mockImplementation()
     errorMock = jest.spyOn(core, 'error').mockImplementation()
+
     getInputMock = jest
       .spyOn(core, 'getInput')
       .mockImplementation((name: string): string => {
@@ -39,7 +39,8 @@ describe('action', () => {
         }
         throw new Error(`Input not set: ${name}`)
       })
-    // getOctokit = jest.spyOn(github, 'getOctokit').mockImplementation()
+    // getOctokit = jest.spyOn(github, 'getOctokit').mockImplementation()    
+
   })
 
   it('sets the time output', async () => {
