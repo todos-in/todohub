@@ -39,6 +39,7 @@ rules:
     '@stylistic/js/indent': ['error', 2],
     '@stylistic/js/quote-props': ['error', 'consistent-as-needed'],
     '@stylistic/js/quotes': ['error', 'single'],
+    '@typescript-eslint/comma-dangle': ['error', 'always-multiline'],
     '@typescript-eslint/array-type': 'error',
     '@typescript-eslint/await-thenable': 'error',
     '@typescript-eslint/ban-ts-comment': 'error',
