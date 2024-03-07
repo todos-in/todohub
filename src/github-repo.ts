@@ -9,6 +9,7 @@ import { matchTodos } from './util/todo-match.js'
 import TodoState from './todo-state.js'
 import * as path from 'node:path'
 import { ITodo } from './types/todo.js'
+import ignore from 'ignore'
 
 // TODO use graphql where possible to reduce data transfer
 // TODO handle rate limits (primary and secondary)
@@ -25,6 +26,31 @@ export default class Repo {
     this.octokit = github.getOctokit(githubToken, { userAgent: 'todohub/v1' })
     this.owner = owner
     this.repo = repo
+  }
+
+  private async getTodoIgnoreFile(ref?: string) {
+    let todoIgnoreFileRaw
+    try {
+      todoIgnoreFileRaw = await this.octokit.request(
+        'GET /repos/{owner}/{repo}/contents/.todoignore{?ref}',
+        {
+          owner: this.owner,
+          repo: this.repo,
+          ref,
+          headers: {
+            accept: 'application/vnd.github.raw+json',
+          },
+        },
+      )
+    } catch (error) {
+      const statusErr = error as { status?: number }
+      if (statusErr.status && statusErr.status === 404) {
+        return
+      }
+      throw error
+    }
+    // TODO error handling if file cant be parsed
+    return ignore.default().add(todoIgnoreFileRaw.data)
   }
 
   private async getTarballUrl(ref?: string): Promise<string> {
@@ -88,7 +114,8 @@ export default class Repo {
   private async extractTodosFromTarGz(
     tarBallStream: IncomingMessage,
     issueNr?: string,
-    todoMetadata?: { [key: string]: string }
+    todoMetadata?: { [key: string]: string },
+    ignore?: ignore.Ignore,
   ): Promise<TodoState> {
     // TODO move logic
     const extractStream = tar.extract()
@@ -97,14 +124,10 @@ export default class Repo {
     const todos = new TodoState()
 
     const newFindTodoStream = (
-      filePath: string,
+      fileName: string,
     ) => {
       return new Writable({
         write(chunk, encoding, next) {
-          const filePathParts = filePath.split(path.sep)
-          filePathParts.shift()
-          const fileName = path.join(...filePathParts)
-
           // TODO seach line by line + skip lines > n characters
           const todosFound = matchTodos(chunk.toString(), issueNr)
           const todosWithMetadata = todosFound.map((todo) => {
@@ -144,22 +167,33 @@ export default class Repo {
       })
 
       extractStream.on('entry', (header, stream, next) => {
-        if (header.type === 'file') {
-          const findTodosStream = newFindTodoStream(header.name)
-          stream.pipe(findTodosStream)
-          stream.on('error', () => {
-            console.warn(`Error extracting Todos from file: ${header.name}`)
-            findTodosStream.end()
-            next()
-          })
-          stream.on('end', () => {
-            findTodosStream.end()
-            next()
-          })
-        } else {
+        if (header.type !== 'file') {
           stream.resume()
-          next()
+          return next()
         }
+
+        const filePathParts = header.name.split(path.sep)
+        filePathParts.shift()
+        const fileName = path.join(...filePathParts)
+
+        if (ignore?.ignores(fileName)) {
+          console.debug(`Skipping ${fileName} due to '.todoignore' rule...`)
+          stream.resume()
+          return next()
+        }
+
+        const findTodosStream = newFindTodoStream(fileName)
+        stream.pipe(findTodosStream)
+        stream.on('error', () => {
+          // TODO replace console logs
+          console.warn(`Error extracting Todos from file: ${fileName}`)
+          findTodosStream.end()
+          next()
+        })
+        stream.on('end', () => {
+          findTodosStream.end()
+          next()
+        })
       })
     })
   }
@@ -182,11 +216,14 @@ export default class Repo {
     issueNr?: string,
     todoMetadata?: Record<string, string>,
   ) {
+    // TODO parallelize
     const tar = await this.downloadTarball(ref)
+    const ignore = await this.getTodoIgnoreFile()
     const todoState = await this.extractTodosFromTarGz(
       tar,
       issueNr,
       todoMetadata,
+      ignore,
     )
     return todoState
   }
