@@ -7,18 +7,25 @@ export default class TodoState {
   addTodos(todos: ITodo[]) {
     // this.todos = this.todos.concat(todos)
     for (const todo of todos) {
-      if (!this.todosByIssueNo[todo.issueNumber || 0]) {
-        this.todosByIssueNo[todo.issueNumber || 0] = []
+      const issueNr = todo.issueNumber || 0
+      if (!this.todosByIssueNo[issueNr]) {
+        this.todosByIssueNo[issueNr] = []
       }
-      this.todosByIssueNo[todo.issueNumber || 0]?.push(todo)
+      this.todosByIssueNo[issueNr]?.push(todo)
     }
   }
 
   getIssuesNumbers() {
-    return new Set(Object.keys(this.todosByIssueNo))
+    const issueNrs = new Set(Object.keys(this.todosByIssueNo))
+    issueNrs.delete('0')
+    return issueNrs
   }
 
   getByIssueNo(issueNo: number) {
     return this.todosByIssueNo[issueNo]
+  }
+
+  getTodosWithoutIssueNo() {
+    return this.getByIssueNo(0)
   }
 }

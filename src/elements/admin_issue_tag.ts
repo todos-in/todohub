@@ -17,11 +17,25 @@ export default class TodohubDataTag {
   }
 
   getTrackedIssuesNumbers() {
-    return new Set(Object.keys(this.decodedData))
+    const issueNrs = new Set(Object.keys(this.decodedData))
+    issueNrs.delete('0')
+    return issueNrs
   }
 
   getTrackedIssue(issueNr: number): TrackedIssue | undefined {
     return this.decodedData[issueNr]
+  }
+
+  getTodosWithoutIssueReference() {
+    return this.decodedData[0]
+  }
+
+  setTodosWithoutIssueReference(
+    todoState: ITodo[],
+    commitSha: string,
+    trackedBranch: string,
+  ) {
+    this.setTodoState(0, todoState, commitSha, trackedBranch)
   }
 
   setTodoState(

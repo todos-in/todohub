@@ -44,9 +44,26 @@ export class TodohubAdminIssue {
     for (const [issueNr, trackedIssue] of Object.entries(
       this.data.decodedData,
     )) {
-      this.midTag += `\n* [Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''}): *${trackedIssue.todoState.length}* open TODOs`
+      if (issueNr === '0') {
+        continue
+      }
+      let link = ''
+      if (trackedIssue.commentId) {
+        link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`
+      } else {
+        link = `Issue ${issueNr} (No associated issue found)`
+      }
+      this.midTag += `\n* ${link}: *${trackedIssue.todoState.length}* open TODOs`
     }
-    this.midTag += '\n'
+    this.midTag += '\n### Todos without Issue Reference:'
+
+    const issueWORefernce = this.data.getTodosWithoutIssueReference()
+    if (issueWORefernce) {
+      for (const todo of issueWORefernce.todoState) {
+        this.midTag += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
+      }
+    }
+
     return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`
   }
 
@@ -64,10 +81,10 @@ export class TodohubAdminIssue {
     // TODO return updated issues - can be used to update the respective feature comments
   }
 
-  private parseContent(commentBody: string) {
+  private parseContent(issueBody: string) {
     const regex =
       /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/
-    const parsed = commentBody.match(regex)
+    const parsed = issueBody.match(regex)
     if (
       !parsed ||
       !parsed.groups ||
@@ -76,7 +93,7 @@ export class TodohubAdminIssue {
       parsed.groups.midTag === undefined ||
       parsed.groups.postTag === undefined
     ) {
-      throw new Error(`Error parsing Todohub Issue: ${commentBody}`)
+      throw new Error(`Error parsing Todohub Issue: ${issueBody}`)
     }
     return parsed.groups as {
       preTag: string;

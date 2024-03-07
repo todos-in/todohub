@@ -43,12 +43,10 @@ export const matchTodos = (text: string, issueNumber?: string) => {
     if (
       !match.groups ||
       !match.groups?.keyword ||
-      !match.groups?.issueNumber ||
-      !match.groups?.issueNumber ||
       !match.groups?.todoText
     ) {
       console.warn(
-        'Todo could not be parsed from cide: keyword not found in match.',
+        'Todo could not be parsed from code: keyword not found in match.',
       )
       continue
     }

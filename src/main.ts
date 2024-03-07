@@ -114,43 +114,70 @@ export async function run(): Promise<void> {
       const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers()
       const issuesWithTodosInCode = todoState.getIssuesNumbers()
 
-      const issueUnion = new Set([...trackedIssues, ...issuesWithTodosInCode])
+      const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]))
 
       const featureBranches = await repo.getFeatureBranches()
+      const trackedFeatureBranches = featureBranches.filter((branch) =>
+        (issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
+      )
+      const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf('main', trackedFeatureBranches.map((branch) => branch.name))
 
-      const trackedFeatureBranches = featureBranches.filter((branch) => {
-        for (const issue of issueUnion) {
-          if (branch.name.startsWith(`${issue}-`)) {
-            return true
+      // const issuesWithFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
+      //   branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
+
+      const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
+        !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
+
+      todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo() || [], commitSha, ref)
+
+      for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
+        const issueNumber = Number.parseInt(issue)
+        const todos = todoState.getByIssueNo(issueNumber)
+        todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref)
+
+        const existingCommentId = todohubIssue.data.getExistingCommentId(issueNumber)
+        const composedComment = todohubIssue.data.composeTrackedIssueComment(issueNumber)
+
+        if (existingCommentId) {
+          // TODO add state hash to check whether anything needs to be updated?
+          // TODO handle: comment was deleted
+          // TODO refactor (do no call repo directly, but via AdminIssue?)
+          await repo.updateComment(existingCommentId, composedComment)
+        } else {
+          // TODO parallelize
+          try {
+            const created = await repo.createComment(
+              issueNumber,
+              composedComment,
+            )
+            todohubIssue.data.setCommentId(
+              issueNumber,
+              created.data.id,
+            )
+          } catch (err) {
+            // TODO handle: issue doesnt exist? Create?
+            console.warn(err)
           }
         }
-        return false
-      })
 
-      const getComparisons = trackedFeatureBranches.map(async (branch) =>
-        repo.compareCommits('main', branch.name),
-      )
-      const comparisons = await Promise.all(getComparisons)
-      const _featureBranchesAhead = comparisons.map(
-        (comparison) => comparison.data.ahead_by > 0,
-      )
+        // TODO parallelize
+        if (!todohubIssue.data.isEmpty(issueNumber)) {
+          try {
+            await repo.updateIssue(
+              issueNumber,
+              undefined,
+              undefined,
+              'open',
+            )
+          } catch (err) {
+            // TODO handle: issue doesnt exist? Create?
+            console.warn(err)
+          }
+        }
 
-      // const findTodohubComments = repo.findTodoHubComments()
-      // const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
+        await todohubIssue.write(repo)
 
-      // const [todohubComments, todoState] = await Promise.all([
-      //   findTodohubComments,
-      //   getTodoState
-      // ])
-
-      // for (const [issueId, todohubComment] of Object.entries(todohubComments)) {
-      //   for (const [issueNr, todo] of Object.entries(todoState.todosByIssueNo)) {
-
-      //   }
-      // }
-
-      // search all issues for todo comments
-      // search codebase for all todos
+      }
 
       // for union of all issues with comments and todos with those numbers {
       //   if (no feature branch for this issue ahead of main) && (todo state has changed) {

@@ -8,6 +8,7 @@ import { IncomingMessage } from 'node:http'
 import { matchTodos } from './util/todo-match.js'
 import TodoState from './todo-state.js'
 import * as path from 'node:path'
+import { ITodo } from './types/todo.js'
 
 // TODO use graphql where possible to reduce data transfer
 export default class Repo {
@@ -99,7 +100,7 @@ export default class Repo {
   async extractTodosFromTarGz(
     tarBallStream: IncomingMessage,
     issueNr?: string,
-    todoMetadata?: Record<string, string>,
+    todoMetadata?: { [key: string]: string }
   ): Promise<TodoState> {
     // TODO move logic
     const extractStream = tar.extract()
@@ -114,13 +115,21 @@ export default class Repo {
         write(chunk, encoding, next) {
           const filePathParts = filePath.split(path.sep)
           filePathParts.shift()
-          const fileName = { fileName: path.join(...filePathParts) }
+          const fileName = path.join(...filePathParts)
 
           // TODO seach line by line + skip lines > n characters
-          const todosFound = matchTodos(chunk.toString(), issueNr).map((todo) =>
-            Object.assign(todoMetadata || {}, todo, fileName),
-          )
-          todos.addTodos(todosFound)
+          const todosFound = matchTodos(chunk.toString(), issueNr)
+          const todosWithMetadata = todosFound.map((todo) => {
+            const todoWMetadata = todo as ITodo & { [key: string]: string }
+            todoWMetadata.fileName = fileName
+            for (const [key, value] of Object.entries(todoMetadata || {})) {
+              todoWMetadata[key] = value
+            }
+            return todoWMetadata
+          })
+          if (todosWithMetadata.length) {
+            todos.addTodos(todosWithMetadata)
+          }
           next()
         },
       })
@@ -274,6 +283,19 @@ export default class Repo {
       body,
       state,
     })
+  }
+
+  async getFeatureBranchesAheadOf(base: string, heads: string[]) {
+    const comparisons = await Promise.all(heads.map((head) => this.compareCommits(base, head)))
+
+    const featureBranchesAheadOf = []
+    for (let i = 0; i < comparisons.length; i++) {
+      const ahead = comparisons[i]?.data.ahead_by
+      if (ahead && ahead > 0) {
+        featureBranchesAheadOf.push(heads[i] as string)
+      }
+    }
+    return featureBranchesAheadOf
   }
 
   async compareCommits(base: string, head: string) {
