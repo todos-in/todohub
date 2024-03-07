@@ -11,13 +11,6 @@ import { TodohubControlIssue } from './elements/control-issue.js'
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 export async function run(): Promise<void> {
-  // for (const [key, val] of Object.entries(process.env)) {
-  //   core.debug('Envvar ' + key + ' --- ' + JSON.stringify(val))
-  // }
-  // for (const [key, val] of Object.entries(github.context)) {
-  //   core.debug('Context ' + key + ' --- ' + JSON.stringify(val))
-  // }
-
   const context = github.context
   const githubToken = core.getInput('token')
   const defaultBranch = context.payload?.repository?.default_branch as string
@@ -37,14 +30,14 @@ export async function run(): Promise<void> {
   // TODO check what happens for deleted branches?
   const commitSha = context.sha
 
+  core.info(`Pushing commit: ${commitSha}, ref: ${ref}`)
   try {
     const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
 
     // TODO handle errors
     if (isFeatureBranch && featureBranchNumberParsed) {
-      core.debug(
-        `Pushing feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`,
-      )
+      core.info(`Push Event into feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`)
+
       // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
       // TODO parallelize stuff (+ add workers)
       // TODO get and parse .todoignore to avoid unnecessary searching of files
@@ -69,12 +62,8 @@ export async function run(): Promise<void> {
         ref,
       )
 
-      const existingCommentId = todohubIssue.data.getExistingCommentId(
-        featureBranchNumberParsed,
-      )
-      const composedComment = todohubIssue.data.composeTrackedIssueComment(
-        featureBranchNumberParsed,
-      )
+      const existingCommentId = todohubIssue.data.getExistingCommentId(featureBranchNumberParsed)
+      const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed)
 
       if (existingCommentId) {
         // TODO add state hash to check whether anything needs to be updated?
@@ -83,14 +72,8 @@ export async function run(): Promise<void> {
         await repo.updateComment(existingCommentId, composedComment)
       } else {
         // TODO handle: issue doesnt exist
-        const created = await repo.createComment(
-          featureBranchNumberParsed,
-          composedComment,
-        )
-        todohubIssue.data.setCommentId(
-          featureBranchNumberParsed,
-          created.data.id,
-        )
+        const created = await repo.createComment(featureBranchNumberParsed, composedComment)
+        todohubIssue.data.setCommentId(featureBranchNumberParsed, created.data.id)
       }
 
       // TODO parallelize
@@ -107,9 +90,7 @@ export async function run(): Promise<void> {
     } else if (isDefaultBranch) {
       core.info(`Push Event into default branch ${defaultBranch}`)
       const getTodohubIssue = TodohubControlIssue.get(repo)
-      const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {
-        foundInCommit: commitSha,
-      })
+      const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {foundInCommit: commitSha})
       const [todohubIssue, todoState] = await Promise.all([
         getTodohubIssue,
         getTodoState,
@@ -121,9 +102,7 @@ export async function run(): Promise<void> {
       const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]))
 
       const featureBranches = await repo.getFeatureBranches()
-      const trackedFeatureBranches = featureBranches.filter((branch) =>
-        (issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
-      )
+      const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
       const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf(defaultBranch, trackedFeatureBranches.map((branch) => branch.name))
 
       // const issuesWithFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
@@ -150,14 +129,8 @@ export async function run(): Promise<void> {
         } else {
           // TODO parallelize
           try {
-            const created = await repo.createComment(
-              issueNumber,
-              composedComment,
-            )
-            todohubIssue.data.setCommentId(
-              issueNumber,
-              created.data.id,
-            )
+            const created = await repo.createComment(issueNumber, composedComment)
+            todohubIssue.data.setCommentId(issueNumber, created.data.id)
           } catch (err) {
             // TODO handle: issue doesnt exist? Create?
             console.warn(err)
