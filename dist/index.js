@@ -33120,7 +33120,7 @@ const getRegex = (issueNumber) => {
     return new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}[^\\S\\r\\n]+(?<todoText>.*)`, 'gim');
 };
 const matchTodos = (text, issueNumber) => {
-    var _a, _b, _c, _d, _e;
+    var _a;
     if (issueNumber && (Number.isNaN(Number.parseInt(issueNumber)))) {
         throw new Error('issueNumber is not an integer.');
     }
@@ -33128,15 +33128,13 @@ const matchTodos = (text, issueNumber) => {
     const matches = text.matchAll(regex);
     const todos = [];
     for (const match of matches) {
-        if (!match.groups ||
-            !((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword) ||
-            !((_b = match.groups) === null || _b === void 0 ? void 0 : _b.todoText)) {
-            console.warn('Todo could not be parsed from code: keyword or todotext not found in match: ' + text);
+        if (!match.groups || !((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword)) {
+            console.warn('Todo could not be parsed from code: keyword not found in match: ' + text);
             continue;
         }
-        let issueNumber = undefined;
+        let issueNumber;
         if (match.groups.issueNumber) {
-            issueNumber = parseInt((_c = match.groups) === null || _c === void 0 ? void 0 : _c.issueNumber);
+            issueNumber = parseInt(match.groups.issueNumber);
             if (Number.isNaN(issueNumber)) {
                 console.warn('Regex issue: issueNumber could not be parsed from match - this should not happen.');
                 continue;
@@ -33144,9 +33142,9 @@ const matchTodos = (text, issueNumber) => {
         }
         todos.push({
             rawLine: match[0],
-            keyword: (_d = match.groups) === null || _d === void 0 ? void 0 : _d.keyword,
+            keyword: match.groups.keyword,
             issueNumber,
-            todoText: (_e = match.groups) === null || _e === void 0 ? void 0 : _e.todoText,
+            todoText: match.groups.todoText || '',
         });
     }
     return todos;

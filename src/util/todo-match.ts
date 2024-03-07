@@ -21,29 +21,25 @@ export const matchTodos = (text: string, issueNumber?: string) => {
   const matches = text.matchAll(regex)
   const todos: TodoRegexMatch[] = []
   for (const match of matches) {
-    if (
-      !match.groups ||
-      !match.groups?.keyword ||
-      !match.groups?.todoText
-    ) {
-      console.warn('Todo could not be parsed from code: keyword or todotext not found in match: ' + text)
+    if (!match.groups || !match.groups?.keyword) {
+      console.warn('Todo could not be parsed from code: keyword not found in match: ' + text)
       continue
     }
 
-    let issueNumber = undefined
+    let issueNumber
     if (match.groups.issueNumber) {
-      issueNumber = parseInt(match.groups?.issueNumber)
+      issueNumber = parseInt(match.groups.issueNumber)
       if (Number.isNaN(issueNumber)) {
-        console.warn( 'Regex issue: issueNumber could not be parsed from match - this should not happen.')
+        console.warn('Regex issue: issueNumber could not be parsed from match - this should not happen.')
         continue
       }
     }
 
     todos.push({
       rawLine: match[0],
-      keyword: match.groups?.keyword,
+      keyword: match.groups.keyword,
       issueNumber,
-      todoText: match.groups?.todoText,
+      todoText: match.groups.todoText || '',
     })
   }
   return todos
