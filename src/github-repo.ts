@@ -11,6 +11,8 @@ import * as path from 'node:path'
 import { ITodo } from './types/todo.js'
 
 // TODO use graphql where possible to reduce data transfer
+// TODO handle rate limits (primary and secondary)
+// https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api?apiVersion=2022-11-28#handle-rate-limit-errors-appropriately
 export default class Repo {
   API_HITS = 0
   githubToken: string
@@ -212,6 +214,8 @@ export default class Repo {
   }
 
   async getFeatureBranchesAheadOf(base: string, heads: string[]) {
+    // TODO concurrent requests could be a problem for secondary rate limits
+    // https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
     const comparisons = await Promise.all(heads.map((head) => this.compareCommits(base, head)))
 
     const featureBranchesAheadOf = []

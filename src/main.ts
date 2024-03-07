@@ -3,6 +3,8 @@ import * as github from '@actions/github'
 import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
 
+
+// TODO add debug and info logs
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
