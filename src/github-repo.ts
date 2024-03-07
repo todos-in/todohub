@@ -321,8 +321,6 @@ export default class Repo {
   }
 
   async createComment(issueNumber: number, body: string) {
-    // endpoint.headers = Object.assign(endpoint.headers, { Authorization: `Bearer ${this.githubToken}` })
-
     return this.octokit.request(
       'POST /repos/{owner}/{repo}/issues/{issue_number}/comments',
       {

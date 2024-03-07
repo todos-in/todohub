@@ -1,11 +1,10 @@
 import { ITodo } from './types/todo.js'
 
+// merge with TodohubData
 export default class TodoState {
-  // todos: ITodo[] = []
   todosByIssueNo: Record<number, ITodo[]> = {}
 
   addTodos(todos: ITodo[]) {
-    // this.todos = this.todos.concat(todos)
     for (const todo of todos) {
       const issueNr = todo.issueNumber || 0
       if (!this.todosByIssueNo[issueNr]) {

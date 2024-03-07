@@ -64,13 +64,8 @@ export class TodohubControlIssue {
   }
 
   async write() {
-    // TODO implement
     if (this.existingIssueNumber) {
-      return this.repo.updateIssue(
-        this.existingIssueNumber,
-        undefined,
-        this.compose(),
-      )
+      return this.repo.updateIssue(this.existingIssueNumber,  undefined, this.compose())
     }
     // TODO label is not created with right config (color + description)
     return this.repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL])

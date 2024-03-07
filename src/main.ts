@@ -170,6 +170,8 @@ export async function run(): Promise<void> {
     // core.setOutput('', )
     // core.setOutput('changed_issues', '')
     // core.setOutput('tracked_issues', Array.from(todohubIssue.data.getTrackedIssuesNumbers()).join(','))
+    // core.setOutput('reopened_isues')
+    // core.setOutput('skipped_files')
 
   } catch (error) {
     if (error instanceof Error) {
