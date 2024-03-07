@@ -83,21 +83,7 @@ export default class Repo {
     })
   }
 
-  async getTodosFromGitRef(
-    ref?: string,
-    issueNr?: string,
-    todoMetadata?: Record<string, string>,
-  ) {
-    const tar = await this.downloadTarball(ref)
-    const todoState = await this.extractTodosFromTarGz(
-      tar,
-      issueNr,
-      todoMetadata,
-    )
-    return todoState
-  }
-
-  async extractTodosFromTarGz(
+  private async extractTodosFromTarGz(
     tarBallStream: IncomingMessage,
     issueNr?: string,
     todoMetadata?: { [key: string]: string }
@@ -176,21 +162,37 @@ export default class Repo {
     })
   }
 
-  async downloadTarball(ref?: string) {
+  private async downloadTarball(ref?: string) {
     // TODO try catch
     const url = await this.getTarballUrl(ref)
     return this.getTarballStream(url)
   }
 
-  // TODO support closed issues.. ()
-  async getIssue(issueNumber: number) {
-    return this.octokit.rest.issues.get({
-      owner: this.owner,
-      repo: this.repo,
-      issue_number: issueNumber,
-    })
+  /**
+   * Searches for all "TODOs" occurrences in a certain git ref
+   * @param ref ref of the git state to be searched, defaults to the head of default branch if unset
+   * @param issueNr if set, it will only seach occurences that reference this issueNr, such as "TODO #18 do this", otherwise it will search all "TODOs", whether they refernce any issue or none
+   * @param todoMetadata optional key-value pairs that are appended to all found "TODOs" ocurrences
+   * @returns TodoState
+   */
+  async getTodosFromGitRef(
+    ref?: string,
+    issueNr?: string,
+    todoMetadata?: Record<string, string>,
+  ) {
+    const tar = await this.downloadTarball(ref)
+    const todoState = await this.extractTodosFromTarGz(
+      tar,
+      issueNr,
+      todoMetadata,
+    )
+    return todoState
   }
 
+  /**
+   * Finds all branches in repository which start with `${number}-` which are branches that are potentially associated with an Issue on Github 
+   * @returns Feature Branches
+   */
   async getFeatureBranches() {
     const isFeatureBranch = (branch: { name: string }) =>
       /[0-9]+-.*/.test(branch.name)
@@ -209,12 +211,34 @@ export default class Repo {
     return featureBranches
   }
 
+  async getFeatureBranchesAheadOf(base: string, heads: string[]) {
+    const comparisons = await Promise.all(heads.map((head) => this.compareCommits(base, head)))
+
+    const featureBranchesAheadOf = []
+    for (let i = 0; i < comparisons.length; i++) {
+      const ahead = comparisons[i]?.data.ahead_by
+      if (ahead && ahead > 0) {
+        featureBranchesAheadOf.push(heads[i] as string)
+      }
+    }
+    return featureBranchesAheadOf
+  }
+
+  async compareCommits(base: string, head: string) {
+    return this.octokit.request(
+      'GET /repos/{owner}/{repo}/compare/{basehead}',
+      {
+        owner: this.owner,
+        repo: this.repo,
+        basehead: `${base}...${head}`,
+      },
+    )
+  }
+
   async findTodoHubIssue() {
     const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
-      // owner: this.owner,
-      // repo: this.repo,
       per_page: 100,
-      q: 'todohub_ctrl_issue_data is:issue in:body repo:nigeisel/todohub author:@me',
+      q: `todohub_ctrl_issue_data is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
     })
     if (todohubIssues.data.total_count > 1) {
       // TODO check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
@@ -269,44 +293,13 @@ export default class Repo {
     )
   }
 
-  async updateIssue(
-    issueNumber: number,
-    title?: string,
-    body?: string,
-    state?: 'open' | 'closed',
-  ) {
-    return this.octokit.rest.issues.update({
+  // TODO support closed issues.. ()
+  async getIssue(issueNumber: number) {
+    return this.octokit.rest.issues.get({
       owner: this.owner,
       repo: this.repo,
       issue_number: issueNumber,
-      title,
-      body,
-      state,
     })
-  }
-
-  async getFeatureBranchesAheadOf(base: string, heads: string[]) {
-    const comparisons = await Promise.all(heads.map((head) => this.compareCommits(base, head)))
-
-    const featureBranchesAheadOf = []
-    for (let i = 0; i < comparisons.length; i++) {
-      const ahead = comparisons[i]?.data.ahead_by
-      if (ahead && ahead > 0) {
-        featureBranchesAheadOf.push(heads[i] as string)
-      }
-    }
-    return featureBranchesAheadOf
-  }
-
-  async compareCommits(base: string, head: string) {
-    return this.octokit.request(
-      'GET /repos/{owner}/{repo}/compare/{basehead}',
-      {
-        owner: this.owner,
-        repo: this.repo,
-        basehead: `${base}...${head}`,
-      },
-    )
   }
 
   async createIssue(
@@ -320,6 +313,22 @@ export default class Repo {
       title,
       body,
       labels,
+    })
+  }
+
+  async updateIssue(
+    issueNumber: number,
+    title?: string,
+    body?: string,
+    state?: 'open' | 'closed',
+  ) {
+    return this.octokit.rest.issues.update({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+      title,
+      body,
+      state,
     })
   }
 }

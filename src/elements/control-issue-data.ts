@@ -1,9 +1,11 @@
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { ITodo, TrackedIssue } from 'src/types/todo.js'
 
-export default class TodohubDataTag {
-  // TODO order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
+export default class TodohubData {
   raw?: string
+  // TODO set private
+  // TODO use Map() when parsing? - number keys are allowed..
+  // TODO order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
   decodedData: Record<number, TrackedIssue>
 
   constructor(tag?: string) {
@@ -24,6 +26,13 @@ export default class TodohubDataTag {
 
   getTrackedIssue(issueNr: number): TrackedIssue | undefined {
     return this.decodedData[issueNr]
+  }
+
+  // TODO: naming: stray/lost?
+  getTodosWithIssueReference() {
+    const cloned = Object.assign({}, this.decodedData)
+    delete cloned[0]
+    return cloned
   }
 
   getTodosWithoutIssueReference() {
@@ -91,10 +100,6 @@ export default class TodohubDataTag {
     // TODO implement order (by filename, linenr?)
   }
 
-  getTodoStateHash() {
-    // TODO
-  }
-
   getHash() {
     // TODO implement
   }
@@ -107,6 +112,7 @@ export default class TodohubDataTag {
   }
 
   encode() {
+    // TODO sort by keys and generate hash?
     const stringified = JSON.stringify(this.decodedData)
     const zipped = gzipSync(Buffer.from(stringified, 'utf-8'))
     const b64Encoded = zipped.toString('base64')

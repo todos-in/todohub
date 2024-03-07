@@ -1,5 +1,5 @@
 import Repo from 'src/github-repo.js'
-import TodohubDataTag from './admin_issue_tag.js'
+import TodohubData from './control-issue-data.js'
 
 // TODO move to config file
 const TODOHUB_LABEL = {
@@ -8,29 +8,31 @@ const TODOHUB_LABEL = {
   color: '1D76DB',
 }
 
-export class TodohubAdminIssue {
+export class TodohubControlIssue {
   private preTag?: string
   private midTag?: string
   private postTag?: string
-  data: TodohubDataTag
+  data: TodohubData
   private existingIssueNumber?: number
-  private isClosed?: boolean
+  private existingIsClosed?: boolean
+  private repo: Repo
 
-  private constructor(existingIssue?: {
+  private constructor(repo: Repo, existingIssue?: {
     body: string;
     number: number;
     isClosed: boolean;
   }) {
+    this.repo = repo
     if (existingIssue) {
       this.existingIssueNumber = existingIssue.number
-      this.isClosed = existingIssue.isClosed
+      this.existingIsClosed = existingIssue.isClosed
       const components = this.parseContent(existingIssue.body)
-      this.data = new TodohubDataTag(components.data)
+      this.data = new TodohubData(components.data)
       this.preTag = components.preTag
       this.midTag = components.midTag
       this.postTag = components.postTag
     } else {
-      this.data = new TodohubDataTag()
+      this.data = new TodohubData()
     }
   }
 
@@ -39,14 +41,8 @@ export class TodohubAdminIssue {
   }
 
   private compose() {
-    // TODO implement
     this.midTag = '\n### Tracked Issues:'
-    for (const [issueNr, trackedIssue] of Object.entries(
-      this.data.decodedData,
-    )) {
-      if (issueNr === '0') {
-        continue
-      }
+    for (const [issueNr, trackedIssue] of Object.entries(this.data.getTodosWithIssueReference())) {
       let link = ''
       if (trackedIssue.commentId) {
         link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`
@@ -67,17 +63,17 @@ export class TodohubAdminIssue {
     return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`
   }
 
-  async write(repo: Repo) {
+  async write() {
     // TODO implement
     if (this.existingIssueNumber) {
-      return repo.updateIssue(
+      return this.repo.updateIssue(
         this.existingIssueNumber,
         undefined,
         this.compose(),
       )
     }
     // TODO label is not created with right config (color + description)
-    return repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL])
+    return this.repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL])
     // TODO return updated issues - can be used to update the respective feature comments
   }
 
@@ -107,21 +103,12 @@ export class TodohubAdminIssue {
     const issue = await repo.findTodoHubIssue()
     if (issue) {
       // TODO handle error and keep searching if parsing fails?
-      return new TodohubAdminIssue({
+      return new TodohubControlIssue(repo, {
         body: issue.body || '',
         number: issue.number,
         isClosed: issue.state === 'closed',
       })
     }
-    return new TodohubAdminIssue()
+    return new TodohubControlIssue(repo)
   }
-
-  // private async find() {
-  //   // TODO implement
-
-  // }
-
-  // private async create() {
-  //   // TODO implement
-  // }
 }

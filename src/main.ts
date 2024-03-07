@@ -1,7 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import Repo from './github-repo.js'
-import { TodohubAdminIssue } from './elements/admin_issue.js'
+import { TodohubControlIssue } from './elements/control-issue.js'
 
 /**
  * The main function for the action.
@@ -47,7 +47,7 @@ export async function run(): Promise<void> {
       // TODO get and parse .todoignore to avoid unnecessary searching of files
       // TODO tests + organize Issues
 
-      const getTodohubIssue = TodohubAdminIssue.get(repo)
+      const getTodohubIssue = TodohubControlIssue.get(repo)
       const getTodoState = repo.getTodosFromGitRef(
         commitSha,
         featureBranchNumber,
@@ -100,9 +100,9 @@ export async function run(): Promise<void> {
         )
       }
 
-      await todohubIssue.write(repo)
+      await todohubIssue.write()
     } else if (isDefaultBranch) {
-      const getTodohubIssue = TodohubAdminIssue.get(repo)
+      const getTodohubIssue = TodohubControlIssue.get(repo)
       const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {
         foundInCommit: commitSha,
       })
@@ -175,8 +175,7 @@ export async function run(): Promise<void> {
           }
         }
 
-        await todohubIssue.write(repo)
-
+        await todohubIssue.write()
       }
 
       // for union of all issues with comments and todos with those numbers {
@@ -193,6 +192,7 @@ export async function run(): Promise<void> {
 
     // TODO set output: all changes in workflow
     // core.setOutput('', )
+    // core.setOutput('changed_issues', '')
   } catch (error) {
     if (error instanceof Error) {
       core.error(error.message)
