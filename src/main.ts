@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import * as github from '@actions/github'
 import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
-
+import { PushEvent } from '@octokit/webhooks-types'
 
 // TODO parallelization ? do we need to acquire a lock on issue while other action is running
 // TODO add debug and info logs
@@ -12,8 +12,10 @@ import { TodohubControlIssue } from './elements/control-issue.js'
  */
 export async function run(): Promise<void> {
   const context = github.context
+  const payload = github.context.payload as PushEvent
+  
   const githubToken = core.getInput('token')
-  const defaultBranch = context.payload?.repository?.default_branch as string
+  const defaultBranch = payload.repository.default_branch
   const ref = github.context.ref
   const branchName = ref.split('/').pop() || ''
   const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/
