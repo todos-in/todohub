@@ -178,9 +178,8 @@ export async function run(): Promise<void> {
             console.warn(err)
           }
         }
-
-        await todohubIssue.write()
       }
+      await todohubIssue.write()
 
       // for union of all issues with comments and todos with those numbers {
       //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
