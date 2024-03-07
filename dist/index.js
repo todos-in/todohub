@@ -33113,48 +33113,30 @@ var external_node_stream_ = __nccwpck_require__(4492);
 ;// CONCATENATED MODULE: external "node:zlib"
 const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:zlib");
 ;// CONCATENATED MODULE: ./src/util/todo-match.ts
-/**
- * /(?<todo_keyword>TODO)   # Match 'TODO' and capture it in a named group
- * [^\S\r\n]*               # Match any non-newline whitespace characters zero or more times
- * \(?                      # Match an optional opening parenthesis
- * #?                       # Match an optional '#' character
- * (?<issue_number>[0-9]+)  # Match and capture one or more digits in a named group called 'issue_number'
- * \)?                      # Match an optional closing parenthesis
- * [^\S\r\n]*               # Match any non-newline whitespace characters (excluding carriage returns) zero or more times
- * (?<todo_text>.*)         # Match and capture any characters in a named group called 'todo_text'
- * /gmi                     # Find all matches in text, globally, match case insensitive
- *
- * Matches example: "TODO (#1823) Fix this here"
- */
-// const todoRegex = /(?<todo_keyword>TODO)[^\S\r\n]*\(?#?(?<issue_number>[0-9]+)\)?[^\S\r\n]+(?<todo_text>.*)/gmi
-const todoRegexWithOrWithoutNumber = /(?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]+(?<todoText>.*)/gim;
-const todoRegexForIssueNumber = (issueNumber) => new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)[^\\S\\r\\n]+(?<todoText>.*)`, 'gim');
+const getRegex = (issueNumber) => {
+    // If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO dothis, TODO #18 dothis, TODO 5 dothis, etc)
+    // If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
+    const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?';
+    return new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}[^\\S\\r\\n]+(?<todoText>.*)`, 'gim');
+};
 const matchTodos = (text, issueNumber) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h;
-    let regex;
-    if (issueNumber) {
-        if (Number.isNaN(Number.parseInt(issueNumber))) {
-            throw new Error('issueNumber is not an integer');
-        }
-        regex = todoRegexForIssueNumber(issueNumber);
+    var _a, _b, _c, _d, _e;
+    if (issueNumber && (Number.isNaN(Number.parseInt(issueNumber)))) {
+        throw new Error('issueNumber is not an integer.');
     }
-    else {
-        regex = todoRegexWithOrWithoutNumber;
-    }
+    const regex = getRegex(issueNumber);
     const matches = text.matchAll(regex);
     const todos = [];
     for (const match of matches) {
         if (!match.groups ||
             !((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword) ||
-            !((_b = match.groups) === null || _b === void 0 ? void 0 : _b.issueNumber) ||
-            !((_c = match.groups) === null || _c === void 0 ? void 0 : _c.issueNumber) ||
-            !((_d = match.groups) === null || _d === void 0 ? void 0 : _d.todoText)) {
-            console.warn('Todo could not be parsed from cide: keyword not found in match.');
+            !((_b = match.groups) === null || _b === void 0 ? void 0 : _b.todoText)) {
+            console.warn('Todo could not be parsed from code: keyword or todotext not found in match: ' + text);
             continue;
         }
         let issueNumber = undefined;
-        if ((_e = match.groups) === null || _e === void 0 ? void 0 : _e.issueNumber) {
-            issueNumber = parseInt((_f = match.groups) === null || _f === void 0 ? void 0 : _f.issueNumber);
+        if (match.groups.issueNumber) {
+            issueNumber = parseInt((_c = match.groups) === null || _c === void 0 ? void 0 : _c.issueNumber);
             if (Number.isNaN(issueNumber)) {
                 console.warn('Regex issue: issueNumber could not be parsed from match - this should not happen.');
                 continue;
@@ -33162,9 +33144,9 @@ const matchTodos = (text, issueNumber) => {
         }
         todos.push({
             rawLine: match[0],
-            keyword: (_g = match.groups) === null || _g === void 0 ? void 0 : _g.keyword,
+            keyword: (_d = match.groups) === null || _d === void 0 ? void 0 : _d.keyword,
             issueNumber,
-            todoText: (_h = match.groups) === null || _h === void 0 ? void 0 : _h.todoText,
+            todoText: (_e = match.groups) === null || _e === void 0 ? void 0 : _e.todoText,
         });
     }
     return todos;
@@ -33180,17 +33162,23 @@ class TodoState {
         var _a;
         // this.todos = this.todos.concat(todos)
         for (const todo of todos) {
-            if (!this.todosByIssueNo[todo.issueNumber || 0]) {
-                this.todosByIssueNo[todo.issueNumber || 0] = [];
+            const issueNr = todo.issueNumber || 0;
+            if (!this.todosByIssueNo[issueNr]) {
+                this.todosByIssueNo[issueNr] = [];
             }
-            (_a = this.todosByIssueNo[todo.issueNumber || 0]) === null || _a === void 0 ? void 0 : _a.push(todo);
+            (_a = this.todosByIssueNo[issueNr]) === null || _a === void 0 ? void 0 : _a.push(todo);
         }
     }
     getIssuesNumbers() {
-        return new Set(Object.keys(this.todosByIssueNo));
+        const issueNrs = new Set(Object.keys(this.todosByIssueNo));
+        issueNrs.delete('0');
+        return issueNrs;
     }
     getByIssueNo(issueNo) {
         return this.todosByIssueNo[issueNo];
+    }
+    getTodosWithoutIssueNo() {
+        return this.getByIssueNo(0);
     }
 }
 
@@ -33222,6 +33210,8 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
 
 
 // TODO use graphql where possible to reduce data transfer
+// TODO handle rate limits (primary and secondary)
+// https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api?apiVersion=2022-11-28#handle-rate-limit-errors-appropriately
 class Repo {
     constructor(githubToken, owner, repo) {
         this.API_HITS = 0;
@@ -33271,13 +33261,6 @@ class Repo {
             });
         });
     }
-    getTodosFromGitRef(ref, issueNr, todoMetadata) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const tar = yield this.downloadTarball(ref);
-            const todoState = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata);
-            return todoState;
-        });
-    }
     extractTodosFromTarGz(tarBallStream, issueNr, todoMetadata) {
         return __awaiter(this, void 0, void 0, function* () {
             // TODO move logic
@@ -33289,10 +33272,20 @@ class Repo {
                     write(chunk, encoding, next) {
                         const filePathParts = filePath.split(external_node_path_namespaceObject.sep);
                         filePathParts.shift();
-                        const fileName = { fileName: external_node_path_namespaceObject.join(...filePathParts) };
+                        const fileName = external_node_path_namespaceObject.join(...filePathParts);
                         // TODO seach line by line + skip lines > n characters
-                        const todosFound = matchTodos(chunk.toString(), issueNr).map((todo) => Object.assign(todoMetadata || {}, todo, fileName));
-                        todos.addTodos(todosFound);
+                        const todosFound = matchTodos(chunk.toString(), issueNr);
+                        const todosWithMetadata = todosFound.map((todo) => {
+                            const todoWMetadata = todo;
+                            todoWMetadata.fileName = fileName;
+                            for (const [key, value] of Object.entries(todoMetadata || {})) {
+                                todoWMetadata[key] = value;
+                            }
+                            return todoWMetadata;
+                        });
+                        if (todosWithMetadata.length) {
+                            todos.addTodos(todosWithMetadata);
+                        }
                         next();
                     },
                 });
@@ -33342,16 +33335,24 @@ class Repo {
             return this.getTarballStream(url);
         });
     }
-    // TODO support closed issues.. ()
-    getIssue(issueNumber) {
+    /**
+     * Searches for all "TODOs" occurrences in a certain git ref
+     * @param ref ref of the git state to be searched, defaults to the head of default branch if unset
+     * @param issueNr if set, it will only seach occurences that reference this issueNr, such as "TODO #18 do this", otherwise it will search all "TODOs", whether they refernce any issue or none
+     * @param todoMetadata optional key-value pairs that are appended to all found "TODOs" ocurrences
+     * @returns TodoState
+     */
+    getTodosFromGitRef(ref, issueNr, todoMetadata) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.octokit.rest.issues.get({
-                owner: this.owner,
-                repo: this.repo,
-                issue_number: issueNumber,
-            });
+            const tar = yield this.downloadTarball(ref);
+            const todoState = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata);
+            return todoState;
         });
     }
+    /**
+     * Finds all branches in repository which start with `${number}-` which are branches that are potentially associated with an Issue on Github
+     * @returns Feature Branches
+     */
     getFeatureBranches() {
         var _a, e_1, _b, _c;
         return __awaiter(this, void 0, void 0, function* () {
@@ -33379,13 +33380,36 @@ class Repo {
             return featureBranches;
         });
     }
+    getFeatureBranchesAheadOf(base, heads) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            // TODO concurrent requests could be a problem for secondary rate limits
+            // https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
+            const comparisons = yield Promise.all(heads.map((head) => this.compareCommits(base, head)));
+            const featureBranchesAheadOf = [];
+            for (let i = 0; i < comparisons.length; i++) {
+                const ahead = (_a = comparisons[i]) === null || _a === void 0 ? void 0 : _a.data.ahead_by;
+                if (ahead && ahead > 0) {
+                    featureBranchesAheadOf.push(heads[i]);
+                }
+            }
+            return featureBranchesAheadOf;
+        });
+    }
+    compareCommits(base, head) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.octokit.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
+                owner: this.owner,
+                repo: this.repo,
+                basehead: `${base}...${head}`,
+            });
+        });
+    }
     findTodoHubIssue() {
         return __awaiter(this, void 0, void 0, function* () {
             const todohubIssues = yield this.octokit.rest.search.issuesAndPullRequests({
-                // owner: this.owner,
-                // repo: this.repo,
                 per_page: 100,
-                q: 'todohub_ctrl_issue_data is:issue in:body repo:nigeisel/todohub author:@me',
+                q: `todohub_ctrl_issue_data is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
             });
             if (todohubIssues.data.total_count > 1) {
                 // TODO check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
@@ -33435,24 +33459,13 @@ class Repo {
             });
         });
     }
-    updateIssue(issueNumber, title, body, state) {
+    // TODO support closed issues.. ()
+    getIssue(issueNumber) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this.octokit.rest.issues.update({
+            return this.octokit.rest.issues.get({
                 owner: this.owner,
                 repo: this.repo,
                 issue_number: issueNumber,
-                title,
-                body,
-                state,
-            });
-        });
-    }
-    compareCommits(base, head) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.octokit.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
-                owner: this.owner,
-                repo: this.repo,
-                basehead: `${base}...${head}`,
             });
         });
     }
@@ -33467,11 +33480,23 @@ class Repo {
             });
         });
     }
+    updateIssue(issueNumber, title, body, state) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.octokit.rest.issues.update({
+                owner: this.owner,
+                repo: this.repo,
+                issue_number: issueNumber,
+                title,
+                body,
+                state,
+            });
+        });
+    }
 }
 
-;// CONCATENATED MODULE: ./src/elements/admin_issue_tag.ts
+;// CONCATENATED MODULE: ./src/elements/control-issue-data.ts
 
-class TodohubDataTag {
+class TodohubData {
     constructor(tag) {
         if (tag) {
             this.raw = tag;
@@ -33483,10 +33508,24 @@ class TodohubDataTag {
         }
     }
     getTrackedIssuesNumbers() {
-        return new Set(Object.keys(this.decodedData));
+        const issueNrs = new Set(Object.keys(this.decodedData));
+        issueNrs.delete('0');
+        return issueNrs;
     }
     getTrackedIssue(issueNr) {
         return this.decodedData[issueNr];
+    }
+    // TODO: naming: stray/lost?
+    getTodosWithIssueReference() {
+        const cloned = Object.assign({}, this.decodedData);
+        delete cloned[0];
+        return cloned;
+    }
+    getTodosWithoutIssueReference() {
+        return this.decodedData[0];
+    }
+    setTodosWithoutIssueReference(todoState, commitSha, trackedBranch) {
+        this.setTodoState(0, todoState, commitSha, trackedBranch);
     }
     setTodoState(issueNr, todoState, commitSha, trackedBranch) {
         this.decodedData[issueNr] = Object.assign(this.decodedData[issueNr] || {}, {
@@ -33528,9 +33567,6 @@ class TodohubDataTag {
     equals(_todoState) {
         // TODO implement order (by filename, linenr?)
     }
-    getTodoStateHash() {
-        // TODO
-    }
     getHash() {
         // TODO implement
     }
@@ -33541,6 +33577,7 @@ class TodohubDataTag {
         return parsed;
     }
     encode() {
+        // TODO sort by keys and generate hash?
         const stringified = JSON.stringify(this.decodedData);
         const zipped = (0,external_node_zlib_namespaceObject.gzipSync)(Buffer.from(stringified, 'utf-8'));
         const b64Encoded = zipped.toString('base64');
@@ -33548,8 +33585,8 @@ class TodohubDataTag {
     }
 }
 
-;// CONCATENATED MODULE: ./src/elements/admin_issue.ts
-var admin_issue_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
+;// CONCATENATED MODULE: ./src/elements/control-issue.ts
+var control_issue_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
@@ -33565,69 +33602,82 @@ const TODOHUB_LABEL = {
     description: 'todohub control issue',
     color: '1D76DB',
 };
-class TodohubAdminIssue {
-    constructor(existingIssue) {
+class TodohubControlIssue {
+    constructor(repo, existingIssue) {
+        this.repo = repo;
         if (existingIssue) {
             this.existingIssueNumber = existingIssue.number;
-            this.isClosed = existingIssue.isClosed;
+            this.existingIsClosed = existingIssue.isClosed;
             const components = this.parseContent(existingIssue.body);
-            this.data = new TodohubDataTag(components.data);
+            this.data = new TodohubData(components.data);
             this.preTag = components.preTag;
             this.midTag = components.midTag;
             this.postTag = components.postTag;
         }
         else {
-            this.data = new TodohubDataTag();
+            this.data = new TodohubData();
         }
     }
     exists() {
         return this.existingIssueNumber !== undefined;
     }
     compose() {
-        // TODO implement
         this.midTag = '\n### Tracked Issues:';
-        for (const [issueNr, trackedIssue] of Object.entries(this.data.decodedData)) {
-            this.midTag += `\n* [Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''}): *${trackedIssue.todoState.length}* open TODOs`;
+        for (const [issueNr, trackedIssue] of Object.entries(this.data.getTodosWithIssueReference())) {
+            let link = '';
+            if (trackedIssue.commentId) {
+                link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`;
+            }
+            else {
+                link = `Issue ${issueNr} (No associated issue found)`;
+            }
+            this.midTag += `\n* ${link}: *${trackedIssue.todoState.length}* open TODOs`;
         }
-        this.midTag += '\n';
+        this.midTag += '\n### Todos without Issue Reference:';
+        const issueWORefernce = this.data.getTodosWithoutIssueReference();
+        if (issueWORefernce) {
+            for (const todo of issueWORefernce.todoState) {
+                this.midTag += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
+            }
+        }
         return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
     }
-    write(repo) {
-        return admin_issue_awaiter(this, void 0, void 0, function* () {
+    write() {
+        return control_issue_awaiter(this, void 0, void 0, function* () {
             // TODO implement
             if (this.existingIssueNumber) {
-                return repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
+                return this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
             }
             // TODO label is not created with right config (color + description)
-            return repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL]);
+            return this.repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL]);
             // TODO return updated issues - can be used to update the respective feature comments
         });
     }
-    parseContent(commentBody) {
+    parseContent(issueBody) {
         const regex = /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/;
-        const parsed = commentBody.match(regex);
+        const parsed = issueBody.match(regex);
         if (!parsed ||
             !parsed.groups ||
             parsed.groups.preTag === undefined ||
             parsed.groups.data === undefined ||
             parsed.groups.midTag === undefined ||
             parsed.groups.postTag === undefined) {
-            throw new Error(`Error parsing Todohub Issue: ${commentBody}`);
+            throw new Error(`Error parsing Todohub Issue: ${issueBody}`);
         }
         return parsed.groups;
     }
     static get(repo) {
-        return admin_issue_awaiter(this, void 0, void 0, function* () {
+        return control_issue_awaiter(this, void 0, void 0, function* () {
             const issue = yield repo.findTodoHubIssue();
             if (issue) {
                 // TODO handle error and keep searching if parsing fails?
-                return new TodohubAdminIssue({
+                return new TodohubControlIssue(repo, {
                     body: issue.body || '',
                     number: issue.number,
                     isClosed: issue.state === 'closed',
                 });
             }
-            return new TodohubAdminIssue();
+            return new TodohubControlIssue(repo);
         });
     }
 }
@@ -33646,6 +33696,7 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
+// TODO add debug and info logs
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -33685,7 +33736,7 @@ function run() {
                 // TODO parallelize stuff (+ add workers)
                 // TODO get and parse .todoignore to avoid unnecessary searching of files
                 // TODO tests + organize Issues
-                const getTodohubIssue = TodohubAdminIssue.get(repo);
+                const getTodohubIssue = TodohubControlIssue.get(repo);
                 const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber, { foundInCommit: commitSha });
                 const [todohubIssue, todoState] = yield Promise.all([
                     getTodohubIssue,
@@ -33710,10 +33761,10 @@ function run() {
                 if (!todohubIssue.data.isEmpty(featureBranchNumberParsed)) {
                     yield repo.updateIssue(featureBranchNumberParsed, undefined, undefined, 'open');
                 }
-                yield todohubIssue.write(repo);
+                yield todohubIssue.write();
             }
             else if (isDefaultBranch) {
-                const getTodohubIssue = TodohubAdminIssue.get(repo);
+                const getTodohubIssue = TodohubControlIssue.get(repo);
                 const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {
                     foundInCommit: commitSha,
                 });
@@ -33723,31 +33774,49 @@ function run() {
                 ]);
                 const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers();
                 const issuesWithTodosInCode = todoState.getIssuesNumbers();
-                const issueUnion = new Set([...trackedIssues, ...issuesWithTodosInCode]);
+                const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]));
                 const featureBranches = yield repo.getFeatureBranches();
-                const trackedFeatureBranches = featureBranches.filter((branch) => {
-                    for (const issue of issueUnion) {
-                        if (branch.name.startsWith(`${issue}-`)) {
-                            return true;
+                const trackedFeatureBranches = featureBranches.filter((branch) => (issueUnion.some((issue) => branch.name.startsWith(`${issue}-`))));
+                const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf('main', trackedFeatureBranches.map((branch) => branch.name));
+                // const issuesWithFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
+                //   branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
+                const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) => !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)));
+                todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo() || [], commitSha, ref);
+                for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
+                    const issueNumber = Number.parseInt(issue);
+                    const todos = todoState.getByIssueNo(issueNumber);
+                    todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref);
+                    const existingCommentId = todohubIssue.data.getExistingCommentId(issueNumber);
+                    const composedComment = todohubIssue.data.composeTrackedIssueComment(issueNumber);
+                    if (existingCommentId) {
+                        // TODO add state hash to check whether anything needs to be updated?
+                        // TODO handle: comment was deleted
+                        // TODO refactor (do no call repo directly, but via AdminIssue?)
+                        yield repo.updateComment(existingCommentId, composedComment);
+                    }
+                    else {
+                        // TODO parallelize
+                        try {
+                            const created = yield repo.createComment(issueNumber, composedComment);
+                            todohubIssue.data.setCommentId(issueNumber, created.data.id);
+                        }
+                        catch (err) {
+                            // TODO handle: issue doesnt exist? Create?
+                            console.warn(err);
                         }
                     }
-                    return false;
-                });
-                const getComparisons = trackedFeatureBranches.map((branch) => main_awaiter(this, void 0, void 0, function* () { return repo.compareCommits('main', branch.name); }));
-                const comparisons = yield Promise.all(getComparisons);
-                const _featureBranchesAhead = comparisons.map((comparison) => comparison.data.ahead_by > 0);
-                // const findTodohubComments = repo.findTodoHubComments()
-                // const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber)
-                // const [todohubComments, todoState] = await Promise.all([
-                //   findTodohubComments,
-                //   getTodoState
-                // ])
-                // for (const [issueId, todohubComment] of Object.entries(todohubComments)) {
-                //   for (const [issueNr, todo] of Object.entries(todoState.todosByIssueNo)) {
-                //   }
-                // }
-                // search all issues for todo comments
-                // search codebase for all todos
+                    // TODO parallelize
+                    if (!todohubIssue.data.isEmpty(issueNumber)) {
+                        try {
+                            yield repo.updateIssue(issueNumber, undefined, undefined, 'open');
+                        }
+                        catch (err) {
+                            // TODO handle: issue doesnt exist? Create?
+                            console.warn(err);
+                        }
+                    }
+                    yield todohubIssue.write();
+                }
                 // for union of all issues with comments and todos with those numbers {
                 //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
                 //     apply changes (rewrite or add comment), and save state as main state
@@ -33761,6 +33830,7 @@ function run() {
             }
             // TODO set output: all changes in workflow
             // core.setOutput('', )
+            // core.setOutput('changed_issues', '')
         }
         catch (error) {
             if (error instanceof Error) {
