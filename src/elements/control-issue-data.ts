@@ -6,6 +6,8 @@ export default class TodohubData {
   // TODO set private
   // TODO use Map() when parsing? - number keys are allowed..
   // TODO order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
+  // TODO data should contain state-commitSha for each tracked issue individually? 
+  //      issues that arent updated in a default branch push (because they have their own branch) should also keep their commitsha state
   decodedData: Record<number, TrackedIssue>
 
   constructor(tag?: string) {

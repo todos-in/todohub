@@ -33694,6 +33694,7 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
+// TODO parallelization ? do we need to acquire a lock on issue while other action is running
 // TODO add debug and info logs
 /**
  * The main function for the action.
@@ -33762,6 +33763,7 @@ function run() {
                 yield todohubIssue.write();
             }
             else if (isDefaultBranch) {
+                core.info(`Push Event into default branch ${defaultBranch}`);
                 const getTodohubIssue = TodohubControlIssue.get(repo);
                 const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {
                     foundInCommit: commitSha,
@@ -33775,7 +33777,7 @@ function run() {
                 const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]));
                 const featureBranches = yield repo.getFeatureBranches();
                 const trackedFeatureBranches = featureBranches.filter((branch) => (issueUnion.some((issue) => branch.name.startsWith(`${issue}-`))));
-                const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf('main', trackedFeatureBranches.map((branch) => branch.name));
+                const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf(defaultBranch, trackedFeatureBranches.map((branch) => branch.name));
                 // const issuesWithFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
                 //   branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
                 const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) => !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)));

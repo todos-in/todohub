@@ -4,6 +4,7 @@ import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
 
 
+// TODO parallelization ? do we need to acquire a lock on issue while other action is running
 // TODO add debug and info logs
 /**
  * The main function for the action.
@@ -104,6 +105,7 @@ export async function run(): Promise<void> {
 
       await todohubIssue.write()
     } else if (isDefaultBranch) {
+      core.info(`Push Event into default branch ${defaultBranch}`)
       const getTodohubIssue = TodohubControlIssue.get(repo)
       const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {
         foundInCommit: commitSha,
@@ -122,7 +124,7 @@ export async function run(): Promise<void> {
       const trackedFeatureBranches = featureBranches.filter((branch) =>
         (issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
       )
-      const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf('main', trackedFeatureBranches.map((branch) => branch.name))
+      const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf(defaultBranch, trackedFeatureBranches.map((branch) => branch.name))
 
       // const issuesWithFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
       //   branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
