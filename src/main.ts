@@ -169,6 +169,8 @@ export async function run(): Promise<void> {
     // TODO set output: all changes in workflow
     // core.setOutput('', )
     // core.setOutput('changed_issues', '')
+    // core.setOutput('tracked_issues', Array.from(todohubIssue.data.getTrackedIssuesNumbers()).join(','))
+
   } catch (error) {
     if (error instanceof Error) {
       core.error(error.message)
