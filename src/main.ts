@@ -118,6 +118,7 @@ export async function run(): Promise<void> {
       for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
         const issueNumber = Number.parseInt(issue)
         const todos = todoState.getByIssueNo(issueNumber)
+        // TODO what if todos are empty? should this be deleted rather than set to empty array
         todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref)
 
         const existingCommentId = todohubIssue.data.getExistingCommentId(issueNumber)

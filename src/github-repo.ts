@@ -128,7 +128,7 @@ export default class Repo {
     ) => {
       return new Writable({
         write(chunk, encoding, next) {
-          // TODO seach line by line + skip lines > n characters
+          // TODO search line by line + skip lines > n characters
           const todosFound = matchTodos(chunk.toString(), issueNr)
           const todosWithMetadata = todosFound.map((todo) => {
             const todoWMetadata = todo as ITodo & { [key: string]: string }
