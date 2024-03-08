@@ -3,18 +3,16 @@ import { ITodo, TrackedIssue } from 'src/types/todo.js'
 
 export default class TodohubData {
   raw?: string
-  // TODO set private
-  // TODO use Map() when parsing? - number keys are allowed..
-  // TODO order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
-  // TODO data should contain state-commitSha for each tracked issue individually? 
-  //      issues that arent updated in a default branch push (because they have their own branch) should also keep their commitsha state
+  // TODO #70 use Map() when parsing? - number keys are allowed..
+  // TODO #70 order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
+  // TODO #69 set private and only interact with data via methods
   decodedData: Record<number, TrackedIssue>
 
   constructor(tag?: string) {
     if (tag) {
       this.raw = tag
       this.decodedData = this.decode(tag)
-      // TODO check decoded JSON schema
+      // TODO #59 check decoded JSON schema
     } else {
       this.decodedData = {}
     }
@@ -98,14 +96,6 @@ export default class TodohubData {
     return composed
   }
 
-  equals(_todoState: ITodo[]) {
-    // TODO implement order (by filename, linenr?)
-  }
-
-  getHash() {
-    // TODO implement
-  }
-
   decode(tag: string) {
     const b64Decoded = Buffer.from(tag, 'base64')
     const unzipped = gunzipSync(b64Decoded)
@@ -114,7 +104,7 @@ export default class TodohubData {
   }
 
   encode() {
-    // TODO sort by keys and generate hash?
+    // TODO #70 sort by keys and generate hash?
     const stringified = JSON.stringify(this.decodedData)
     const zipped = gzipSync(Buffer.from(stringified, 'utf-8'))
     const b64Encoded = zipped.toString('base64')

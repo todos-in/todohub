@@ -68,9 +68,10 @@ export class TodohubControlIssue {
     if (this.existingIssueNumber) {
       return this.repo.updateIssue(this.existingIssueNumber,  undefined, this.compose())
     }
-    // TODO #60 get this from config + label is not created with right config (color + description)
-    // TODO return updated issues - can be used to update the respective feature comments
-    return this.repo.createPinnedIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL])
+    // TODO #60 get this issue title and label settings from config from input?
+    // TODO #60 label is not created with right config (color + description)
+    return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), [TODOHUB_LABEL])
+    // TODO #61 return updated issues - can be used to update the respective feature comments
   }
 
   private parseContent(issueBody: string) {

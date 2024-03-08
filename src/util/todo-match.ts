@@ -1,7 +1,7 @@
 // TODO #76 refine regex (make simpler?) + add TODO: colon option
 
 const getRegex = (issueNumber?: string) => {
-  // If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO dothis, TODO #18 dothis, TODO 5 dothis, etc)
+  // If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
   // If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
   const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?'
   return new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}[^\\S\\r\\n]+(?<todoText>.*)`, 'gim')

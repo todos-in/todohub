@@ -146,7 +146,7 @@ export default class Repo {
     }
 
     tarBallStream.pipe(unzipStream).pipe(extractStream)
-    // TODO check event handling
+    // TODO #80 check and test event & error handling in streams (are they closed properly?) check for memory leaks
     // response.on('end', () => {
     //   // testStream.end();
     // });
@@ -275,13 +275,13 @@ export default class Repo {
   }
 
   async findTodoHubIssue() {
-    // TODO author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
+    // TODO #79 author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
     const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
       per_page: 100,
       q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
     })
     if (todohubIssues.data.total_count > 1) {
-      // TODO check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
+      // TODO #79 check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
       throw new Error('More than one Todohub Issue found')
     }
     if (todohubIssues.data.total_count === 1) {
@@ -323,7 +323,6 @@ export default class Repo {
     )
   }
 
-  // TODO support closed issues.. ()
   async getIssue(issueNumber: number) {
     return this.octokit.rest.issues.get({
       owner: this.owner,

@@ -66,7 +66,7 @@ export async function run(): Promise<void> {
       const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed)
 
       if (existingCommentId) {
-        // TODO add state hash to check whether anything needs to be updated?
+        // TODO #64 add state hash to check whether anything needs to be updated?
         // TODO #59 handle: comment was deleted
         // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
         await repo.updateComment(existingCommentId, composedComment)
@@ -116,14 +116,14 @@ export async function run(): Promise<void> {
       for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
         const issueNumber = Number.parseInt(issue)
         const todos = todoState.getByIssueNo(issueNumber)
-        // TODO what if todos are empty? should this be deleted rather than set to empty array
+        // TODO #64 what if todos are empty? should this be deleted rather than set to empty array
+        // otherwise control issue keeps endless track of old issues with 0 todos
         todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref)
 
         const existingCommentId = todohubIssue.data.getExistingCommentId(issueNumber)
         const composedComment = todohubIssue.data.composeTrackedIssueComment(issueNumber)
 
         if (existingCommentId) {
-          // TODO add state hash to check whether anything needs to be updated?
           // TODO #59 handle: comment was deleted
           // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
           await repo.updateComment(existingCommentId, composedComment)
@@ -154,15 +154,6 @@ export async function run(): Promise<void> {
         }
       }
       await todohubIssue.write()
-
-      // for union of all issues with comments and todos with those numbers {
-      //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
-      //     apply changes (rewrite or add comment), and save state as main state
-      //   }
-      //   if (comment does not exist) { createwith main-branch tracking }
-      //   if (comment exists) but state has not changes { do nothing (set track main-branch?) }
-      //   if (comment exists && state has changed && feature branch is ahead) { do nothing ? }
-      // }
     }
 
     // TODO #61 set output: all changes in workflow

@@ -33777,7 +33777,7 @@ const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(impo
 ;// CONCATENATED MODULE: ./src/util/todo-match.ts
 // TODO #76 refine regex (make simpler?) + add TODO: colon option
 const getRegex = (issueNumber) => {
-    // If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO dothis, TODO #18 dothis, TODO 5 dothis, etc)
+    // If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
     // If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
     const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?';
     return new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'gim');
@@ -33975,7 +33975,7 @@ class Repo {
                 });
             };
             tarBallStream.pipe(unzipStream).pipe(extractStream);
-            // TODO check event handling
+            // TODO #80 check and test event & error handling in streams (are they closed properly?) check for memory leaks
             // response.on('end', () => {
             //   // testStream.end();
             // });
@@ -34099,13 +34099,13 @@ class Repo {
     }
     findTodoHubIssue() {
         return __awaiter(this, void 0, void 0, function* () {
-            // TODO author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
+            // TODO #79 author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
             const todohubIssues = yield this.octokit.rest.search.issuesAndPullRequests({
                 per_page: 100,
                 q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
             });
             if (todohubIssues.data.total_count > 1) {
-                // TODO check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
+                // TODO #79 check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
                 throw new Error('More than one Todohub Issue found');
             }
             if (todohubIssues.data.total_count === 1) {
@@ -34143,7 +34143,6 @@ class Repo {
             });
         });
     }
-    // TODO support closed issues.. ()
     getIssue(issueNumber) {
         return __awaiter(this, void 0, void 0, function* () {
             return this.octokit.rest.issues.get({
@@ -34199,7 +34198,7 @@ class TodohubData {
         if (tag) {
             this.raw = tag;
             this.decodedData = this.decode(tag);
-            // TODO check decoded JSON schema
+            // TODO #59 check decoded JSON schema
         }
         else {
             this.decodedData = {};
@@ -34262,12 +34261,6 @@ class TodohubData {
         composed += `\n\n<sup>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`<sub>`;
         return composed;
     }
-    equals(_todoState) {
-        // TODO implement order (by filename, linenr?)
-    }
-    getHash() {
-        // TODO implement
-    }
     decode(tag) {
         const b64Decoded = Buffer.from(tag, 'base64');
         const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
@@ -34275,7 +34268,7 @@ class TodohubData {
         return parsed;
     }
     encode() {
-        // TODO sort by keys and generate hash?
+        // TODO #70 sort by keys and generate hash?
         const stringified = JSON.stringify(this.decodedData);
         const zipped = (0,external_node_zlib_namespaceObject.gzipSync)(Buffer.from(stringified, 'utf-8'));
         const b64Encoded = zipped.toString('base64');
@@ -34346,9 +34339,10 @@ class TodohubControlIssue {
             if (this.existingIssueNumber) {
                 return this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
             }
-            // TODO #60 get this from config + label is not created with right config (color + description)
-            // TODO return updated issues - can be used to update the respective feature comments
-            return this.repo.createPinnedIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL]);
+            // TODO #60 get this issue title and label settings from config from input?
+            // TODO #60 label is not created with right config (color + description)
+            return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), [TODOHUB_LABEL]);
+            // TODO #61 return updated issues - can be used to update the respective feature comments
         });
     }
     parseContent(issueBody) {
@@ -34440,7 +34434,7 @@ function run() {
                 const existingCommentId = todohubIssue.data.getExistingCommentId(featureBranchNumberParsed);
                 const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed);
                 if (existingCommentId) {
-                    // TODO add state hash to check whether anything needs to be updated?
+                    // TODO #64 add state hash to check whether anything needs to be updated?
                     // TODO #59 handle: comment was deleted
                     // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
                     yield repo.updateComment(existingCommentId, composedComment);
@@ -34477,12 +34471,12 @@ function run() {
                 for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
                     const issueNumber = Number.parseInt(issue);
                     const todos = todoState.getByIssueNo(issueNumber);
-                    // TODO what if todos are empty? should this be deleted rather than set to empty array
+                    // TODO #64 what if todos are empty? should this be deleted rather than set to empty array
+                    // otherwise control issue keeps endless track of old issues with 0 todos
                     todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref);
                     const existingCommentId = todohubIssue.data.getExistingCommentId(issueNumber);
                     const composedComment = todohubIssue.data.composeTrackedIssueComment(issueNumber);
                     if (existingCommentId) {
-                        // TODO add state hash to check whether anything needs to be updated?
                         // TODO #59 handle: comment was deleted
                         // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
                         yield repo.updateComment(existingCommentId, composedComment);
@@ -34510,14 +34504,6 @@ function run() {
                     }
                 }
                 yield todohubIssue.write();
-                // for union of all issues with comments and todos with those numbers {
-                //   if (no feature branch for this issue ahead of main) && (todo state has changed) {
-                //     apply changes (rewrite or add comment), and save state as main state
-                //   }
-                //   if (comment does not exist) { createwith main-branch tracking }
-                //   if (comment exists) but state has not changes { do nothing (set track main-branch?) }
-                //   if (comment exists && state has changed && feature branch is ahead) { do nothing ? }
-                // }
             }
             // TODO #61 set output: all changes in workflow
             // core.setOutput('', )
