@@ -8,7 +8,7 @@
 
 import * as env from './load-env'
 import path from 'node:path'
-env.load('.prod.env.json', {GITHUB_EVENT_PATH: path.join(__dirname, '/context.feature-branch-push.json')})
+env.load('.prod.env.json', {GITHUB_EVENT_PATH: path.join(__dirname, '/context.default-branch-push.json')})
 import * as core from '@actions/core'
 import * as main from '../src/main'
 
