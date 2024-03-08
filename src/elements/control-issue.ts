@@ -56,6 +56,7 @@ export class TodohubControlIssue {
     const issueWORefernce = this.data.getTodosWithoutIssueReference()
     if (issueWORefernce) {
       for (const todo of issueWORefernce.todoState) {
+        // TODO #74 make sure todos dont contain characters that break the comment
         this.midTag += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
       }
     }
