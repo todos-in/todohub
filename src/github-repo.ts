@@ -11,9 +11,8 @@ import * as path from 'node:path'
 import { ITodo } from './types/todo.js'
 import ignore from 'ignore'
 
-// TODO use graphql where possible to reduce data transfer
-// TODO handle rate limits (primary and secondary)
-// https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api?apiVersion=2022-11-28#handle-rate-limit-errors-appropriately
+// TODO #77 use graphql where possible to reduce data transfer
+// TODO #63 handle rate limits (primary and secondary)
 export default class Repo {
   API_HITS = 0
   githubToken: string
@@ -49,7 +48,7 @@ export default class Repo {
       }
       throw error
     }
-    // TODO error handling if file cant be parsed
+    // TODO #59 error handling if file cant be parsed
     return ignore.default().add(todoIgnoreFileRaw.data)
   }
 
@@ -117,7 +116,7 @@ export default class Repo {
     todoMetadata?: { [key: string]: string },
     ignore?: ignore.Ignore,
   ): Promise<TodoState> {
-    // TODO move logic
+    // TODO #69 move logic
     const extractStream = tar.extract()
     const unzipStream = createGunzip()
 
@@ -128,7 +127,7 @@ export default class Repo {
     ) => {
       return new Writable({
         write(chunk, encoding, next) {
-          // TODO search line by line + skip lines > n characters
+          // TODO #58 search line by line + skip lines > n characters
           const todosFound = matchTodos(chunk.toString(), issueNr)
           const todosWithMetadata = todosFound.map((todo) => {
             const todoWMetadata = todo as ITodo & { [key: string]: string }
@@ -185,7 +184,7 @@ export default class Repo {
         const findTodosStream = newFindTodoStream(fileName)
         stream.pipe(findTodosStream)
         stream.on('error', () => {
-          // TODO replace console logs
+          // TODO #59 replace console logs
           console.warn(`Error extracting Todos from file: ${fileName}`)
           findTodosStream.end()
           next()
@@ -199,7 +198,7 @@ export default class Repo {
   }
 
   private async downloadTarball(ref?: string) {
-    // TODO try catch
+    // TODO #59 try catch
     const url = await this.getTarballUrl(ref)
     return this.getTarballStream(url)
   }
@@ -216,7 +215,7 @@ export default class Repo {
     issueNr?: string,
     todoMetadata?: Record<string, string>,
   ) {
-    // TODO parallelize
+    // TODO #62 parallelize
     const tar = await this.downloadTarball(ref)
     const ignore = await this.getTodoIgnoreFile()
     const todoState = await this.extractTodosFromTarGz(
@@ -251,8 +250,7 @@ export default class Repo {
   }
 
   async getFeatureBranchesAheadOf(base: string, heads: string[]) {
-    // TODO concurrent requests could be a problem for secondary rate limits
-    // https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
+    // TODO #63 concurrent requests could be a problem for secondary rate limits: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
     const comparisons = await Promise.all(heads.map((head) => this.compareCommits(base, head)))
 
     const featureBranchesAheadOf = []
@@ -277,9 +275,10 @@ export default class Repo {
   }
 
   async findTodoHubIssue() {
+    // TODO author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
     const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
       per_page: 100,
-      q: `todohub_ctrl_issue_data is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
+      q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
     })
     if (todohubIssues.data.total_count > 1) {
       // TODO check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
@@ -298,14 +297,6 @@ export default class Repo {
     //     Accept: 'application/vnd.github.text-match+json'
     //   }
     // })
-    // // return issuePages
-    // for await (const issuePage of issuePages) {
-    //   // TODO in app we can use 'performed_via_github_app' to find the comment?
-    //   for (const issue of issuePage.data) {
-    //     // TODO search for exact tag
-    //     return issue
-    //   }
-    // }
   }
 
   async updateComment(commentId: number, body: string) {

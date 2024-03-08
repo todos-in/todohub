@@ -4,7 +4,7 @@ const { EOL } = require('os');
 const gitPath = path.join('.', '.git', 'HEAD')
 let gitHEAD
 try {
-  // TODO search for git folder
+  // TODO #72 search for git folder
   gitHEAD = fs.readFileSync(gitPath, 'utf8')
 } catch (err) {
   console.debug('Not in git folder')
@@ -15,8 +15,10 @@ const isFeatureBranch = !Number.isNaN(currentIssue)
 const todoWithoutIssueRefRegex = /(?<keyword>TODO)(?<whitespace>[^\S\r\n]*)(?<issue_ref>\(?#?[0-9]+\)?)?(?<todo_txt>.*)/gim
 const todoWithCurrentIssueRegex = new RegExp(`(?<keyword>TODO).*(?<numberGroup>\\(?#?(?<issueNumber>${currentIssue})\\)?)(?<todoText>.*)`, 'i')
 
-// TODO add tests
-// TODO publish
+// TODO #72 add tests
+// TODO #72 publish
+// TODO #72 move to another repo
+// TODO #72 prevent false positives better
 
 module.exports = {
   'no-todos-without-issue-ref': {
@@ -31,7 +33,7 @@ module.exports = {
             const matches = comment.value.matchAll(todoWithoutIssueRefRegex)
             // in multiline comment blocks we are looking for all matches and giving one error for the whole block without hint where exactly error occurred
             // The suggestion while replace all occurrences in the block and override the whole block
-            // TODO: give more precise hints of occurrences + and allow fixing indiviual occurrences in a comment block
+            // TODO #72 give more precise hints of occurrences + and allow fixing indiviual occurrences in a comment block
 
             // Find Todos in Comments which match the Regex but do NOT have an issue reference
             let firstTodoWithoutIssueRefMatch
@@ -94,7 +96,7 @@ module.exports = {
             for (const line of comment.value.split(EOL)) {
               const match = line.match(todoWithCurrentIssueRegex)
               if (match) {
-                // TODO get exact location of TODO match, not comment start / end line
+                // TODO #72 get exact location of TODO match, not comment start / end line
                 context.report({
                   loc: {
                     start: {

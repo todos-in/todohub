@@ -13,6 +13,7 @@ ignorePatterns:
   - 'dist/'
   - 'coverage/'
   - '__tests__/'
+  - git_tests
   - eslint-local-rules.cjs
 
 parser: '@typescript-eslint/parser'

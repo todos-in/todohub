@@ -1,7 +1,7 @@
 import Repo from 'src/github-repo.js'
 import TodohubData from './control-issue-data.js'
 
-// TODO move to config file
+// TODO #60 move to config file
 const TODOHUB_LABEL = {
   name: 'todohub',
   description: 'todohub control issue',
@@ -68,7 +68,7 @@ export class TodohubControlIssue {
     if (this.existingIssueNumber) {
       return this.repo.updateIssue(this.existingIssueNumber,  undefined, this.compose())
     }
-    // TODO label is not created with right config (color + description)
+    // TODO #60 get this from config + label is not created with right config (color + description)
     return this.repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL])
     // TODO return updated issues - can be used to update the respective feature comments
   }
@@ -98,7 +98,7 @@ export class TodohubControlIssue {
   static async get(repo: Repo) {
     const issue = await repo.findTodoHubIssue()
     if (issue) {
-      // TODO handle error and keep searching if parsing fails?
+      // TODO #59 handle error and keep searching if parsing fails?
       return new TodohubControlIssue(repo, {
         body: issue.body || '',
         number: issue.number,

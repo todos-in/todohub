@@ -4,8 +4,8 @@ import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
 import { PushEvent } from '@octokit/webhooks-types'
 
-// TODO parallelization ? do we need to acquire a lock on issue while other action is running
-// TODO add debug and info logs
+// TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
+// TODO #59 add debug and info logs
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
@@ -29,21 +29,19 @@ export async function run(): Promise<void> {
   if (isFeatureBranch && Number.isNaN(featureBranchNumberParsed)) {
     throw new Error('featureBranchNumber is not an integer')
   }
-  // TODO check what happens for deleted branches?
+  // TODO #68 check what happens for deleted branches?
   const commitSha = context.sha
 
   core.info(`Pushing commit: ${commitSha}, ref: ${ref}`)
   try {
     const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
 
-    // TODO handle errors
+    // TODO #59 handle errors
     if (isFeatureBranch && featureBranchNumberParsed) {
       core.info(`Push Event into feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`)
 
-      // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
-      // TODO parallelize stuff (+ add workers)
-      // TODO get and parse .todoignore to avoid unnecessary searching of files
-      // TODO tests + organize Issues
+      // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
+      // TODO #62 parallelize stuff (+ add workers)
 
       const getTodohubIssue = TodohubControlIssue.get(repo)
       const getTodoState = repo.getTodosFromGitRef(
@@ -69,16 +67,16 @@ export async function run(): Promise<void> {
 
       if (existingCommentId) {
         // TODO add state hash to check whether anything needs to be updated?
-        // TODO handle: comment was deleted
-        // TODO refactor (do no call repo directly, but via AdminIssue?)
+        // TODO #59 handle: comment was deleted
+        // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
         await repo.updateComment(existingCommentId, composedComment)
       } else {
-        // TODO handle: issue doesnt exist
+        // TODO #59handle: issue doesnt exist
         const created = await repo.createComment(featureBranchNumberParsed, composedComment)
         todohubIssue.data.setCommentId(featureBranchNumberParsed, created.data.id)
       }
 
-      // TODO parallelize
+      // TODO #62 parallelize
       if (!todohubIssue.data.isEmpty(featureBranchNumberParsed)) {
         await repo.updateIssue(
           featureBranchNumberParsed,
@@ -130,7 +128,7 @@ export async function run(): Promise<void> {
           // TODO refactor (do no call repo directly, but via AdminIssue?)
           await repo.updateComment(existingCommentId, composedComment)
         } else {
-          // TODO parallelize
+          // TODO #62 parallelize
           try {
             const created = await repo.createComment(issueNumber, composedComment)
             todohubIssue.data.setCommentId(issueNumber, created.data.id)
@@ -140,7 +138,7 @@ export async function run(): Promise<void> {
           }
         }
 
-        // TODO parallelize
+        // TODO #62 parallelize
         if (!todohubIssue.data.isEmpty(issueNumber)) {
           try {
             await repo.updateIssue(
@@ -150,7 +148,7 @@ export async function run(): Promise<void> {
               'open',
             )
           } catch (err) {
-            // TODO handle: issue doesnt exist? Create?
+            // TODO #59 handle: issue doesnt exist? Create?
             console.warn(err)
           }
         }
@@ -165,11 +163,9 @@ export async function run(): Promise<void> {
       //   if (comment exists) but state has not changes { do nothing (set track main-branch?) }
       //   if (comment exists && state has changed && feature branch is ahead) { do nothing ? }
       // }
-      // TODO how does feature branch take over once one exists?
-      // TODO get closes issues + reopen if necessary
     }
 
-    // TODO set output: all changes in workflow
+    // TODO #61 set output: all changes in workflow
     // core.setOutput('', )
     // core.setOutput('changed_issues', '')
     // core.setOutput('tracked_issues', Array.from(todohubIssue.data.getTrackedIssuesNumbers()).join(','))
