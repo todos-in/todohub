@@ -37,8 +37,8 @@ extends:
 
 rules:
   {
-    # 'local-rules/no-todos-without-issue-ref': 'error',
-    # 'local-rules/current-feature-branch-issues': 'warn',
+    'local-rules/no-todos-without-issue-ref': 'warn',
+    'local-rules/current-feature-branch-issues': 'warn',
     '@stylistic/js/indent': ['error', 2],
     '@stylistic/js/quote-props': ['error', 'consistent-as-needed'],
     '@stylistic/js/quotes': ['error', 'single'],
