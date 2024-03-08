@@ -124,8 +124,8 @@ export async function run(): Promise<void> {
 
         if (existingCommentId) {
           // TODO add state hash to check whether anything needs to be updated?
-          // TODO handle: comment was deleted
-          // TODO refactor (do no call repo directly, but via AdminIssue?)
+          // TODO #59 handle: comment was deleted
+          // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
           await repo.updateComment(existingCommentId, composedComment)
         } else {
           // TODO #62 parallelize
@@ -133,7 +133,7 @@ export async function run(): Promise<void> {
             const created = await repo.createComment(issueNumber, composedComment)
             todohubIssue.data.setCommentId(issueNumber, created.data.id)
           } catch (err) {
-            // TODO handle: issue doesnt exist? Create?
+            // TODO #59  handle: issue doesnt exist? Create?
             console.warn(err)
           }
         }

@@ -33775,11 +33775,12 @@ var external_node_stream_ = __nccwpck_require__(4492);
 ;// CONCATENATED MODULE: external "node:zlib"
 const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:zlib");
 ;// CONCATENATED MODULE: ./src/util/todo-match.ts
+// TODO #76 refine regex (make simpler?) + add TODO: colon option
 const getRegex = (issueNumber) => {
     // If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO dothis, TODO #18 dothis, TODO 5 dothis, etc)
     // If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
     const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?';
-    return new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}[^\\S\\r\\n]+(?<todoText>.*)`, 'gim');
+    return new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'gim');
 };
 const matchTodos = (text, issueNumber) => {
     var _a;
@@ -33813,14 +33814,13 @@ const matchTodos = (text, issueNumber) => {
 };
 
 ;// CONCATENATED MODULE: ./src/todo-state.ts
+// merge with TodohubData
 class TodoState {
     constructor() {
-        // todos: ITodo[] = []
         this.todosByIssueNo = {};
     }
     addTodos(todos) {
         var _a;
-        // this.todos = this.todos.concat(todos)
         for (const todo of todos) {
             const issueNr = todo.issueNumber || 0;
             if (!this.todosByIssueNo[issueNr]) {
@@ -33873,9 +33873,8 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
 
 
 
-// TODO use graphql where possible to reduce data transfer
-// TODO handle rate limits (primary and secondary)
-// https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api?apiVersion=2022-11-28#handle-rate-limit-errors-appropriately
+// TODO #77 use graphql where possible to reduce data transfer
+// TODO #63 handle rate limits (primary and secondary)
 class Repo {
     constructor(githubToken, owner, repo) {
         this.API_HITS = 0;
@@ -33904,7 +33903,7 @@ class Repo {
                 }
                 throw error;
             }
-            // TODO error handling if file cant be parsed
+            // TODO #59 error handling if file cant be parsed
             return ignore_default()["default"]().add(todoIgnoreFileRaw.data);
         });
     }
@@ -33951,14 +33950,14 @@ class Repo {
     }
     extractTodosFromTarGz(tarBallStream, issueNr, todoMetadata, ignore) {
         return __awaiter(this, void 0, void 0, function* () {
-            // TODO move logic
+            // TODO #69 move logic
             const extractStream = tar_stream.extract();
             const unzipStream = (0,external_node_zlib_namespaceObject.createGunzip)();
             const todos = new TodoState();
             const newFindTodoStream = (fileName) => {
                 return new external_node_stream_.Writable({
                     write(chunk, encoding, next) {
-                        // TODO seach line by line + skip lines > n characters
+                        // TODO #58 search line by line + skip lines > n characters
                         const todosFound = matchTodos(chunk.toString(), issueNr);
                         const todosWithMetadata = todosFound.map((todo) => {
                             const todoWMetadata = todo;
@@ -34007,7 +34006,7 @@ class Repo {
                     const findTodosStream = newFindTodoStream(fileName);
                     stream.pipe(findTodosStream);
                     stream.on('error', () => {
-                        // TODO replace console logs
+                        // TODO #59 replace console logs
                         console.warn(`Error extracting Todos from file: ${fileName}`);
                         findTodosStream.end();
                         next();
@@ -34022,7 +34021,7 @@ class Repo {
     }
     downloadTarball(ref) {
         return __awaiter(this, void 0, void 0, function* () {
-            // TODO try catch
+            // TODO #59 try catch
             const url = yield this.getTarballUrl(ref);
             return this.getTarballStream(url);
         });
@@ -34036,7 +34035,7 @@ class Repo {
      */
     getTodosFromGitRef(ref, issueNr, todoMetadata) {
         return __awaiter(this, void 0, void 0, function* () {
-            // TODO parallelize
+            // TODO #62 parallelize
             const tar = yield this.downloadTarball(ref);
             const ignore = yield this.getTodoIgnoreFile();
             const todoState = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata, ignore);
@@ -34077,8 +34076,7 @@ class Repo {
     getFeatureBranchesAheadOf(base, heads) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            // TODO concurrent requests could be a problem for secondary rate limits
-            // https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
+            // TODO #63 concurrent requests could be a problem for secondary rate limits: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
             const comparisons = yield Promise.all(heads.map((head) => this.compareCommits(base, head)));
             const featureBranchesAheadOf = [];
             for (let i = 0; i < comparisons.length; i++) {
@@ -34101,9 +34099,10 @@ class Repo {
     }
     findTodoHubIssue() {
         return __awaiter(this, void 0, void 0, function* () {
+            // TODO author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
             const todohubIssues = yield this.octokit.rest.search.issuesAndPullRequests({
                 per_page: 100,
-                q: `todohub_ctrl_issue_data is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
+                q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
             });
             if (todohubIssues.data.total_count > 1) {
                 // TODO check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
@@ -34122,14 +34121,6 @@ class Repo {
             //     Accept: 'application/vnd.github.text-match+json'
             //   }
             // })
-            // // return issuePages
-            // for await (const issuePage of issuePages) {
-            //   // TODO in app we can use 'performed_via_github_app' to find the comment?
-            //   for (const issue of issuePage.data) {
-            //     // TODO search for exact tag
-            //     return issue
-            //   }
-            // }
         });
     }
     updateComment(commentId, body) {
@@ -34144,7 +34135,6 @@ class Repo {
     }
     createComment(issueNumber, body) {
         return __awaiter(this, void 0, void 0, function* () {
-            // endpoint.headers = Object.assign(endpoint.headers, { Authorization: `Bearer ${this.githubToken}` })
             return this.octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
                 owner: this.owner,
                 repo: this.repo,
@@ -34172,6 +34162,20 @@ class Repo {
                 body,
                 labels,
             });
+        });
+    }
+    createPinnedIssue(title, body, labels) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const issue = yield this.createIssue(title, body, labels);
+            yield this.pinIssue(issue.data.node_id);
+            return issue;
+        });
+    }
+    pinIssue(issueId) {
+        return __awaiter(this, void 0, void 0, function* () {
+            return this.octokit.graphql(`mutation Pin($issueId: ID!) {
+      pinIssue(input: {issueId: $issueId }) { issue { id } } 
+    }`, { issueId });
         });
     }
     updateIssue(issueNumber, title, body, state) {
@@ -34290,7 +34294,7 @@ var control_issue_awaiter = (undefined && undefined.__awaiter) || function (this
     });
 };
 
-// TODO move to config file
+// TODO #60 move to config file
 const TODOHUB_LABEL = {
     name: 'todohub',
     description: 'todohub control issue',
@@ -34331,6 +34335,7 @@ class TodohubControlIssue {
         const issueWORefernce = this.data.getTodosWithoutIssueReference();
         if (issueWORefernce) {
             for (const todo of issueWORefernce.todoState) {
+                // TODO #74 make sure todos dont contain characters that break the comment
                 this.midTag += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
             }
         }
@@ -34338,13 +34343,12 @@ class TodohubControlIssue {
     }
     write() {
         return control_issue_awaiter(this, void 0, void 0, function* () {
-            // TODO implement
             if (this.existingIssueNumber) {
                 return this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
             }
-            // TODO label is not created with right config (color + description)
-            return this.repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL]);
+            // TODO #60 get this from config + label is not created with right config (color + description)
             // TODO return updated issues - can be used to update the respective feature comments
+            return this.repo.createPinnedIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL]);
         });
     }
     parseContent(issueBody) {
@@ -34364,7 +34368,7 @@ class TodohubControlIssue {
         return control_issue_awaiter(this, void 0, void 0, function* () {
             const issue = yield repo.findTodoHubIssue();
             if (issue) {
-                // TODO handle error and keep searching if parsing fails?
+                // TODO #59 handle error and keep searching if parsing fails?
                 return new TodohubControlIssue(repo, {
                     body: issue.body || '',
                     number: issue.number,
@@ -34390,23 +34394,24 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
-// TODO parallelization ? do we need to acquire a lock on issue while other action is running
-// TODO add debug and info logs
+// TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
+// TODO #59 add debug and info logs
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 function run() {
-    var _a, _b, _c, _d;
+    var _a, _b;
     return main_awaiter(this, void 0, void 0, function* () {
         const context = github.context;
+        const payload = github.context.payload;
         const githubToken = core.getInput('token');
-        const defaultBranch = (_b = (_a = context.payload) === null || _a === void 0 ? void 0 : _a.repository) === null || _b === void 0 ? void 0 : _b.default_branch;
+        const defaultBranch = payload.repository.default_branch;
         const ref = github.context.ref;
         const branchName = ref.split('/').pop() || '';
         const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/;
         const isDefaultBranch = branchName === defaultBranch;
-        const featureBranchNumber = (_d = (_c = branchName.match(featureBranchRegex)) === null || _c === void 0 ? void 0 : _c.groups) === null || _d === void 0 ? void 0 : _d['featureBranch'];
+        const featureBranchNumber = (_b = (_a = branchName.match(featureBranchRegex)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b['featureBranch'];
         const isFeatureBranch = featureBranchNumber !== undefined;
         const featureBranchNumberParsed = featureBranchNumber
             ? Number.parseInt(featureBranchNumber)
@@ -34414,18 +34419,16 @@ function run() {
         if (isFeatureBranch && Number.isNaN(featureBranchNumberParsed)) {
             throw new Error('featureBranchNumber is not an integer');
         }
-        // TODO check what happens for deleted branches?
+        // TODO #68 check what happens for deleted branches?
         const commitSha = context.sha;
         core.info(`Pushing commit: ${commitSha}, ref: ${ref}`);
         try {
             const repo = new Repo(githubToken, context.repo.owner, context.repo.repo);
-            // TODO handle errors
+            // TODO #59 handle errors
             if (isFeatureBranch && featureBranchNumberParsed) {
                 core.info(`Push Event into feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`);
-                // TODO instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
-                // TODO parallelize stuff (+ add workers)
-                // TODO get and parse .todoignore to avoid unnecessary searching of files
-                // TODO tests + organize Issues
+                // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
+                // TODO #62 parallelize stuff (+ add workers)
                 const getTodohubIssue = TodohubControlIssue.get(repo);
                 const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber, { foundInCommit: commitSha });
                 const [todohubIssue, todoState] = yield Promise.all([
@@ -34438,16 +34441,16 @@ function run() {
                 const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed);
                 if (existingCommentId) {
                     // TODO add state hash to check whether anything needs to be updated?
-                    // TODO handle: comment was deleted
-                    // TODO refactor (do no call repo directly, but via AdminIssue?)
+                    // TODO #59 handle: comment was deleted
+                    // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
                     yield repo.updateComment(existingCommentId, composedComment);
                 }
                 else {
-                    // TODO handle: issue doesnt exist
+                    // TODO #59handle: issue doesnt exist
                     const created = yield repo.createComment(featureBranchNumberParsed, composedComment);
                     todohubIssue.data.setCommentId(featureBranchNumberParsed, created.data.id);
                 }
-                // TODO parallelize
+                // TODO #62 parallelize
                 if (!todohubIssue.data.isEmpty(featureBranchNumberParsed)) {
                     yield repo.updateIssue(featureBranchNumberParsed, undefined, undefined, 'open');
                 }
@@ -34474,33 +34477,34 @@ function run() {
                 for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
                     const issueNumber = Number.parseInt(issue);
                     const todos = todoState.getByIssueNo(issueNumber);
+                    // TODO what if todos are empty? should this be deleted rather than set to empty array
                     todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref);
                     const existingCommentId = todohubIssue.data.getExistingCommentId(issueNumber);
                     const composedComment = todohubIssue.data.composeTrackedIssueComment(issueNumber);
                     if (existingCommentId) {
                         // TODO add state hash to check whether anything needs to be updated?
-                        // TODO handle: comment was deleted
-                        // TODO refactor (do no call repo directly, but via AdminIssue?)
+                        // TODO #59 handle: comment was deleted
+                        // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
                         yield repo.updateComment(existingCommentId, composedComment);
                     }
                     else {
-                        // TODO parallelize
+                        // TODO #62 parallelize
                         try {
                             const created = yield repo.createComment(issueNumber, composedComment);
                             todohubIssue.data.setCommentId(issueNumber, created.data.id);
                         }
                         catch (err) {
-                            // TODO handle: issue doesnt exist? Create?
+                            // TODO #59  handle: issue doesnt exist? Create?
                             console.warn(err);
                         }
                     }
-                    // TODO parallelize
+                    // TODO #62 parallelize
                     if (!todohubIssue.data.isEmpty(issueNumber)) {
                         try {
                             yield repo.updateIssue(issueNumber, undefined, undefined, 'open');
                         }
                         catch (err) {
-                            // TODO handle: issue doesnt exist? Create?
+                            // TODO #59 handle: issue doesnt exist? Create?
                             console.warn(err);
                         }
                     }
@@ -34514,12 +34518,13 @@ function run() {
                 //   if (comment exists) but state has not changes { do nothing (set track main-branch?) }
                 //   if (comment exists && state has changed && feature branch is ahead) { do nothing ? }
                 // }
-                // TODO how does feature branch take over once one exists?
-                // TODO get closes issues + reopen if necessary
             }
-            // TODO set output: all changes in workflow
+            // TODO #61 set output: all changes in workflow
             // core.setOutput('', )
             // core.setOutput('changed_issues', '')
+            // core.setOutput('tracked_issues', Array.from(todohubIssue.data.getTrackedIssuesNumbers()).join(','))
+            // core.setOutput('reopened_isues')
+            // core.setOutput('skipped_files')
         }
         catch (error) {
             if (error instanceof Error) {

@@ -69,8 +69,8 @@ export class TodohubControlIssue {
       return this.repo.updateIssue(this.existingIssueNumber,  undefined, this.compose())
     }
     // TODO #60 get this from config + label is not created with right config (color + description)
-    return this.repo.createIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL])
     // TODO return updated issues - can be used to update the respective feature comments
+    return this.repo.createPinnedIssue('Todohub Ctrl', this.compose(), [TODOHUB_LABEL])
   }
 
   private parseContent(issueBody: string) {

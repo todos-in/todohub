@@ -346,6 +346,22 @@ export default class Repo {
     })
   }
 
+  async createPinnedIssue(
+    title: string,
+    body: string,
+    labels?: { name: string; description: string; color: string }[],
+  ) {
+    const issue = await this.createIssue(title, body, labels)
+    await this.pinIssue(issue.data.node_id)
+    return issue
+  }
+
+  async pinIssue(issueId: string) {
+    return this.octokit.graphql(`mutation Pin($issueId: ID!) {
+      pinIssue(input: {issueId: $issueId }) { issue { id } } 
+    }`, {issueId})
+  }
+
   async updateIssue(
     issueNumber: number,
     title?: string,
