@@ -4,6 +4,8 @@ import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
 import { PushEvent } from '@octokit/webhooks-types'
 
+// TODO #58 test
+
 // TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
 // TODO #59 add debug and info logs
 /**
