@@ -33766,53 +33766,17 @@ var __webpack_exports__ = {};
 var core = __nccwpck_require__(2186);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(5438);
-// EXTERNAL MODULE: ./node_modules/tar-stream/index.js
-var tar_stream = __nccwpck_require__(2283);
 ;// CONCATENATED MODULE: external "node:https"
 const external_node_https_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:https");
-// EXTERNAL MODULE: external "node:stream"
-var external_node_stream_ = __nccwpck_require__(4492);
 ;// CONCATENATED MODULE: external "node:zlib"
 const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:zlib");
-;// CONCATENATED MODULE: ./src/util/todo-match.ts
-// TODO #76 refine regex (make simpler?) + add TODO: colon option
-const getRegex = (issueNumber) => {
-    // If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
-    // If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
-    const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?';
-    return new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'gim');
-};
-const matchTodos = (text, issueNumber) => {
-    var _a;
-    if (issueNumber && (Number.isNaN(Number.parseInt(issueNumber)))) {
-        throw new Error('issueNumber is not an integer.');
-    }
-    const regex = getRegex(issueNumber);
-    const matches = text.matchAll(regex);
-    const todos = [];
-    for (const match of matches) {
-        if (!match.groups || !((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword)) {
-            console.warn('Todo could not be parsed from code: keyword not found in match: ' + text);
-            continue;
-        }
-        let issueNumber;
-        if (match.groups.issueNumber) {
-            issueNumber = parseInt(match.groups.issueNumber);
-            if (Number.isNaN(issueNumber)) {
-                console.warn('Regex issue: issueNumber could not be parsed from match - this should not happen.');
-                continue;
-            }
-        }
-        todos.push({
-            rawLine: match[0],
-            keyword: match.groups.keyword,
-            issueNumber,
-            todoText: match.groups.todoText || '',
-        });
-    }
-    return todos;
-};
-
+;// CONCATENATED MODULE: external "node:path"
+const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
+// EXTERNAL MODULE: ./node_modules/tar-stream/index.js
+var tar_stream = __nccwpck_require__(2283);
+// EXTERNAL MODULE: ./node_modules/ignore/index.js
+var ignore = __nccwpck_require__(1230);
+var ignore_default = /*#__PURE__*/__nccwpck_require__.n(ignore);
 ;// CONCATENATED MODULE: ./src/todo-state.ts
 // merge with TodohubData
 class TodoState {
@@ -33842,11 +33806,111 @@ class TodoState {
     }
 }
 
-;// CONCATENATED MODULE: external "node:path"
-const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
-// EXTERNAL MODULE: ./node_modules/ignore/index.js
-var ignore = __nccwpck_require__(1230);
-var ignore_default = /*#__PURE__*/__nccwpck_require__.n(ignore);
+// EXTERNAL MODULE: external "stream"
+var external_stream_ = __nccwpck_require__(2781);
+;// CONCATENATED MODULE: ./src/util/line-stream.ts
+
+class SplitLineStream extends external_stream_.Transform {
+    constructor() {
+        super({ objectMode: true });
+    }
+    _transform(chunk, encoding, next) {
+        const lines = this.splitChunkIntoLines((this.lineSoFar || '') + chunk.toString());
+        this.lineSoFar = lines.pop();
+        for (const line of lines) {
+            this.push(line);
+        }
+        next();
+    }
+    _flush(done) {
+        this.push(this.lineSoFar || '');
+        done();
+    }
+    splitChunkIntoLines(chunk) {
+        return chunk.split(/\r?\n/);
+    }
+}
+
+// EXTERNAL MODULE: external "node:stream"
+var external_node_stream_ = __nccwpck_require__(4492);
+;// CONCATENATED MODULE: ./src/util/todo-match.ts
+// TODO #76 refine regex (make simpler?) + add TODO: colon option
+/**
+ * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
+ * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
+ */
+const getRegex = (issueNumber) => {
+    // TODO #62 Creating regexp is expensive? Not a good idea to always recreate them instead of caching
+    const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?';
+    return new RegExp(`(?<keyword>TODO):?[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'i');
+};
+const matchTodo = (textLine, issueNumber) => {
+    var _a, _b;
+    if (issueNumber && (Number.isNaN(Number.parseInt(issueNumber)))) {
+        throw new Error('issueNumber is not an integer.');
+    }
+    const regex = getRegex(issueNumber);
+    const match = textLine.match(regex);
+    if (!match) {
+        return;
+    }
+    if (!((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword)) {
+        console.warn('Todo could not be parsed from code: keyword not found in match: ' + textLine);
+        return;
+    }
+    let parsedIssueNumber;
+    if (issueNumber) {
+        if (!match.groups.issueNumber) {
+            console.warn('Todo issueNumber could not be parsed from code: issueNr not found in match: ' + textLine);
+            return;
+        }
+        parsedIssueNumber = Number.parseInt(((_b = match.groups) === null || _b === void 0 ? void 0 : _b.issueNumber) || '');
+        if (Number.isNaN(parsedIssueNumber)) {
+            console.warn('Parsing issue: issueNumber not an integer.');
+            return;
+        }
+    }
+    return {
+        rawLine: match[0],
+        keyword: match.groups.keyword,
+        issueNumber: parsedIssueNumber,
+        todoText: match.groups.todoText || '',
+    };
+};
+
+;// CONCATENATED MODULE: ./src/util/find-todo-stream.ts
+
+
+const MAX_LINE_LENGTH_FOR_SEARCHING = 300;
+class FindTodoStream extends external_node_stream_.Writable {
+    constructor(todoState, filename, issueNr, todoMetadata) {
+        super({ objectMode: true });
+        this.currentLineNr = 0;
+        this.todoState = todoState;
+        this.filename = filename;
+        this.issueNr = issueNr;
+        this.todoMetadata = todoMetadata;
+    }
+    _write(line, encoding, next) {
+        this.currentLineNr++;
+        if (line.length > MAX_LINE_LENGTH_FOR_SEARCHING) {
+            return next();
+        }
+        const matchedTodo = matchTodo(line, this.issueNr);
+        if (!matchedTodo) {
+            return next();
+        }
+        const todoWithMetadata = matchedTodo;
+        todoWithMetadata.lineNumber = this.currentLineNr;
+        todoWithMetadata.fileName = this.filename;
+        for (const [key, value] of Object.entries(this.todoMetadata || {})) {
+            todoWithMetadata[key] = value;
+        }
+        this.todoState.addTodos([todoWithMetadata]);
+        next();
+    }
+}
+
 ;// CONCATENATED MODULE: ./src/github-repo.ts
 var __awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -33953,42 +34017,24 @@ class Repo {
             // TODO #69 move logic
             const extractStream = tar_stream.extract();
             const unzipStream = (0,external_node_zlib_namespaceObject.createGunzip)();
-            const todos = new TodoState();
-            const newFindTodoStream = (fileName) => {
-                return new external_node_stream_.Writable({
-                    write(chunk, encoding, next) {
-                        // TODO #58 search line by line + skip lines > n characters
-                        const todosFound = matchTodos(chunk.toString(), issueNr);
-                        const todosWithMetadata = todosFound.map((todo) => {
-                            const todoWMetadata = todo;
-                            todoWMetadata.fileName = fileName;
-                            for (const [key, value] of Object.entries(todoMetadata || {})) {
-                                todoWMetadata[key] = value;
-                            }
-                            return todoWMetadata;
-                        });
-                        if (todosWithMetadata.length) {
-                            todos.addTodos(todosWithMetadata);
-                        }
-                        next();
-                    },
-                });
-            };
+            const todoState = new TodoState();
             tarBallStream.pipe(unzipStream).pipe(extractStream);
             // TODO #80 check and test event & error handling in streams (are they closed properly?) check for memory leaks
             // response.on('end', () => {
             //   // testStream.end();
             // });
             return new Promise((resolve, reject) => {
+                // TODO #80 check and test event & error handling 
                 unzipStream.on('error', (err) => {
                     reject(`Error unzipping tarball stream: ${err.message}`);
                 });
+                // TODO #80 check and test event & error handling
                 extractStream.on('error', (err) => {
                     reject(new Error(`Error reading tarball stream: ${err.message}`));
                 });
                 extractStream.on('finish', () => {
                     console.log('Todos extraction completed successfully.');
-                    return resolve(todos);
+                    return resolve(todoState);
                 });
                 extractStream.on('entry', (header, stream, next) => {
                     if (header.type !== 'file') {
@@ -34003,16 +34049,19 @@ class Repo {
                         stream.resume();
                         return next();
                     }
-                    const findTodosStream = newFindTodoStream(fileName);
-                    stream.pipe(findTodosStream);
+                    const splitLineStream = new SplitLineStream();
+                    // TODO #69 refactor: meta data should prob be added in post processing not in find stream
+                    const findTodosStream = new FindTodoStream(todoState, fileName, issueNr, todoMetadata);
+                    splitLineStream.on('end', () => findTodosStream.end());
+                    stream.pipe(splitLineStream).pipe(findTodosStream);
                     stream.on('error', () => {
                         // TODO #59 replace console logs
                         console.warn(`Error extracting Todos from file: ${fileName}`);
-                        findTodosStream.end();
+                        splitLineStream.end();
                         next();
                     });
                     stream.on('end', () => {
-                        findTodosStream.end();
+                        splitLineStream.end();
                         next();
                     });
                 });
@@ -34256,7 +34305,7 @@ class TodohubData {
         }
         let composed = '#### TODOs:';
         for (const todo of trackedIssue.todoState) {
-            composed += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
+            composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
         }
         composed += `\n\n<sup>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`<sub>`;
         return composed;
@@ -34329,7 +34378,7 @@ class TodohubControlIssue {
         if (issueWORefernce) {
             for (const todo of issueWORefernce.todoState) {
                 // TODO #74 make sure todos dont contain characters that break the comment
-                this.midTag += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
+                this.midTag += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
             }
         }
         return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
@@ -34423,13 +34472,20 @@ function run() {
                 core.info(`Push Event into feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`);
                 // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
                 // TODO #62 parallelize stuff (+ add workers)
+                core.debug('Getting existing Todohub Control Issue...');
+                core.debug(`Searching state ${commitSha} for Todos with issue number ${featureBranchNumber}...`);
                 const getTodohubIssue = TodohubControlIssue.get(repo);
                 const getTodoState = repo.getTodosFromGitRef(commitSha, featureBranchNumber, { foundInCommit: commitSha });
                 const [todohubIssue, todoState] = yield Promise.all([
                     getTodohubIssue,
                     getTodoState,
                 ]);
+                if (todohubIssue.exists()) {
+                    core.debug(`Found existing Todohub Control Issue: ${todohubIssue.existingIssueNumber}`);
+                }
                 const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed);
+                core.debug(`Found ${featureTodos === null || featureTodos === void 0 ? void 0 : featureTodos.length} Todos for issue ${featureBranchNumber}`);
+                core.debug(JSON.stringify(featureTodos));
                 todohubIssue.data.setTodoState(featureBranchNumberParsed, featureTodos || [], commitSha, ref);
                 const existingCommentId = todohubIssue.data.getExistingCommentId(featureBranchNumberParsed);
                 const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed);
@@ -34471,6 +34527,7 @@ function run() {
                 for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
                     const issueNumber = Number.parseInt(issue);
                     const todos = todoState.getByIssueNo(issueNumber);
+                    console.debug(`Processing issue ${issueNumber} with ${todos === null || todos === void 0 ? void 0 : todos.length} Todos ...`);
                     // TODO #64 what if todos are empty? should this be deleted rather than set to empty array
                     // otherwise control issue keeps endless track of old issues with 0 todos
                     todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref);
@@ -34479,11 +34536,13 @@ function run() {
                     if (existingCommentId) {
                         // TODO #59 handle: comment was deleted
                         // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
+                        console.debug(`Updating comment on issue ${issueNumber}/${existingCommentId}...`);
                         yield repo.updateComment(existingCommentId, composedComment);
                     }
                     else {
                         // TODO #62 parallelize
                         try {
+                            console.debug(`Adding new comment to issue ${issueNumber}...`);
                             const created = yield repo.createComment(issueNumber, composedComment);
                             todohubIssue.data.setCommentId(issueNumber, created.data.id);
                         }
@@ -34495,6 +34554,7 @@ function run() {
                     // TODO #62 parallelize
                     if (!todohubIssue.data.isEmpty(issueNumber)) {
                         try {
+                            console.debug(`Opening issue ${issueNumber}...`);
                             yield repo.updateIssue(issueNumber, undefined, undefined, 'open');
                         }
                         catch (err) {
@@ -34503,6 +34563,7 @@ function run() {
                         }
                     }
                 }
+                console.debug('Writing Todohub Control issue...');
                 yield todohubIssue.write();
             }
             // TODO #61 set output: all changes in workflow

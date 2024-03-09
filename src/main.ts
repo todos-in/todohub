@@ -45,6 +45,9 @@ export async function run(): Promise<void> {
       // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
       // TODO #62 parallelize stuff (+ add workers)
 
+
+      core.debug('Getting existing Todohub Control Issue...')
+      core.debug(`Searching state ${commitSha} for Todos with issue number ${featureBranchNumber}...`)
       const getTodohubIssue = TodohubControlIssue.get(repo)
       const getTodoState = repo.getTodosFromGitRef(
         commitSha,
@@ -55,8 +58,14 @@ export async function run(): Promise<void> {
         getTodohubIssue,
         getTodoState,
       ])
+      if (todohubIssue.exists()) {
+        core.debug(`Found existing Todohub Control Issue: ${todohubIssue.existingIssueNumber}`)
+      }
 
       const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
+      core.debug(`Found ${featureTodos?.length} Todos for issue ${featureBranchNumber}`)
+      core.debug(JSON.stringify(featureTodos))
+
       todohubIssue.data.setTodoState(
         featureBranchNumberParsed,
         featureTodos || [],
@@ -118,6 +127,8 @@ export async function run(): Promise<void> {
       for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
         const issueNumber = Number.parseInt(issue)
         const todos = todoState.getByIssueNo(issueNumber)
+        console.debug(`Processing issue ${issueNumber} with ${todos?.length} Todos ...`)
+
         // TODO #64 what if todos are empty? should this be deleted rather than set to empty array
         // otherwise control issue keeps endless track of old issues with 0 todos
         todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref)
@@ -128,10 +139,12 @@ export async function run(): Promise<void> {
         if (existingCommentId) {
           // TODO #59 handle: comment was deleted
           // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
+          console.debug(`Updating comment on issue ${issueNumber}/${existingCommentId}...`)
           await repo.updateComment(existingCommentId, composedComment)
         } else {
           // TODO #62 parallelize
           try {
+            console.debug(`Adding new comment to issue ${issueNumber}...`)
             const created = await repo.createComment(issueNumber, composedComment)
             todohubIssue.data.setCommentId(issueNumber, created.data.id)
           } catch (err) {
@@ -143,6 +156,7 @@ export async function run(): Promise<void> {
         // TODO #62 parallelize
         if (!todohubIssue.data.isEmpty(issueNumber)) {
           try {
+            console.debug(`Opening issue ${issueNumber}...`)
             await repo.updateIssue(
               issueNumber,
               undefined,
@@ -155,6 +169,7 @@ export async function run(): Promise<void> {
           }
         }
       }
+      console.debug('Writing Todohub Control issue...')
       await todohubIssue.write()
     }
 

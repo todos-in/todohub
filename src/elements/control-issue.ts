@@ -13,7 +13,7 @@ export class TodohubControlIssue {
   private midTag?: string
   private postTag?: string
   data: TodohubData
-  private existingIssueNumber?: number
+  existingIssueNumber?: number
   private existingIsClosed?: boolean
   private repo: Repo
 
@@ -57,7 +57,7 @@ export class TodohubControlIssue {
     if (issueWORefernce) {
       for (const todo of issueWORefernce.todoState) {
         // TODO #74 make sure todos dont contain characters that break the comment
-        this.midTag += `\n* [ ] \`${todo.fileName}\`${todo.lineNumber ? `:${todo.lineNumber}` : ''}: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
+        this.midTag += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
       }
     }
 
