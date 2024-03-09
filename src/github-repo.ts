@@ -1,15 +1,14 @@
+import { request } from 'node:https'
+import { createGunzip } from 'node:zlib'
+import { IncomingMessage } from 'node:http'
+import * as path from 'node:path'
 import * as github from '@actions/github'
 import { GitHub } from '@actions/github/lib/utils.js'
 import * as tar from 'tar-stream'
-import { request } from 'node:https'
-import { Writable } from 'node:stream'
-import { createGunzip } from 'node:zlib'
-import { IncomingMessage } from 'node:http'
-import { matchTodos } from './util/todo-match.js'
-import TodoState from './todo-state.js'
-import * as path from 'node:path'
-import { ITodo } from './types/todo.js'
 import ignore from 'ignore'
+import TodoState from './todo-state.js'
+import { SplitLineStream } from './util/line-stream.js'
+import { FindTodoStream } from './util/find-todo-stream.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
@@ -120,30 +119,7 @@ export default class Repo {
     const extractStream = tar.extract()
     const unzipStream = createGunzip()
 
-    const todos = new TodoState()
-
-    const newFindTodoStream = (
-      fileName: string,
-    ) => {
-      return new Writable({
-        write(chunk, encoding, next) {
-          // TODO #58 search line by line + skip lines > n characters
-          const todosFound = matchTodos(chunk.toString(), issueNr)
-          const todosWithMetadata = todosFound.map((todo) => {
-            const todoWMetadata = todo as ITodo & { [key: string]: string }
-            todoWMetadata.fileName = fileName
-            for (const [key, value] of Object.entries(todoMetadata || {})) {
-              todoWMetadata[key] = value
-            }
-            return todoWMetadata
-          })
-          if (todosWithMetadata.length) {
-            todos.addTodos(todosWithMetadata)
-          }
-          next()
-        },
-      })
-    }
+    const todoState = new TodoState()
 
     tarBallStream.pipe(unzipStream).pipe(extractStream)
     // TODO #80 check and test event & error handling in streams (are they closed properly?) check for memory leaks
@@ -152,17 +128,19 @@ export default class Repo {
     // });
 
     return new Promise((resolve, reject) => {
+      // TODO #80 check and test event & error handling 
       unzipStream.on('error', (err) => {
         reject(`Error unzipping tarball stream: ${err.message}`)
       })
 
+      // TODO #80 check and test event & error handling
       extractStream.on('error', (err: Error) => {
         reject(new Error(`Error reading tarball stream: ${err.message}`))
       })
 
       extractStream.on('finish', () => {
         console.log('Todos extraction completed successfully.')
-        return resolve(todos)
+        return resolve(todoState)
       })
 
       extractStream.on('entry', (header, stream, next) => {
@@ -181,16 +159,19 @@ export default class Repo {
           return next()
         }
 
-        const findTodosStream = newFindTodoStream(fileName)
-        stream.pipe(findTodosStream)
+        const splitLineStream = new SplitLineStream()
+        // TODO #69 refactor: meta data should prob be added in post processing not in find stream
+        const findTodosStream = new FindTodoStream(todoState, fileName, issueNr, todoMetadata)
+        splitLineStream.on('end', () => findTodosStream.end())
+        stream.pipe(splitLineStream).pipe(findTodosStream)
         stream.on('error', () => {
           // TODO #59 replace console logs
           console.warn(`Error extracting Todos from file: ${fileName}`)
-          findTodosStream.end()
+          splitLineStream.end()
           next()
         })
         stream.on('end', () => {
-          findTodosStream.end()
+          splitLineStream.end()
           next()
         })
       })
@@ -358,7 +339,7 @@ export default class Repo {
   async pinIssue(issueId: string) {
     return this.octokit.graphql(`mutation Pin($issueId: ID!) {
       pinIssue(input: {issueId: $issueId }) { issue { id } } 
-    }`, {issueId})
+    }`, { issueId })
   }
 
   async updateIssue(
