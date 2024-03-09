@@ -52,13 +52,13 @@ jobs:
         id: checkout
         uses: actions/checkout@v4
 
-      # - name: Test Local Action
-      #   id: test-action
-      #   uses: ./
-
-      - name: Test Remote Action
+      - name: Test Local Action
         id: test-action
-        uses: nigeisel/todohub@main
+        uses: ./
+
+      # - name: Test Remote Action
+      #   id: test-action
+      #   uses: nigeisel/todohub@main
 
       # - name: Print Output
       #   id: output
