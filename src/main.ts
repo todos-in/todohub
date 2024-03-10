@@ -4,6 +4,8 @@ import { TodohubControlIssue } from './elements/control-issue.js'
 import TodoState from './todo-state.js'
 import env from './action-environment.js'
 
+// TODO (#18) testytest2
+
 async function updateIssue(issueNr: string | number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)
   const issueNumber = typeof issueNr === 'string' ? Number.parseInt(issueNr) : issueNr

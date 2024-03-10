@@ -33834,7 +33834,8 @@ class SplitLineStream extends external_stream_.Transform {
 // EXTERNAL MODULE: external "node:stream"
 var external_node_stream_ = __nccwpck_require__(4492);
 ;// CONCATENATED MODULE: ./src/util/todo-match.ts
-// TODO #76 refine regex (make simpler?) + add TODO: colon option
+
+// TODO #76 refine regex (make simpler?)
 const regexCache = {};
 /**
  * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
@@ -33861,13 +33862,13 @@ const matchTodo = (textLine, issueNumber) => {
         return;
     }
     if (!((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword)) {
-        console.error('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine);
+        core.warning('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine);
         return;
     }
     const parsedIssueNumber = match.groups.issueNumber && Number.parseInt(match.groups.issueNumber);
     if (issueNumber) {
         if (Number.isNaN(parsedIssueNumber)) {
-            console.error('Regex match parsing issue: issueNumber not an integer.');
+            core.warning('Regex match parsing issue: issueNumber not an integer.');
             return;
         }
     }
@@ -33946,7 +33947,6 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
 // TODO #63 handle rate limits (primary and secondary)
 class Repo {
     constructor(githubToken, owner, repo) {
-        this.API_HITS = 0;
         this.githubToken = githubToken;
         this.octokit = github.getOctokit(githubToken, { userAgent: 'todohub/v1' });
         this.owner = owner;
@@ -34038,7 +34038,7 @@ class Repo {
                     reject(new Error(`Error reading tarball stream: ${err.message}`));
                 });
                 extractStream.on('finish', () => {
-                    console.log('Todos extraction completed successfully.');
+                    core.info('Todos extraction completed successfully.');
                     return resolve(todoState);
                 });
                 extractStream.on('entry', (header, stream, next) => {
@@ -34151,7 +34151,7 @@ class Repo {
             });
         });
     }
-    findTodoHubIssue() {
+    findTodohubControlIssue() {
         return __awaiter(this, void 0, void 0, function* () {
             // TODO #79 author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
             const todohubIssues = yield this.octokit.rest.search.issuesAndPullRequests({
@@ -34194,15 +34194,6 @@ class Repo {
                 repo: this.repo,
                 issue_number: issueNumber,
                 body,
-            });
-        });
-    }
-    getIssue(issueNumber) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return this.octokit.rest.issues.get({
-                owner: this.owner,
-                repo: this.repo,
-                issue_number: issueNumber,
             });
         });
     }
@@ -34299,6 +34290,20 @@ class TodohubData {
         }
         this.decodedData[issueNr] = Object.assign(trackedIssue, { commentId });
     }
+    setDeadIssue(issueNr) {
+        const trackedIssue = this.decodedData[issueNr];
+        if (!trackedIssue) {
+            throw new Error('Cannot set dead issue without tracked Issue');
+        }
+        trackedIssue.deadIssue = true;
+    }
+    deleteExistingCommentId(issueNr) {
+        const trackedIssue = this.decodedData[issueNr];
+        if (!trackedIssue) {
+            throw new Error('Cannot unset commentId without tracked Issue');
+        }
+        delete trackedIssue.commentId;
+    }
     getExistingCommentId(issueNr) {
         var _a;
         return (_a = this.decodedData[issueNr]) === null || _a === void 0 ? void 0 : _a.commentId;
@@ -34312,7 +34317,7 @@ class TodohubData {
         for (const todo of trackedIssue.todoState) {
             composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
         }
-        composed += `\n\n<sup>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`<sub>`;
+        composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`</sub>`;
         return composed;
     }
     decode(tag) {
@@ -34370,6 +34375,7 @@ class TodohubControlIssue {
     compose() {
         const todosWithIssueReference = Object.entries(this.data.getTodosWithIssueReference());
         this.midTag = todosWithIssueReference.length ? '\n### Tracked Issues:' : '';
+        const footnotes = [];
         for (const [issueNr, trackedIssue] of todosWithIssueReference) {
             if (!trackedIssue.todoState.length) {
                 continue;
@@ -34378,10 +34384,18 @@ class TodohubControlIssue {
             if (trackedIssue.commentId) {
                 link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`;
             }
+            else if (trackedIssue.deadIssue) {
+                footnotes.push(`(Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr})`);
+                const currentFootnoteIndex = footnotes.length;
+                link = `Issue ${issueNr} (❗ Associated issue seems to have been deleted permanently.[^${currentFootnoteIndex}])`;
+            }
             else {
-                link = `Issue ${issueNr} (No associated issue found)`;
+                link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`;
             }
             this.midTag += `\n* ${link}: *${trackedIssue.todoState.length}* open TODOs`;
+        }
+        for (const [index, value] of footnotes.entries()) {
+            this.midTag += `\n[^${index + 1}]: ${value}`;
         }
         const issueWORefernce = this.data.getTodosWithoutIssueReference();
         if (issueWORefernce && issueWORefernce.todoState.length) {
@@ -34427,28 +34441,25 @@ class TodohubControlIssue {
             const composedComment = this.data.composeTrackedIssueComment(issueNr);
             if (existingCommentId) {
                 // TODO #64 add state hash to check whether anything needs to be updated?
-                // TODO #59 handle: comment was deleted
                 core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`);
-                yield this.repo.updateComment(existingCommentId, composedComment);
+                try {
+                    return this.repo.updateComment(existingCommentId, composedComment);
+                }
+                catch (err) {
+                    // TODO #59 check if error is actually due to comment not existing
+                    core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Creating new Comment instead...`);
+                    this.data.deleteExistingCommentId(issueNr);
+                }
             }
-            else {
-                // TODO #59 handle: issue doesnt exist
+            try {
                 core.debug(`Adding new comment to issue ${issueNr}...`);
                 const created = yield this.repo.createComment(issueNr, composedComment);
                 this.data.setCommentId(issueNr, created.data.id);
-                try {
-                    core.debug(`Adding new comment to issue ${issueNr}...`);
-                    const created = yield this.repo.createComment(issueNr, composedComment);
-                    this.data.setCommentId(issueNr, created.data.id);
-                }
-                catch (err) {
-                    // TODO #59 handle: issue doesnt exist? Create?
-                    // TODO #59 check if error is actually because of non existant issue - otherwise throw?
-                    core.warning(`Error creating comment. Does issue ${issueNr} exist?`);
-                    if (err instanceof Error) {
-                        core.warning(err.message);
-                    }
-                }
+            }
+            catch (err) {
+                // TODO #59 check if error is actually because of non existant issue - otherwise throw?
+                core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
+        If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue ${issueNr} to the new issue.`);
             }
         });
     }
@@ -34467,7 +34478,7 @@ class TodohubControlIssue {
     }
     static get(repo) {
         return control_issue_awaiter(this, void 0, void 0, function* () {
-            const issue = yield repo.findTodoHubIssue();
+            const issue = yield repo.findTodohubControlIssue();
             if (issue) {
                 // TODO #59 handle error and keep searching if parsing fails?
                 return new TodohubControlIssue(repo, {
@@ -34489,7 +34500,7 @@ class EnvironmentLoadError extends Error {
 
 
 
-const get = () => {
+const parse = () => {
     var _a, _b;
     const context = github.context;
     const payload = github.context.payload;
@@ -34541,6 +34552,8 @@ const get = () => {
         isFeatureBranch,
     };
 };
+const env = parse();
+/* harmony default export */ const action_environment = (env);
 
 ;// CONCATENATED MODULE: ./src/main.ts
 var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
@@ -34556,6 +34569,7 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
+// TODO (#18) testytest2
 function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
     return main_awaiter(this, void 0, void 0, function* () {
         core.startGroup(`Processing Issue ${issueNr}`);
@@ -34573,36 +34587,33 @@ function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
     });
 }
 // TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
-// TODO #59 add debug and info logs
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 function run() {
     return main_awaiter(this, void 0, void 0, function* () {
-        const env = get();
         // TODO #68 check what happens for deleted branches?
-        core.info(`Pushing commit: ${env.commitSha}, ref: ${env.ref}`);
+        core.info(`Pushing commit: ${action_environment.commitSha}, ref: ${action_environment.ref}`);
         try {
-            const repo = new Repo(env.githubToken, env.repoOwner, env.repo);
+            const repo = new Repo(action_environment.githubToken, action_environment.repoOwner, action_environment.repo);
             core.debug('Getting existing Todohub Control Issue...');
             const todohubIssue = yield TodohubControlIssue.get(repo);
             core.debug(todohubIssue.exists() ?
                 `Found existing Todohub Control Issue: ${todohubIssue.existingIssueNumber}.` :
                 'No existing Todohub Control Issue. Needs to be initiated.');
-            // TODO #59 handle errors
-            if (env.isFeatureBranch && env.featureBranchNumber) {
-                core.info(`Push Event into feature branch ${env.branchName} related to issue ${env.featureBranchNumber}...`);
+            if (action_environment.isFeatureBranch && action_environment.featureBranchNumber) {
+                core.info(`Push Event into feature branch ${action_environment.branchName} related to issue ${action_environment.featureBranchNumber}...`);
                 // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
                 // TODO #62 parallelize stuff (+ add workers)
-                core.debug(`Searching state ${env.commitSha} for Todos with issue number ${env.featureBranchNumber}...`);
-                const todoState = yield repo.getTodosFromGitRef(env.commitSha, env.featureBranchNumber, { foundInCommit: env.commitSha });
-                yield updateIssue(env.featureBranchNumber, todoState, todohubIssue, env.commitSha, env.ref);
+                core.debug(`Searching state ${action_environment.commitSha} for Todos with issue number ${action_environment.featureBranchNumber}...`);
+                const todoState = yield repo.getTodosFromGitRef(action_environment.commitSha, action_environment.featureBranchNumber, { foundInCommit: action_environment.commitSha });
+                yield updateIssue(action_environment.featureBranchNumber, todoState, todohubIssue, action_environment.commitSha, action_environment.ref);
             }
-            else if (env.isDefaultBranch) {
-                core.info(`Push Event into default branch ${env.defaultBranch}`);
-                core.debug(`Searching state ${env.commitSha} for all Todos`);
-                const todoState = yield repo.getTodosFromGitRef(env.commitSha, undefined, { foundInCommit: env.commitSha });
+            else if (action_environment.isDefaultBranch) {
+                core.info(`Push Event into default branch ${action_environment.defaultBranch}`);
+                core.debug(`Searching state ${action_environment.commitSha} for all Todos`);
+                const todoState = yield repo.getTodosFromGitRef(action_environment.commitSha, undefined, { foundInCommit: action_environment.commitSha });
                 const issuesWithTodosInCode = todoState.getIssuesNumbers();
                 core.debug(`Found Todos for ${issuesWithTodosInCode.size} different issues.`);
                 const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers();
@@ -34610,15 +34621,15 @@ function run() {
                 const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]));
                 const featureBranches = yield repo.getFeatureBranches();
                 const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)));
-                const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf(env.defaultBranch, trackedFeatureBranches.map((branch) => branch.name));
+                const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf(action_environment.defaultBranch, trackedFeatureBranches.map((branch) => branch.name));
                 const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) => !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)));
-                todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), env.commitSha, env.ref);
+                todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), action_environment.commitSha, action_environment.ref);
                 for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
-                    yield updateIssue(issue, todoState, todohubIssue, env.commitSha, env.ref);
+                    yield updateIssue(issue, todoState, todohubIssue, action_environment.commitSha, action_environment.ref);
                 }
             }
             else {
-                core.info('Neither in default nor in a feature branch format ([0-9]-branch-name). Doing nothing...');
+                core.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): ${action_environment.branchName} Doing nothing...`);
                 return;
             }
             core.debug('Writing Todohub Control issue...');
