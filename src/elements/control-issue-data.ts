@@ -76,6 +76,22 @@ export default class TodohubData {
     this.decodedData[issueNr] = Object.assign(trackedIssue, { commentId })
   }
 
+  setDeadIssue(issueNr: number) {
+    const trackedIssue = this.decodedData[issueNr]
+    if (!trackedIssue) {
+      throw new Error('Cannot set dead issue without tracked Issue')
+    }
+    trackedIssue.deadIssue = true
+  }
+
+  deleteExistingCommentId(issueNr: number) {
+    const trackedIssue = this.decodedData[issueNr]
+    if (!trackedIssue) {
+      throw new Error('Cannot unset commentId without tracked Issue')
+    }
+    delete trackedIssue.commentId
+  }
+
   getExistingCommentId(issueNr: number) {
     return this.decodedData[issueNr]?.commentId
   }

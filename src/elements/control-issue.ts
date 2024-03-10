@@ -45,6 +45,7 @@ export class TodohubControlIssue {
     const todosWithIssueReference = Object.entries(this.data.getTodosWithIssueReference())
     this.midTag = todosWithIssueReference.length ? '\n### Tracked Issues:' : ''
 
+    const footnotes: string[] = []
     for (const [issueNr, trackedIssue] of todosWithIssueReference) {
       if (!trackedIssue.todoState.length) {
         continue
@@ -52,10 +53,18 @@ export class TodohubControlIssue {
       let link = ''
       if (trackedIssue.commentId) {
         link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`
+      } else if (trackedIssue.deadIssue) {
+        footnotes.push(`(Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr})`)
+        const currentFootnoteIndex = footnotes.length
+        link = `Issue ${issueNr} (❗ Associated issue seems to have been deleted permanently.[^${currentFootnoteIndex}])`
       } else {
-        link = `Issue ${issueNr} (No associated issue found)`
+        link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`
       }
       this.midTag += `\n* ${link}: *${trackedIssue.todoState.length}* open TODOs`
+    }
+
+    for (const [index, value] of footnotes.entries()) {
+      this.midTag += `\n[^${index + 1}]: ${value}`
     }
 
     const issueWORefernce = this.data.getTodosWithoutIssueReference()
@@ -89,7 +98,7 @@ export class TodohubControlIssue {
           undefined,
           undefined,
           'open',
-        )  
+        )
       } catch (err) {
         // TODO #59 check if error is actually because of non existant issue - otherwise throw?
         core.warning(`Error (re)opening issue ${issueNr}. Are there Todos with reference to issue ${issueNr}, which does not exist?`)
@@ -106,26 +115,24 @@ export class TodohubControlIssue {
 
     if (existingCommentId) {
       // TODO #64 add state hash to check whether anything needs to be updated?
-      // TODO #59 handle: comment was deleted
       core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`)
-      await this.repo.updateComment(existingCommentId, composedComment)
-    } else {
-      // TODO #59 handle: issue doesnt exist
+      try {
+        return this.repo.updateComment(existingCommentId, composedComment)
+      } catch (err) {
+        // TODO #59 check if error is actually due to comment not existing
+        core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Creating new Comment instead...`)
+        this.data.deleteExistingCommentId(issueNr)
+      }
+    }
+    try {
       core.debug(`Adding new comment to issue ${issueNr}...`)
       const created = await this.repo.createComment(issueNr, composedComment)
       this.data.setCommentId(issueNr, created.data.id)
-      try {
-        core.debug(`Adding new comment to issue ${issueNr}...`)
-        const created = await this.repo.createComment(issueNr, composedComment)
-        this.data.setCommentId(issueNr, created.data.id)
-      } catch (err) {
-        // TODO #59 handle: issue doesnt exist? Create?
-        // TODO #59 check if error is actually because of non existant issue - otherwise throw?
-        core.warning(`Error creating comment. Does issue ${issueNr} exist?`)
-        if (err instanceof Error) {
-          core.warning(err.message)
-        }
-      }
+    } catch (err) {
+      // TODO #59 check if error is actually because of non existant issue - otherwise throw?
+      core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
+        If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue ${issueNr} to the new issue.`)
+      
     }
   }
 
@@ -152,7 +159,7 @@ export class TodohubControlIssue {
   }
 
   static async get(repo: Repo) {
-    const issue = await repo.findTodoHubIssue()
+    const issue = await repo.findTodohubControlIssue()
     if (issue) {
       // TODO #59 handle error and keep searching if parsing fails?
       return new TodohubControlIssue(repo, {

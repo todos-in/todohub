@@ -15,4 +15,5 @@ export interface TrackedIssue {
   commentId?: number;
   commitSha: string;
   todoState: ITodo[];
+  deadIssue?: boolean;
 }

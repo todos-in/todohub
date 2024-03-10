@@ -14,7 +14,6 @@ import * as core from '@actions/core'
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
 export default class Repo {
-  API_HITS = 0
   githubToken: string
   octokit: InstanceType<typeof GitHub>
   owner: string
@@ -245,7 +244,7 @@ export default class Repo {
     return featureBranchesAheadOf
   }
 
-  async compareCommits(base: string, head: string) {
+  private async compareCommits(base: string, head: string) {
     return this.octokit.request(
       'GET /repos/{owner}/{repo}/compare/{basehead}',
       {
@@ -256,7 +255,7 @@ export default class Repo {
     )
   }
 
-  async findTodoHubIssue() {
+  async findTodohubControlIssue() {
     // TODO #79 author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
     const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
       per_page: 100,
@@ -303,14 +302,6 @@ export default class Repo {
         body,
       },
     )
-  }
-
-  async getIssue(issueNumber: number) {
-    return this.octokit.rest.issues.get({
-      owner: this.owner,
-      repo: this.repo,
-      issue_number: issueNumber,
-    })
   }
 
   async createIssue(
