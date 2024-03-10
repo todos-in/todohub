@@ -1,0 +1,1 @@
+export class EnvironmentLoadError extends Error {}

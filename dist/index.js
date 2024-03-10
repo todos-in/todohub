@@ -25604,7 +25604,7 @@ const {
   kResult,
   kEvents,
   kAborted
-} = __nccwpck_require__(9054)
+} = __nccwpck_require__(9603)
 const { webidl } = __nccwpck_require__(1744)
 const { kEnumerableProperty } = __nccwpck_require__(3983)
 
@@ -26024,7 +26024,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 9054:
+/***/ 9603:
 /***/ ((module) => {
 
 
@@ -26052,7 +26052,7 @@ const {
   kResult,
   kAborted,
   kLastProgressEventFired
-} = __nccwpck_require__(9054)
+} = __nccwpck_require__(9603)
 const { ProgressEvent } = __nccwpck_require__(5504)
 const { getEncoding } = __nccwpck_require__(4854)
 const { DOMException } = __nccwpck_require__(1037)
@@ -33764,14 +33764,14 @@ var __webpack_exports__ = {};
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
-// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
-var github = __nccwpck_require__(5438);
 ;// CONCATENATED MODULE: external "node:https"
 const external_node_https_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:https");
 ;// CONCATENATED MODULE: external "node:zlib"
 const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:zlib");
 ;// CONCATENATED MODULE: external "node:path"
 const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
+// EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
+var github = __nccwpck_require__(5438);
 // EXTERNAL MODULE: ./node_modules/tar-stream/index.js
 var tar_stream = __nccwpck_require__(2283);
 // EXTERNAL MODULE: ./node_modules/ignore/index.js
@@ -33838,15 +33838,15 @@ var external_node_stream_ = __nccwpck_require__(4492);
 const regexCache = {};
 /**
  * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
- * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
+ * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO‎ 18, TODO‎ #18 dothis, TODO‎ (18) dothis, etc)
  */
 const getRegex = (issueNumber) => {
     const index = issueNumber || '0';
     if (regexCache[index]) {
         return regexCache[index];
     }
-    const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?';
-    const regex = new RegExp(`(?<keyword>TODO):?[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'i');
+    const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?):?` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?:?';
+    const regex = new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'i');
     regexCache[index] = regex;
     return regex;
 };
@@ -33861,13 +33861,13 @@ const matchTodo = (textLine, issueNumber) => {
         return;
     }
     if (!((_a = match.groups) === null || _a === void 0 ? void 0 : _a.keyword)) {
-        console.warn('Todo could not be parsed from code: keyword not found in match: ' + textLine);
+        console.error('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine);
         return;
     }
     const parsedIssueNumber = match.groups.issueNumber && Number.parseInt(match.groups.issueNumber);
     if (issueNumber) {
         if (Number.isNaN(parsedIssueNumber)) {
-            console.warn('Parsing issue: issueNumber not an integer.');
+            console.error('Regex match parsing issue: issueNumber not an integer.');
             return;
         }
     }
@@ -34088,10 +34088,11 @@ class Repo {
      */
     getTodosFromGitRef(ref, issueNr, todoMetadata) {
         return __awaiter(this, void 0, void 0, function* () {
+            const issueStr = issueNr && typeof issueNr === 'number' ? issueNr.toString() : issueNr;
             // TODO #62 parallelize
             const tar = yield this.downloadTarball(ref);
             const ignore = yield this.getTodoIgnoreFile();
-            const todoState = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata, ignore);
+            const todoState = yield this.extractTodosFromTarGz(tar, issueStr, todoMetadata, ignore);
             return todoState;
         });
     }
@@ -34265,7 +34266,7 @@ class TodohubData {
     getTrackedIssue(issueNr) {
         return this.decodedData[issueNr];
     }
-    // TODO: naming: stray/lost?
+    // TODO #69 naming: stray/lost?
     getTodosWithIssueReference() {
         const cloned = Object.assign({}, this.decodedData);
         delete cloned[0];
@@ -34431,7 +34432,7 @@ class TodohubControlIssue {
                 yield this.repo.updateComment(existingCommentId, composedComment);
             }
             else {
-                // TODO #59handle: issue doesnt exist
+                // TODO #59 handle: issue doesnt exist
                 core.debug(`Adding new comment to issue ${issueNr}...`);
                 const created = yield this.repo.createComment(issueNr, composedComment);
                 this.data.setCommentId(issueNr, created.data.id);
@@ -34480,6 +34481,67 @@ class TodohubControlIssue {
     }
 }
 
+;// CONCATENATED MODULE: ./src/error.ts
+class EnvironmentLoadError extends Error {
+}
+
+;// CONCATENATED MODULE: ./src/action-environment.ts
+
+
+
+const get = () => {
+    var _a, _b;
+    const context = github.context;
+    const payload = github.context.payload;
+    const githubToken = core.getInput('token');
+    if (!githubToken) {
+        throw new EnvironmentLoadError('Failed to load <token> from <input>');
+    }
+    const defaultBranch = payload.repository.default_branch;
+    if (!defaultBranch) {
+        throw new EnvironmentLoadError('Failed to load <repository.default_branch> from <context.payload>');
+    }
+    const repo = github.context.repo.repo;
+    if (!defaultBranch) {
+        throw new EnvironmentLoadError('Failed to load <repo.repo> from <context>');
+    }
+    const repoOwner = github.context.repo.owner;
+    if (!defaultBranch) {
+        throw new EnvironmentLoadError('Failed to load <repo.owner> from <context>');
+    }
+    const ref = github.context.ref;
+    if (!defaultBranch) {
+        throw new EnvironmentLoadError('Failed to load <ref> from <context>');
+    }
+    const branchName = ref.split('/').pop();
+    if (!branchName) {
+        throw new EnvironmentLoadError('Could not parse branchName from <ref.context>');
+    }
+    const featureBranchNumber = (_b = (_a = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b['featureBranch'];
+    let featureBranchNumberParsed;
+    if (featureBranchNumber) {
+        featureBranchNumberParsed = Number.parseInt(featureBranchNumber);
+        if (Number.isNaN(featureBranchNumber)) {
+            throw new EnvironmentLoadError('Parsed Feature Branch Number appears to not be an integer.');
+        }
+    }
+    const commitSha = context.sha;
+    const isDefaultBranch = branchName === defaultBranch;
+    const isFeatureBranch = featureBranchNumber !== undefined;
+    return {
+        commitSha,
+        branchName,
+        ref,
+        githubToken,
+        repo,
+        repoOwner,
+        defaultBranch,
+        isDefaultBranch,
+        featureBranchNumber: featureBranchNumberParsed,
+        isFeatureBranch,
+    };
+};
+
 ;// CONCATENATED MODULE: ./src/main.ts
 var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
@@ -34517,47 +34579,30 @@ function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 function run() {
-    var _a, _b;
     return main_awaiter(this, void 0, void 0, function* () {
-        const context = github.context;
-        const payload = github.context.payload;
-        const githubToken = core.getInput('token');
-        const defaultBranch = payload.repository.default_branch;
-        const ref = github.context.ref;
-        const branchName = ref.split('/').pop() || '';
-        const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/;
-        const isDefaultBranch = branchName === defaultBranch;
-        const featureBranchNumber = (_b = (_a = branchName.match(featureBranchRegex)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b['featureBranch'];
-        const isFeatureBranch = featureBranchNumber !== undefined;
-        const featureBranchNumberParsed = featureBranchNumber
-            ? Number.parseInt(featureBranchNumber)
-            : undefined;
-        if (isFeatureBranch && Number.isNaN(featureBranchNumberParsed)) {
-            throw new Error('featureBranchNumber is not an integer');
-        }
+        const env = get();
         // TODO #68 check what happens for deleted branches?
-        const commitSha = context.sha;
-        core.info(`Pushing commit: ${commitSha}, ref: ${ref}`);
+        core.info(`Pushing commit: ${env.commitSha}, ref: ${env.ref}`);
         try {
-            const repo = new Repo(githubToken, context.repo.owner, context.repo.repo);
+            const repo = new Repo(env.githubToken, env.repoOwner, env.repo);
             core.debug('Getting existing Todohub Control Issue...');
             const todohubIssue = yield TodohubControlIssue.get(repo);
             core.debug(todohubIssue.exists() ?
                 `Found existing Todohub Control Issue: ${todohubIssue.existingIssueNumber}.` :
                 'No existing Todohub Control Issue. Needs to be initiated.');
             // TODO #59 handle errors
-            if (isFeatureBranch && featureBranchNumberParsed) {
-                core.info(`Push Event into feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`);
+            if (env.isFeatureBranch && env.featureBranchNumber) {
+                core.info(`Push Event into feature branch ${env.branchName} related to issue ${env.featureBranchNumber}...`);
                 // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
                 // TODO #62 parallelize stuff (+ add workers)
-                core.debug(`Searching state ${commitSha} for Todos with issue number ${featureBranchNumber}...`);
-                const todoState = yield repo.getTodosFromGitRef(commitSha, featureBranchNumber, { foundInCommit: commitSha });
-                yield updateIssue(featureBranchNumberParsed, todoState, todohubIssue, commitSha, ref);
+                core.debug(`Searching state ${env.commitSha} for Todos with issue number ${env.featureBranchNumber}...`);
+                const todoState = yield repo.getTodosFromGitRef(env.commitSha, env.featureBranchNumber, { foundInCommit: env.commitSha });
+                yield updateIssue(env.featureBranchNumber, todoState, todohubIssue, env.commitSha, env.ref);
             }
-            else if (isDefaultBranch) {
-                core.info(`Push Event into default branch ${defaultBranch}`);
-                core.debug(`Searching state ${commitSha} for all Todos`);
-                const todoState = yield repo.getTodosFromGitRef(commitSha, undefined, { foundInCommit: commitSha });
+            else if (env.isDefaultBranch) {
+                core.info(`Push Event into default branch ${env.defaultBranch}`);
+                core.debug(`Searching state ${env.commitSha} for all Todos`);
+                const todoState = yield repo.getTodosFromGitRef(env.commitSha, undefined, { foundInCommit: env.commitSha });
                 const issuesWithTodosInCode = todoState.getIssuesNumbers();
                 core.debug(`Found Todos for ${issuesWithTodosInCode.size} different issues.`);
                 const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers();
@@ -34565,11 +34610,11 @@ function run() {
                 const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]));
                 const featureBranches = yield repo.getFeatureBranches();
                 const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)));
-                const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf(defaultBranch, trackedFeatureBranches.map((branch) => branch.name));
+                const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf(env.defaultBranch, trackedFeatureBranches.map((branch) => branch.name));
                 const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) => !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)));
-                todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), commitSha, ref);
+                todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), env.commitSha, env.ref);
                 for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
-                    yield updateIssue(issue, todoState, todohubIssue, commitSha, ref);
+                    yield updateIssue(issue, todoState, todohubIssue, env.commitSha, env.ref);
                 }
             }
             else {
@@ -34578,12 +34623,7 @@ function run() {
             }
             core.debug('Writing Todohub Control issue...');
             yield todohubIssue.write();
-            // TODO #61 set output: all changes in workflow
-            // core.setOutput('', )
-            // core.setOutput('changed_issues', '')
-            // core.setOutput('tracked_issues', Array.from(todohubIssue.data.getTrackedIssuesNumbers()).join(','))
-            // core.setOutput('reopened_isues')
-            // core.setOutput('skipped_files')
+            // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
         }
         catch (error) {
             if (error instanceof Error) {

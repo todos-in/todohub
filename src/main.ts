@@ -1,9 +1,8 @@
 import * as core from '@actions/core'
-import * as github from '@actions/github'
 import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
-import { PushEvent } from '@octokit/webhooks-types'
 import TodoState from './todo-state.js'
+import { get } from './action-environment.js'
 
 async function updateIssue(issueNr: string | number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)
@@ -29,32 +28,15 @@ async function updateIssue(issueNr: string | number, todoState: TodoState, todoh
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 export async function run(): Promise<void> {
-  const context = github.context
-  const payload = github.context.payload as PushEvent
-  
-  const githubToken = core.getInput('token')
-  const defaultBranch = payload.repository.default_branch
-  const ref = github.context.ref
-  const branchName = ref.split('/').pop() || ''
-  const featureBranchRegex = /^(?<featureBranch>[0-9]+)-.*/
-  const isDefaultBranch = branchName === defaultBranch
-  const featureBranchNumber =
-    branchName.match(featureBranchRegex)?.groups?.['featureBranch']
-  const isFeatureBranch = featureBranchNumber !== undefined
-  const featureBranchNumberParsed = featureBranchNumber
-    ? Number.parseInt(featureBranchNumber)
-    : undefined
-  if (isFeatureBranch && Number.isNaN(featureBranchNumberParsed)) {
-    throw new Error('featureBranchNumber is not an integer')
-  }
-  // TODO #68 check that all necessary variables are set
-  // TODO #68 check what happens for deleted branches?
-  const commitSha = context.sha
 
-  core.info(`Pushing commit: ${commitSha}, ref: ${ref}`)
+  const env = get()
+
+  // TODO #68 check what happens for deleted branches?
+
+  core.info(`Pushing commit: ${env.commitSha}, ref: ${env.ref}`)
 
   try {
-    const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
+    const repo = new Repo(env.githubToken, env.repoOwner, env.repo)
     core.debug('Getting existing Todohub Control Issue...')
     const todohubIssue = await TodohubControlIssue.get(repo)
     core.debug(todohubIssue.exists() ? 
@@ -62,21 +44,21 @@ export async function run(): Promise<void> {
       'No existing Todohub Control Issue. Needs to be initiated.')
 
     // TODO #59 handle errors
-    if (isFeatureBranch && featureBranchNumberParsed) {
-      core.info(`Push Event into feature branch ${branchName} related to issue ${featureBranchNumberParsed}...`)
+    if (env.isFeatureBranch && env.featureBranchNumber) {
+      core.info(`Push Event into feature branch ${env.branchName} related to issue ${env.featureBranchNumber}...`)
 
       // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
       // TODO #62 parallelize stuff (+ add workers)
 
-      core.debug(`Searching state ${commitSha} for Todos with issue number ${featureBranchNumber}...`)
-      const todoState = await repo.getTodosFromGitRef(commitSha, featureBranchNumber, { foundInCommit: commitSha })
+      core.debug(`Searching state ${env.commitSha} for Todos with issue number ${env.featureBranchNumber}...`)
+      const todoState = await repo.getTodosFromGitRef(env.commitSha, env.featureBranchNumber, { foundInCommit: env.commitSha })
 
-      await updateIssue(featureBranchNumberParsed, todoState, todohubIssue, commitSha, ref)
-    } else if (isDefaultBranch) {
-      core.info(`Push Event into default branch ${defaultBranch}`)
+      await updateIssue(env.featureBranchNumber, todoState, todohubIssue, env.commitSha, env.ref)
+    } else if (env.isDefaultBranch) {
+      core.info(`Push Event into default branch ${env.defaultBranch}`)
 
-      core.debug(`Searching state ${commitSha} for all Todos`)
-      const todoState = await repo.getTodosFromGitRef(commitSha, undefined, {foundInCommit: commitSha})
+      core.debug(`Searching state ${env.commitSha} for all Todos`)
+      const todoState = await repo.getTodosFromGitRef(env.commitSha, undefined, {foundInCommit: env.commitSha})
 
       const issuesWithTodosInCode = todoState.getIssuesNumbers()
       core.debug(`Found Todos for ${issuesWithTodosInCode.size} different issues.`)
@@ -88,15 +70,15 @@ export async function run(): Promise<void> {
 
       const featureBranches = await repo.getFeatureBranches()
       const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
-      const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf(defaultBranch, trackedFeatureBranches.map((branch) => branch.name))
+      const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf(env.defaultBranch, trackedFeatureBranches.map((branch) => branch.name))
 
       const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
         !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
 
-      todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), commitSha, ref)
+      todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), env.commitSha, env.ref)
 
       for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
-        await updateIssue(issue, todoState, todohubIssue, commitSha, ref)
+        await updateIssue(issue, todoState, todohubIssue, env.commitSha, env.ref)
       }
     } else {
       core.info('Neither in default nor in a feature branch format ([0-9]-branch-name). Doing nothing...')

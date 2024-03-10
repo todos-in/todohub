@@ -193,15 +193,16 @@ export default class Repo {
    */
   async getTodosFromGitRef(
     ref?: string,
-    issueNr?: string,
+    issueNr?: string | number,
     todoMetadata?: Record<string, string>,
   ) {
+    const issueStr = issueNr && typeof issueNr === 'number' ? issueNr.toString() : issueNr as string
     // TODO #62 parallelize
     const tar = await this.downloadTarball(ref)
     const ignore = await this.getTodoIgnoreFile()
     const todoState = await this.extractTodosFromTarGz(
       tar,
-      issueNr,
+      issueStr,
       todoMetadata,
       ignore,
     )
