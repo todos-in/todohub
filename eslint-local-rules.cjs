@@ -12,8 +12,8 @@ try {
 const currentIssue = Number.parseInt(gitHEAD.split('/').pop()?.split('-')[0])
 const isFeatureBranch = !Number.isNaN(currentIssue)
 
-const todoWithoutIssueRefRegex = /(?<keyword>TODO)(?<whitespace>[^\S\r\n]+)(?<issue_ref>\(?#?[0-9]+\)?)?(?<todo_txt>.*)/gim
-const todoWithCurrentIssueRegex = new RegExp(`(?<keyword>TODO)[^\S\r\n]+(?<numberGroup>\\(?#?(?<issueNumber>${currentIssue})\\)?)(?<todoText>.*)`, 'i')
+const todoWithoutIssueRefRegex = /(?<keyword>TODO):?(?<whitespace>[^\S\r\n]+)(?<issue_ref>\(?#?[0-9]+\)?)?(?<todo_txt>.*)/gim
+const todoWithCurrentIssueRegex = new RegExp(`(?<keyword>TODO):?[^\S\r\n]+(?<numberGroup>\\(?#?(?<issueNumber>${currentIssue})\\)?)(?<todoText>.*)`, 'i')
 
 // TODO #72 add tests
 // TODO #72 publish

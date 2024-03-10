@@ -110,7 +110,7 @@ export class TodohubControlIssue {
       core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`)
       await this.repo.updateComment(existingCommentId, composedComment)
     } else {
-      // TODO #59handle: issue doesnt exist
+      // TODO #59 handle: issue doesnt exist
       core.debug(`Adding new comment to issue ${issueNr}...`)
       const created = await this.repo.createComment(issueNr, composedComment)
       this.data.setCommentId(issueNr, created.data.id)

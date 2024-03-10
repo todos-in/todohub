@@ -28,7 +28,7 @@ export default class TodohubData {
     return this.decodedData[issueNr]
   }
 
-  // TODO: naming: stray/lost?
+  // TODO #69 naming: stray/lost?
   getTodosWithIssueReference() {
     const cloned = Object.assign({}, this.decodedData)
     delete cloned[0]

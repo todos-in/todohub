@@ -3,7 +3,7 @@
 const regexCache: Record<string, RegExp> = {}
 /**
  * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
- * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
+ * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO‎ 18, TODO‎ #18 dothis, TODO‎ (18) dothis, etc)
  */
 const getRegex = (issueNumber?: string) => {
   const index = issueNumber || '0'
@@ -39,7 +39,7 @@ export const matchTodo = (textLine: string, issueNumber?: string): TodoRegexMatc
   }
 
   if (!(match.groups?.keyword)) {
-    console.warn('Todo could not be parsed from code: keyword not found in match: ' + textLine)
+    console.warn('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine)
     return
   }
 
