@@ -107,7 +107,7 @@ export class TodohubControlIssue {
     if (existingCommentId) {
       // TODO #64 add state hash to check whether anything needs to be updated?
       // TODO #59 handle: comment was deleted
-      core.debug(`Updating comment on issue ${issueNr}/${existingCommentId}...`)
+      core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`)
       await this.repo.updateComment(existingCommentId, composedComment)
     } else {
       // TODO #59handle: issue doesnt exist

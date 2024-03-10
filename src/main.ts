@@ -5,7 +5,6 @@ import { TodohubControlIssue } from './elements/control-issue.js'
 import { PushEvent } from '@octokit/webhooks-types'
 import TodoState from './todo-state.js'
 
-// TODO test TODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO testTODO test
 async function updateIssue(issueNr: string | number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)
   const issueNumber = typeof issueNr === 'string' ? Number.parseInt(issueNr) : issueNr
@@ -48,6 +47,7 @@ export async function run(): Promise<void> {
   if (isFeatureBranch && Number.isNaN(featureBranchNumberParsed)) {
     throw new Error('featureBranchNumber is not an integer')
   }
+  // TODO #68 check that all necessary variables are set
   // TODO #68 check what happens for deleted branches?
   const commitSha = context.sha
 
@@ -98,17 +98,15 @@ export async function run(): Promise<void> {
       for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
         await updateIssue(issue, todoState, todohubIssue, commitSha, ref)
       }
+    } else {
+      core.info('Neither in default nor in a feature branch format ([0-9]-branch-name). Doing nothing...')
+      return
     }
 
     core.debug('Writing Todohub Control issue...')
     await todohubIssue.write()
 
-    // TODO #61 set output: all changes in workflow
-    // core.setOutput('', )
-    // core.setOutput('changed_issues', '')
-    // core.setOutput('tracked_issues', Array.from(todohubIssue.data.getTrackedIssuesNumbers()).join(','))
-    // core.setOutput('reopened_isues')
-    // core.setOutput('skipped_files')
+    // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
 
   } catch (error) {
     if (error instanceof Error) {

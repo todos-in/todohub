@@ -1,3 +1,5 @@
 dist
 __tests__/regex.test.ts
 git_tests
+badges
+coverage

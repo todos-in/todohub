@@ -33941,6 +33941,7 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
 
 
 
+
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
 class Repo {
@@ -34049,7 +34050,7 @@ class Repo {
                     filePathParts.shift();
                     const fileName = external_node_path_namespaceObject.join(...filePathParts);
                     if (ignore === null || ignore === void 0 ? void 0 : ignore.ignores(fileName)) {
-                        console.debug(`Skipping ${fileName} due to '.todoignore' rule...`);
+                        core.info(`Skipping ${fileName} due to '.todoignore' rule...`);
                         stream.resume();
                         return next();
                     }
@@ -34059,8 +34060,7 @@ class Repo {
                     splitLineStream.on('end', () => findTodosStream.end());
                     stream.pipe(splitLineStream).pipe(findTodosStream);
                     stream.on('error', () => {
-                        // TODO #59 replace console logs
-                        console.warn(`Error extracting Todos from file: ${fileName}`);
+                        core.warning(`Error extracting Todos from file: ${fileName}`);
                         splitLineStream.end();
                         next();
                     });
@@ -34427,7 +34427,7 @@ class TodohubControlIssue {
             if (existingCommentId) {
                 // TODO #64 add state hash to check whether anything needs to be updated?
                 // TODO #59 handle: comment was deleted
-                core.debug(`Updating comment on issue ${issueNr}/${existingCommentId}...`);
+                core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`);
                 yield this.repo.updateComment(existingCommentId, composedComment);
             }
             else {
@@ -34571,6 +34571,10 @@ function run() {
                 for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
                     yield updateIssue(issue, todoState, todohubIssue, commitSha, ref);
                 }
+            }
+            else {
+                core.info('Neither in default nor in a feature branch format ([0-9]-branch-name). Doing nothing...');
+                return;
             }
             core.debug('Writing Todohub Control issue...');
             yield todohubIssue.write();
