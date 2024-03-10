@@ -89,7 +89,7 @@ export async function run(): Promise<void> {
 
   } catch (error) {
     if (error instanceof Error) {
-      core.error(error.message + error.stack)
+      core.error(error.message + ' ' + error.stack + JSON.stringify(error))
       core.setFailed(error.message)
     } else core.setFailed(`Non error was thrown: ${error}`)
   }
