@@ -34370,6 +34370,9 @@ class TodohubControlIssue {
         const todosWithIssueReference = Object.entries(this.data.getTodosWithIssueReference());
         this.midTag = todosWithIssueReference.length ? '\n### Tracked Issues:' : '';
         for (const [issueNr, trackedIssue] of todosWithIssueReference) {
+            if (!trackedIssue.todoState.length) {
+                continue;
+            }
             let link = '';
             if (trackedIssue.commentId) {
                 link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`;
