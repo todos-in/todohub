@@ -10,8 +10,8 @@ const getRegex = (issueNumber?: string) => {
   if (regexCache[index]) {
     return regexCache[index] as RegExp
   }
-  const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?'
-  const regex = new RegExp(`(?<keyword>TODO):?[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'i')
+  const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?):?` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?:?'
+  const regex = new RegExp(`(?<keyword>TODO)[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'i')
   regexCache[index] = regex
   return regex
 }
@@ -39,14 +39,14 @@ export const matchTodo = (textLine: string, issueNumber?: string): TodoRegexMatc
   }
 
   if (!(match.groups?.keyword)) {
-    console.warn('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine)
+    console.error('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine)
     return
   }
 
   const parsedIssueNumber = match.groups.issueNumber && Number.parseInt(match.groups.issueNumber)
   if (issueNumber) {
     if (Number.isNaN(parsedIssueNumber)) {
-      console.warn('Parsing issue: issueNumber not an integer.')
+      console.error('Regex match parsing issue: issueNumber not an integer.')
       return
     }  
   }
