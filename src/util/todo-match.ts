@@ -1,13 +1,19 @@
 // TODO #76 refine regex (make simpler?) + add TODO: colon option
 
+const regexCache: Record<string, RegExp> = {}
 /**
  * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
  * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO 18, TODO #18 dothis, TODO (18) dothis, etc)
  */
 const getRegex = (issueNumber?: string) => {
-  // TODO #62 Creating regexp is expensive? Not a good idea to always recreate them instead of caching
+  const index = issueNumber || '0'
+  if (regexCache[index]) {
+    return regexCache[index] as RegExp
+  }
   const issueNrRegex = issueNumber ? `(?<numberGroup>\\(?#?(?<issueNumber>${issueNumber})\\)?)` : '(?<numberGroup>\\(?#?(?<issueNumber>[0-9]+)\\)?)?'
-  return new RegExp(`(?<keyword>TODO):?[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'i')
+  const regex = new RegExp(`(?<keyword>TODO):?[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'i')
+  regexCache[index] = regex
+  return regex
 }
 
 // (?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?(([^\S\r\n]+(?<todoText>.*))|$)
