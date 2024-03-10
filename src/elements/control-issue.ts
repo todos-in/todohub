@@ -1,5 +1,6 @@
 import Repo from 'src/github-repo.js'
 import TodohubData from './control-issue-data.js'
+import * as core from '@actions/core'
 
 // TODO #60 move to config file
 const TODOHUB_LABEL = {
@@ -41,8 +42,10 @@ export class TodohubControlIssue {
   }
 
   private compose() {
-    this.midTag = '\n### Tracked Issues:'
-    for (const [issueNr, trackedIssue] of Object.entries(this.data.getTodosWithIssueReference())) {
+    const todosWithIssueReference = Object.entries(this.data.getTodosWithIssueReference())
+    this.midTag = todosWithIssueReference.length ? '\n### Tracked Issues:' : ''
+
+    for (const [issueNr, trackedIssue] of todosWithIssueReference) {
       let link = ''
       if (trackedIssue.commentId) {
         link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`
@@ -51,10 +54,10 @@ export class TodohubControlIssue {
       }
       this.midTag += `\n* ${link}: *${trackedIssue.todoState.length}* open TODOs`
     }
-    this.midTag += '\n### Todos without Issue Reference:'
 
     const issueWORefernce = this.data.getTodosWithoutIssueReference()
-    if (issueWORefernce) {
+    if (issueWORefernce && issueWORefernce.todoState.length) {
+      this.midTag += '\n### Todos without Issue Reference:'
       for (const todo of issueWORefernce.todoState) {
         // TODO #74 make sure todos dont contain characters that break the comment
         this.midTag += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
@@ -66,12 +69,61 @@ export class TodohubControlIssue {
 
   async write() {
     if (this.existingIssueNumber) {
-      return this.repo.updateIssue(this.existingIssueNumber,  undefined, this.compose())
+      return this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose())
     }
     // TODO #60 get this issue title and label settings from config from input?
     // TODO #60 label is not created with right config (color + description)
     return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), [TODOHUB_LABEL])
     // TODO #61 return updated issues - can be used to update the respective feature comments
+  }
+
+  async updateTrackedIssueState(issueNr: number) {
+    if (!this.data.isEmpty(issueNr)) {
+      core.debug(`Opening issue ${issueNr}...`)
+      try {
+        await this.repo.updateIssue(
+          issueNr,
+          undefined,
+          undefined,
+          'open',
+        )  
+      } catch (err) {
+        // TODO #59 check if error is actually because of non existant issue - otherwise throw?
+        core.warning(`Error (re)opening issue ${issueNr}. Are there Todos with reference to issue ${issueNr}, which does not exist?`)
+        if (err instanceof Error) {
+          core.warning(err.message)
+        }
+      }
+    }
+  }
+
+  async writeComment(issueNr: number) {
+    const existingCommentId = this.data.getExistingCommentId(issueNr)
+    const composedComment = this.data.composeTrackedIssueComment(issueNr)
+
+    if (existingCommentId) {
+      // TODO #64 add state hash to check whether anything needs to be updated?
+      // TODO #59 handle: comment was deleted
+      core.debug(`Updating comment on issue ${issueNr}/${existingCommentId}...`)
+      await this.repo.updateComment(existingCommentId, composedComment)
+    } else {
+      // TODO #59handle: issue doesnt exist
+      core.debug(`Adding new comment to issue ${issueNr}...`)
+      const created = await this.repo.createComment(issueNr, composedComment)
+      this.data.setCommentId(issueNr, created.data.id)
+      try {
+        core.debug(`Adding new comment to issue ${issueNr}...`)
+        const created = await this.repo.createComment(issueNr, composedComment)
+        this.data.setCommentId(issueNr, created.data.id)
+      } catch (err) {
+        // TODO #59 handle: issue doesnt exist? Create?
+        // TODO #59 check if error is actually because of non existant issue - otherwise throw?
+        core.warning(`Error creating comment. Does issue ${issueNr} exist?`)
+        if (err instanceof Error) {
+          core.warning(err.message)
+        }
+      }
+    }
   }
 
   private parseContent(issueBody: string) {

@@ -3,6 +3,24 @@ import * as github from '@actions/github'
 import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
 import { PushEvent } from '@octokit/webhooks-types'
+import TodoState from './todo-state.js'
+
+async function updateIssue(issueNr: string | number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
+  core.startGroup(`Processing Issue ${issueNr}`)
+  const issueNumber = typeof issueNr === 'string' ? Number.parseInt(issueNr) : issueNr
+  if (Number.isNaN(issueNumber)) {
+    core.warning(`Cannot process with non-integer issue ${issueNr}.`)
+    return
+  }
+  const todos = todoState.getByIssueNo(issueNumber)
+  core.info(`Found ${todos?.length || 0} Todos for Issue ${issueNumber}...`)
+
+  todohubIssue.data.setTodoState(issueNumber, todos, commitSha, ref)
+
+  await todohubIssue.writeComment(issueNumber)
+  await todohubIssue.updateTrackedIssueState(issueNumber)
+  core.endGroup()
+}
 
 // TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
 // TODO #59 add debug and info logs
@@ -33,8 +51,14 @@ export async function run(): Promise<void> {
   const commitSha = context.sha
 
   core.info(`Pushing commit: ${commitSha}, ref: ${ref}`)
+
   try {
     const repo = new Repo(githubToken, context.repo.owner, context.repo.repo)
+    core.debug('Getting existing Todohub Control Issue...')
+    const todohubIssue = await TodohubControlIssue.get(repo)
+    core.debug(todohubIssue.exists() ? 
+      `Found existing Todohub Control Issue: ${todohubIssue.existingIssueNumber}.` :
+      'No existing Todohub Control Issue. Needs to be initiated.')
 
     // TODO #59 handle errors
     if (isFeatureBranch && featureBranchNumberParsed) {
@@ -43,70 +67,21 @@ export async function run(): Promise<void> {
       // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
       // TODO #62 parallelize stuff (+ add workers)
 
-
-      core.debug('Getting existing Todohub Control Issue...')
       core.debug(`Searching state ${commitSha} for Todos with issue number ${featureBranchNumber}...`)
-      const getTodohubIssue = TodohubControlIssue.get(repo)
-      const getTodoState = repo.getTodosFromGitRef(
-        commitSha,
-        featureBranchNumber,
-        { foundInCommit: commitSha },
-      )
-      const [todohubIssue, todoState] = await Promise.all([
-        getTodohubIssue,
-        getTodoState,
-      ])
-      if (todohubIssue.exists()) {
-        core.debug(`Found existing Todohub Control Issue: ${todohubIssue.existingIssueNumber}`)
-      }
+      const todoState = await repo.getTodosFromGitRef(commitSha, featureBranchNumber, { foundInCommit: commitSha })
 
-      const featureTodos = todoState.getByIssueNo(featureBranchNumberParsed)
-      core.debug(`Found ${featureTodos?.length} Todos for issue ${featureBranchNumber}`)
-      core.debug(JSON.stringify(featureTodos))
-
-      todohubIssue.data.setTodoState(
-        featureBranchNumberParsed,
-        featureTodos || [],
-        commitSha,
-        ref,
-      )
-
-      const existingCommentId = todohubIssue.data.getExistingCommentId(featureBranchNumberParsed)
-      const composedComment = todohubIssue.data.composeTrackedIssueComment(featureBranchNumberParsed)
-
-      if (existingCommentId) {
-        // TODO #64 add state hash to check whether anything needs to be updated?
-        // TODO #59 handle: comment was deleted
-        // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
-        await repo.updateComment(existingCommentId, composedComment)
-      } else {
-        // TODO #59handle: issue doesnt exist
-        const created = await repo.createComment(featureBranchNumberParsed, composedComment)
-        todohubIssue.data.setCommentId(featureBranchNumberParsed, created.data.id)
-      }
-
-      // TODO #62 parallelize
-      if (!todohubIssue.data.isEmpty(featureBranchNumberParsed)) {
-        await repo.updateIssue(
-          featureBranchNumberParsed,
-          undefined,
-          undefined,
-          'open',
-        )
-      }
-
-      await todohubIssue.write()
+      await updateIssue(featureBranchNumberParsed, todoState, todohubIssue, commitSha, ref)
     } else if (isDefaultBranch) {
       core.info(`Push Event into default branch ${defaultBranch}`)
-      const getTodohubIssue = TodohubControlIssue.get(repo)
-      const getTodoState = repo.getTodosFromGitRef(commitSha, undefined, {foundInCommit: commitSha})
-      const [todohubIssue, todoState] = await Promise.all([
-        getTodohubIssue,
-        getTodoState,
-      ])
+
+      core.debug(`Searching state ${commitSha} for all Todos`)
+      const todoState = await repo.getTodosFromGitRef(commitSha, undefined, {foundInCommit: commitSha})
+
+      const issuesWithTodosInCode = todoState.getIssuesNumbers()
+      core.debug(`Found Todos for ${issuesWithTodosInCode.size} different issues.`)
 
       const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers()
-      const issuesWithTodosInCode = todoState.getIssuesNumbers()
+      core.debug(`Currently ${trackedIssues.size} issues are tracked in Control Issue.`)
 
       const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]))
 
@@ -114,62 +89,18 @@ export async function run(): Promise<void> {
       const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
       const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf(defaultBranch, trackedFeatureBranches.map((branch) => branch.name))
 
-      // const issuesWithFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
-      //   branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
-
       const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
         !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
 
-      todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo() || [], commitSha, ref)
+      todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), commitSha, ref)
 
       for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
-        const issueNumber = Number.parseInt(issue)
-        const todos = todoState.getByIssueNo(issueNumber)
-        console.debug(`Processing issue ${issueNumber} with ${todos?.length || 0} Todos ...`)
-
-        // TODO #64 what if todos are empty? should this be deleted rather than set to empty array
-        // otherwise control issue keeps endless track of old issues with 0 todos
-        todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref)
-
-        const existingCommentId = todohubIssue.data.getExistingCommentId(issueNumber)
-        const composedComment = todohubIssue.data.composeTrackedIssueComment(issueNumber)
-
-        if (existingCommentId) {
-          // TODO #59 handle: comment was deleted
-          // TODO #69 refactor (do no call repo directly, but via AdminIssue?)
-          console.debug(`Updating comment on issue ${issueNumber}/${existingCommentId}...`)
-          await repo.updateComment(existingCommentId, composedComment)
-        } else {
-          // TODO #62 parallelize
-          try {
-            console.debug(`Adding new comment to issue ${issueNumber}...`)
-            const created = await repo.createComment(issueNumber, composedComment)
-            todohubIssue.data.setCommentId(issueNumber, created.data.id)
-          } catch (err) {
-            // TODO #59  handle: issue doesnt exist? Create?
-            console.warn(err)
-          }
-        }
-
-        // TODO #62 parallelize
-        if (!todohubIssue.data.isEmpty(issueNumber)) {
-          try {
-            console.debug(`Opening issue ${issueNumber}...`)
-            await repo.updateIssue(
-              issueNumber,
-              undefined,
-              undefined,
-              'open',
-            )
-          } catch (err) {
-            // TODO #59 handle: issue doesnt exist? Create?
-            console.warn(err)
-          }
-        }
+        await updateIssue(issue, todoState, todohubIssue, commitSha, ref)
       }
-      console.debug('Writing Todohub Control issue...')
-      await todohubIssue.write()
     }
+
+    core.debug('Writing Todohub Control issue...')
+    await todohubIssue.write()
 
     // TODO #61 set output: all changes in workflow
     // core.setOutput('', )

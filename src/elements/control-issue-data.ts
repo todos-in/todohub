@@ -40,7 +40,7 @@ export default class TodohubData {
   }
 
   setTodosWithoutIssueReference(
-    todoState: ITodo[],
+    todoState: ITodo[] = [],
     commitSha: string,
     trackedBranch: string,
   ) {
@@ -49,15 +49,15 @@ export default class TodohubData {
 
   setTodoState(
     issueNr: number,
-    todoState: ITodo[],
+    todoState: ITodo[] = [],
     commitSha: string,
     trackedBranch: string,
   ) {
     this.decodedData[issueNr] = Object.assign(this.decodedData[issueNr] || {}, {
-      todoState,
+      todoState: todoState,
       commitSha,
       trackedBranch,
-    })
+    })  
   }
 
   isEmpty(issueNr: number) {
@@ -87,7 +87,7 @@ export default class TodohubData {
         `Issue Comment to be composed does not exist: ${issueNr}`,
       )
     }
-    let composed = '#### TODOs:'
+    let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos'
     for (const todo of trackedIssue.todoState) {
       composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
     }
