@@ -37,13 +37,8 @@ export const matchTodo = (textLine: string, issueNumber?: string): TodoRegexMatc
     return
   }
 
-  let parsedIssueNumber
+  const parsedIssueNumber = match.groups.issueNumber && Number.parseInt(match.groups.issueNumber)
   if (issueNumber) {
-    if (!match.groups.issueNumber) {
-      console.warn('Todo issueNumber could not be parsed from code: issueNr not found in match: ' + textLine)
-      return  
-    }
-    parsedIssueNumber = Number.parseInt(match.groups?.issueNumber || '')
     if (Number.isNaN(parsedIssueNumber)) {
       console.warn('Parsing issue: issueNumber not an integer.')
       return
@@ -53,7 +48,7 @@ export const matchTodo = (textLine: string, issueNumber?: string): TodoRegexMatc
   return {
     rawLine: match[0],
     keyword: match.groups.keyword,
-    issueNumber: parsedIssueNumber,
+    issueNumber: Number.isNaN(parsedIssueNumber) ? undefined : parsedIssueNumber as number,
     todoText: match.groups.todoText || '',
   }
 }

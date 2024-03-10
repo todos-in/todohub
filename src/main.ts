@@ -125,7 +125,7 @@ export async function run(): Promise<void> {
       for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
         const issueNumber = Number.parseInt(issue)
         const todos = todoState.getByIssueNo(issueNumber)
-        console.debug(`Processing issue ${issueNumber} with ${todos?.length} Todos ...`)
+        console.debug(`Processing issue ${issueNumber} with ${todos?.length || 0} Todos ...`)
 
         // TODO #64 what if todos are empty? should this be deleted rather than set to empty array
         // otherwise control issue keeps endless track of old issues with 0 todos

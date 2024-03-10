@@ -33845,7 +33845,7 @@ const getRegex = (issueNumber) => {
     return new RegExp(`(?<keyword>TODO):?[^\\S\\r\\n]*${issueNrRegex}(([^\\S\\r\\n]+(?<todoText>.*))|$)`, 'i');
 };
 const matchTodo = (textLine, issueNumber) => {
-    var _a, _b;
+    var _a;
     if (issueNumber && (Number.isNaN(Number.parseInt(issueNumber)))) {
         throw new Error('issueNumber is not an integer.');
     }
@@ -33858,13 +33858,8 @@ const matchTodo = (textLine, issueNumber) => {
         console.warn('Todo could not be parsed from code: keyword not found in match: ' + textLine);
         return;
     }
-    let parsedIssueNumber;
+    const parsedIssueNumber = match.groups.issueNumber && Number.parseInt(match.groups.issueNumber);
     if (issueNumber) {
-        if (!match.groups.issueNumber) {
-            console.warn('Todo issueNumber could not be parsed from code: issueNr not found in match: ' + textLine);
-            return;
-        }
-        parsedIssueNumber = Number.parseInt(((_b = match.groups) === null || _b === void 0 ? void 0 : _b.issueNumber) || '');
         if (Number.isNaN(parsedIssueNumber)) {
             console.warn('Parsing issue: issueNumber not an integer.');
             return;
@@ -33873,7 +33868,7 @@ const matchTodo = (textLine, issueNumber) => {
     return {
         rawLine: match[0],
         keyword: match.groups.keyword,
-        issueNumber: parsedIssueNumber,
+        issueNumber: Number.isNaN(parsedIssueNumber) ? undefined : parsedIssueNumber,
         todoText: match.groups.todoText || '',
     };
 };
@@ -34527,7 +34522,7 @@ function run() {
                 for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
                     const issueNumber = Number.parseInt(issue);
                     const todos = todoState.getByIssueNo(issueNumber);
-                    console.debug(`Processing issue ${issueNumber} with ${todos === null || todos === void 0 ? void 0 : todos.length} Todos ...`);
+                    console.debug(`Processing issue ${issueNumber} with ${(todos === null || todos === void 0 ? void 0 : todos.length) || 0} Todos ...`);
                     // TODO #64 what if todos are empty? should this be deleted rather than set to empty array
                     // otherwise control issue keeps endless track of old issues with 0 todos
                     todohubIssue.data.setTodoState(issueNumber, todos || [], commitSha, ref);
