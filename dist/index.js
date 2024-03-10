@@ -34638,7 +34638,7 @@ function run() {
         }
         catch (error) {
             if (error instanceof Error) {
-                core.error(error.message);
+                core.error(error.message + error.stack);
                 core.setFailed(error.message);
             }
             else
