@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
 import TodoState from './todo-state.js'
-import { get } from './action-environment.js'
+import env from './action-environment.js'
 
 async function updateIssue(issueNr: string | number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)
@@ -22,15 +22,11 @@ async function updateIssue(issueNr: string | number, todoState: TodoState, todoh
 }
 
 // TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
-// TODO #59 add debug and info logs
 /**
  * The main function for the action.
  * @returns {Promise<void>} Resolves when the action is complete.
  */
 export async function run(): Promise<void> {
-
-  const env = get()
-
   // TODO #68 check what happens for deleted branches?
 
   core.info(`Pushing commit: ${env.commitSha}, ref: ${env.ref}`)
@@ -43,7 +39,6 @@ export async function run(): Promise<void> {
       `Found existing Todohub Control Issue: ${todohubIssue.existingIssueNumber}.` :
       'No existing Todohub Control Issue. Needs to be initiated.')
 
-    // TODO #59 handle errors
     if (env.isFeatureBranch && env.featureBranchNumber) {
       core.info(`Push Event into feature branch ${env.branchName} related to issue ${env.featureBranchNumber}...`)
 
@@ -81,7 +76,7 @@ export async function run(): Promise<void> {
         await updateIssue(issue, todoState, todohubIssue, env.commitSha, env.ref)
       }
     } else {
-      core.info('Neither in default nor in a feature branch format ([0-9]-branch-name). Doing nothing...')
+      core.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): ${env.branchName} Doing nothing...`)
       return
     }
 

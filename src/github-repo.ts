@@ -140,7 +140,7 @@ export default class Repo {
       })
 
       extractStream.on('finish', () => {
-        console.log('Todos extraction completed successfully.')
+        core.info('Todos extraction completed successfully.')
         return resolve(todoState)
       })
 

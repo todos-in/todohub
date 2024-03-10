@@ -16,7 +16,8 @@ interface Environment {
   isFeatureBranch: boolean
 }
 
-export const get: () => Environment = () => {
+
+const parse: () => Environment = () => {
   const context = github.context
   const payload = github.context.payload as PushEvent
 
@@ -78,4 +79,6 @@ export const get: () => Environment = () => {
   }
 }
 
+const env = parse()
 
+export default env

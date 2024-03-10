@@ -1,4 +1,6 @@
-// TODO #76 refine regex (make simpler?) + add TODO: colon option
+import * as core from '@actions/core'
+
+// TODO #76 refine regex (make simpler?)
 
 const regexCache: Record<string, RegExp> = {}
 /**
@@ -39,14 +41,14 @@ export const matchTodo = (textLine: string, issueNumber?: string): TodoRegexMatc
   }
 
   if (!(match.groups?.keyword)) {
-    console.error('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine)
+    core.warning('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine)
     return
   }
 
   const parsedIssueNumber = match.groups.issueNumber && Number.parseInt(match.groups.issueNumber)
   if (issueNumber) {
     if (Number.isNaN(parsedIssueNumber)) {
-      console.error('Regex match parsing issue: issueNumber not an integer.')
+      core.warning('Regex match parsing issue: issueNumber not an integer.')
       return
     }  
   }
