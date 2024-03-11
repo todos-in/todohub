@@ -33838,7 +33838,7 @@ var external_node_stream_ = __nccwpck_require__(4492);
 // TODO #76 refine regex (make simpler?)
 const regexCache = {};
 /**
- * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TOD‎O dothis, TOD‎O #18 dothis, TODO 5 dothis, etc)
+ * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TOD‎O dothis, TOD‎O #18 dothis, TOD‎O 5 dothis, etc)
  * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TOD‎O 18, TOD‎O #18 dothis, TOD‎O (18) dothis, etc)
  */
 const getRegex = (issueNumber) => {
