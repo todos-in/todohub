@@ -25,6 +25,11 @@ export default class TodohubData {
     this.decodedData[issueNr] = trackedIssue
   }
 
+  private setTodoStateOnly(issueNr: number, todoState: ITodo[]) {
+    const trackedIssue = this.getTrackedIssue(issueNr)
+    trackedIssue.todoState = todoState
+  }
+
   private getTrackedIssue(issueNr: number) {
     const trackedIssue = this.decodedData[issueNr]
     if (!trackedIssue) {
@@ -39,10 +44,14 @@ export default class TodohubData {
     return issueNrs
   }
 
-  getTodos() {
+  getIssueTodos() {
     const cloned = Object.assign({}, this.decodedData)
     delete cloned[this.STRAY_TODO_KEY]
     return cloned
+  }
+
+  getAllTodos() {
+    return this.decodedData
   }
 
   getStrayTodos() {
@@ -67,6 +76,13 @@ export default class TodohubData {
     delete this.decodedData[issueNr]
   }
 
+  todoOrder(todoA: ITodo, todoB: ITodo) { 
+    return ((todoA.issueNumber || 0) - (todoB.issueNumber || 0))
+      || todoA.fileName.localeCompare(todoB.fileName)
+      || (todoA.lineNumber - todoB.lineNumber)
+      || todoA.rawLine.localeCompare(todoB.rawLine)
+  }
+
   todoEquals(todoA: ITodo, todoB: ITodo) {
     // TODO #65 is this enough to compare?
     return (
@@ -82,9 +98,9 @@ export default class TodohubData {
       if (trackedIssue.todoState.length !== todoState.length) {
         return false
       }
-      for (const trackedTodo of trackedIssue.todoState) {
-        const found = todoState.some((newTodo) => this.todoEquals(newTodo, trackedTodo))
-        if (!found) {
+      const orderedTodoState = todoState.sort(((a, b) => this.todoOrder(a, b)))
+      for (let i = 0; i < trackedIssue.todoState.length; i++) {
+        if (!this.todoEquals(trackedIssue.todoState[i] as ITodo, orderedTodoState[i] as ITodo)) {
           return false
         }
       }
@@ -104,7 +120,7 @@ export default class TodohubData {
       todoState: todoState,
       commitSha,
       trackedBranch,
-    })  
+    })
     this.setTrackedIssue(issueNr, trackedIssue)
   }
 
@@ -167,8 +183,20 @@ export default class TodohubData {
     return parsed
   }
 
+  private orderTodoState(issueNr: number) {
+    const ordered = this.getTrackedIssue(issueNr).todoState.sort(((a, b) => this.todoOrder(a, b)))
+    this.setTodoStateOnly(issueNr, ordered) 
+  }
+
+  orderTodoStates() {
+    for (const issueNr of Object.keys(this.decodedData)) {
+      this.orderTodoState(parseInt(issueNr))
+    }
+  }
+
   encode() {
     // TODO #70 sort by keys and generate hash?
+    this.orderTodoStates()
     const stringified = JSON.stringify(this.decodedData)
     const zipped = gzipSync(Buffer.from(stringified, 'utf-8'))
     const b64Encoded = zipped.toString('base64')

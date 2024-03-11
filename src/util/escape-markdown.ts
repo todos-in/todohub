@@ -5,7 +5,6 @@ const replacers = [
   // https://stackoverflow.com/questions/20532546/escape-pound-or-number-sign-in-github-issue-tracker
   {regex: /#/g, replace: '\\#&#x2060;'}, 
   {regex: /@/g, replace: '\\@&#x2060;'},
-  {regex: /\//g, replace: '\\/'},
   {regex: /\(/g, replace: '\\('},
   {regex: /\)/g, replace: '\\)'},
   {regex: /\[/g, replace: '\\['},
@@ -22,4 +21,3 @@ export const escapeMd = (markdown: string) => {
   }
   return markdown
 }
-

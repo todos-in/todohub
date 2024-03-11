@@ -46,7 +46,7 @@ export class TodohubControlIssue {
   }
 
   private compose() {
-    const todos = Object.entries(this.data.getTodos())
+    const todos = Object.entries(this.data.getIssueTodos())
     this.midTag = todos.length ? '\n### Tracked Issues:' : ''
 
     const footnotes: string[] = []

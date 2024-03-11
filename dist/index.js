@@ -34366,7 +34366,6 @@ const replacers = [
     // https://stackoverflow.com/questions/20532546/escape-pound-or-number-sign-in-github-issue-tracker
     { regex: /#/g, replace: '\\#&#x2060;' },
     { regex: /@/g, replace: '\\@&#x2060;' },
-    { regex: /\//g, replace: '\\/' },
     { regex: /\(/g, replace: '\\(' },
     { regex: /\)/g, replace: '\\)' },
     { regex: /\[/g, replace: '\\[' },
@@ -34402,6 +34401,11 @@ class TodohubData {
     setTrackedIssue(issueNr, trackedIssue) {
         this.decodedData[issueNr] = trackedIssue;
     }
+    // TODO refactor namings in this file
+    setTodoStateOnly(issueNr, todoState) {
+        const trackedIssue = this.getTrackedIssue(issueNr);
+        trackedIssue.todoState = todoState;
+    }
     getTrackedIssue(issueNr) {
         const trackedIssue = this.decodedData[issueNr];
         if (!trackedIssue) {
@@ -34414,10 +34418,13 @@ class TodohubData {
         issueNrs.delete(this.STRAY_TODO_KEY);
         return issueNrs;
     }
-    getTodos() {
+    getIssueTodos() {
         const cloned = Object.assign({}, this.decodedData);
         delete cloned[this.STRAY_TODO_KEY];
         return cloned;
+    }
+    getAllTodos() {
+        return this.decodedData;
     }
     getStrayTodos() {
         return this.decodedData[this.STRAY_TODO_KEY];
@@ -34433,6 +34440,12 @@ class TodohubData {
     clearTrackedIssue(issueNr) {
         delete this.decodedData[issueNr];
     }
+    todoOrder(todoA, todoB) {
+        return ((todoA.issueNumber || 0) - (todoB.issueNumber || 0))
+            || todoA.fileName.localeCompare(todoB.fileName)
+            || (todoA.lineNumber - todoB.lineNumber)
+            || todoA.rawLine.localeCompare(todoB.rawLine);
+    }
     todoEquals(todoA, todoB) {
         // TODO #65 is this enough to compare?
         return (todoA.fileName === todoB.fileName &&
@@ -34445,9 +34458,9 @@ class TodohubData {
             if (trackedIssue.todoState.length !== todoState.length) {
                 return false;
             }
-            for (const trackedTodo of trackedIssue.todoState) {
-                const found = todoState.some((newTodo) => this.todoEquals(newTodo, trackedTodo));
-                if (!found) {
+            const orderedTodoState = todoState.sort(((a, b) => this.todoOrder(a, b)));
+            for (let i = 0; i < trackedIssue.todoState.length; i++) {
+                if (!this.todoEquals(trackedIssue.todoState[i], orderedTodoState[i])) {
                     return false;
                 }
             }
@@ -34515,8 +34528,18 @@ class TodohubData {
         }
         return parsed;
     }
+    orderTodoState(issueNr) {
+        const ordered = this.getTrackedIssue(issueNr).todoState.sort(((a, b) => this.todoOrder(a, b)));
+        this.setTodoStateOnly(issueNr, ordered);
+    }
+    orderTodoStates() {
+        for (const issueNr of Object.keys(this.decodedData)) {
+            this.orderTodoState(parseInt(issueNr));
+        }
+    }
     encode() {
         // TODO #70 sort by keys and generate hash?
+        this.orderTodoStates();
         const stringified = JSON.stringify(this.decodedData);
         const zipped = (0,external_node_zlib_namespaceObject.gzipSync)(Buffer.from(stringified, 'utf-8'));
         const b64Encoded = zipped.toString('base64');
@@ -34565,7 +34588,7 @@ class TodohubControlIssue {
         return this.existingIssueNumber !== undefined;
     }
     compose() {
-        const todos = Object.entries(this.data.getTodos());
+        const todos = Object.entries(this.data.getIssueTodos());
         this.midTag = todos.length ? '\n### Tracked Issues:' : '';
         const footnotes = [];
         for (const [issueNr, trackedIssue] of todos) {
