@@ -34461,6 +34461,7 @@ class TodohubControlIssue {
                 // TODO #59 check if error is actually because of non existant issue - otherwise throw?
                 core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
         If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue ${issueNr} to the new issue.`);
+                this.data.setDeadIssue(issueNr);
             }
         });
     }
