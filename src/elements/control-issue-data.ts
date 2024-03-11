@@ -1,6 +1,7 @@
 import { gunzipSync, gzipSync } from 'node:zlib'
 import { ControlIssueDataDecodingError, IssueNotInStateError } from '../error.js'
 import { ITodo, TrackedIssue } from '../types/todo.js'
+import { escapeMd } from '../util/escape-markdown.js'
 
 export default class TodohubData {
   private STRAY_TODO_KEY = 0
@@ -144,10 +145,10 @@ export default class TodohubData {
 
     let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos'
     for (const todo of trackedIssue.todoState) {
-      const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`
-      composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${todo.rawLine} <sub>${link}</sub>}`
+      const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${escapeMd(todo.fileName)}#L${todo.lineNumber})`
+      composed += `\n* [ ] \`${escapeMd(todo.fileName)}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
     }
-    composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`</sub>`
+    composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${escapeMd(trackedIssue.trackedBranch)}\`</sub>`
 
     return composed
   }

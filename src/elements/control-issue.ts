@@ -2,6 +2,7 @@ import Repo from '../github-repo.js'
 import TodohubData from './control-issue-data.js'
 import * as core from '@actions/core'
 import { ControlIssueParsingError, assertGithubError } from '../error.js'
+import { escapeMd } from '../util/escape-markdown.js'
 
 // TODO #60 move to config file
 const TODOHUB_LABEL = {
@@ -74,9 +75,8 @@ export class TodohubControlIssue {
     if (strayTodos && strayTodos.todoState.length) {
       this.midTag += '\n### Todos without Issue Reference:'
       for (const strayTodo of strayTodos.todoState) {
-        // TODO #74 make sure todos dont contain characters that break the comment
-        const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`
-        this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${strayTodo.rawLine} <sup>${codeLink}</sup>`
+        const codeLink = `[click](${this.baseRepoUrl}/blob/main/${escapeMd(strayTodo.fileName)}#L${strayTodo.lineNumber})`
+        this.midTag += `\n* [ ] \`${escapeMd(strayTodo.fileName)}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`
       }
     }
 

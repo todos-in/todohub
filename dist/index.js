@@ -34358,7 +34358,33 @@ class Repo {
     }
 }
 
+;// CONCATENATED MODULE: ./src/util/escape-markdown.ts
+const replacers = [
+    { regex: /\*/g, replace: '\\*' },
+    // After applying common markdown stylings, github applies extra logic for issue/people mentions, which cant be easily escaped
+    // as a workaround we add an invisible extra character behind # and @
+    // https://stackoverflow.com/questions/20532546/escape-pound-or-number-sign-in-github-issue-tracker
+    { regex: /#/g, replace: '\\#&#x2060;' },
+    { regex: /@/g, replace: '\\@&#x2060;' },
+    { regex: /\//g, replace: '\\/' },
+    { regex: /\(/g, replace: '\\(' },
+    { regex: /\)/g, replace: '\\)' },
+    { regex: /\[/g, replace: '\\[' },
+    { regex: /\]/g, replace: '\\]' },
+    { regex: /</g, replace: '&lt;' },
+    { regex: />/g, replace: '&gt;' },
+    { regex: /_/g, replace: '\\_' },
+    { regex: /`/g, replace: '\\`' },
+];
+const escapeMd = (markdown) => {
+    for (const replacer of replacers) {
+        markdown = markdown.replace(replacer.regex, replacer.replace);
+    }
+    return markdown;
+};
+
 ;// CONCATENATED MODULE: ./src/elements/control-issue-data.ts
+
 
 
 class TodohubData {
@@ -34472,10 +34498,10 @@ class TodohubData {
         const trackedIssue = this.getTrackedIssue(issueNr);
         let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos';
         for (const todo of trackedIssue.todoState) {
-            const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`;
-            composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${todo.rawLine} <sub>${link}</sub>}`;
+            const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${escapeMd(todo.fileName)}#L${todo.lineNumber})`;
+            composed += `\n* [ ] \`${escapeMd(todo.fileName)}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
         }
-        composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`</sub>`;
+        composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${escapeMd(trackedIssue.trackedBranch)}\`</sub>`;
         return composed;
     }
     decode(tag) {
@@ -34508,6 +34534,7 @@ var control_issue_awaiter = (undefined && undefined.__awaiter) || function (this
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+
 
 
 
@@ -34566,9 +34593,8 @@ class TodohubControlIssue {
         if (strayTodos && strayTodos.todoState.length) {
             this.midTag += '\n### Todos without Issue Reference:';
             for (const strayTodo of strayTodos.todoState) {
-                // TODO #74 make sure todos dont contain characters that break the comment
-                const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
-                this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${strayTodo.rawLine} <sup>${codeLink}</sup>`;
+                const codeLink = `[click](${this.baseRepoUrl}/blob/main/${escapeMd(strayTodo.fileName)}#L${strayTodo.lineNumber})`;
+                this.midTag += `\n* [ ] \`${escapeMd(strayTodo.fileName)}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`;
             }
         }
         return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
