@@ -33838,8 +33838,8 @@ var external_node_stream_ = __nccwpck_require__(4492);
 // TODO #76 refine regex (make simpler?)
 const regexCache = {};
 /**
- * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
- * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO‎ 18, TODO‎ #18 dothis, TODO‎ (18) dothis, etc)
+ * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TOD‎O dothis, TOD‎O #18 dothis, TODO 5 dothis, etc)
+ * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TOD‎O 18, TOD‎O #18 dothis, TOD‎O (18) dothis, etc)
  */
 const getRegex = (issueNumber) => {
     const index = issueNumber || '0';
@@ -34082,7 +34082,7 @@ class Repo {
     /**
      * Searches for all "TODOs" occurrences in a certain git ref
      * @param ref ref of the git state to be searched, defaults to the head of default branch if unset
-     * @param issueNr if set, it will only seach occurences that reference this issueNr, such as "TODO #18 do this", otherwise it will search all "TODOs", whether they refernce any issue or none
+     * @param issueNr if set, it will only seach occurences that reference this issueNr, such as "TOD‎O #18 do this", otherwise it will search all "TODOs", whether they refernce any issue or none
      * @param todoMetadata optional key-value pairs that are appended to all found "TODOs" ocurrences
      * @returns TodoState
      */
@@ -34385,7 +34385,7 @@ class TodohubControlIssue {
                 link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`;
             }
             else if (trackedIssue.deadIssue) {
-                footnotes.push(`Associated issue ${18} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`);
+                footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`);
                 const currentFootnoteIndex = footnotes.length;
                 link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`;
             }
@@ -34571,7 +34571,6 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
-// TODO (#18) testytest2
 function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
     return main_awaiter(this, void 0, void 0, function* () {
         core.startGroup(`Processing Issue ${issueNr}`);

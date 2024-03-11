@@ -54,7 +54,7 @@ export class TodohubControlIssue {
       if (trackedIssue.commentId) {
         link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`
       } else if (trackedIssue.deadIssue) {
-        footnotes.push(`Associated issue ${18} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`)
+        footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`)
         const currentFootnoteIndex = footnotes.length
         link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`
       } else {

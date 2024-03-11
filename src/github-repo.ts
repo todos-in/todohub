@@ -186,7 +186,7 @@ export default class Repo {
   /**
    * Searches for all "TODOs" occurrences in a certain git ref
    * @param ref ref of the git state to be searched, defaults to the head of default branch if unset
-   * @param issueNr if set, it will only seach occurences that reference this issueNr, such as "TODO #18 do this", otherwise it will search all "TODOs", whether they refernce any issue or none
+   * @param issueNr if set, it will only seach occurences that reference this issueNr, such as "TOD‎O #18 do this", otherwise it will search all "TODOs", whether they refernce any issue or none
    * @param todoMetadata optional key-value pairs that are appended to all found "TODOs" ocurrences
    * @returns TodoState
    */
