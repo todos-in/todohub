@@ -25604,7 +25604,7 @@ const {
   kResult,
   kEvents,
   kAborted
-} = __nccwpck_require__(9603)
+} = __nccwpck_require__(9054)
 const { webidl } = __nccwpck_require__(1744)
 const { kEnumerableProperty } = __nccwpck_require__(3983)
 
@@ -26024,7 +26024,7 @@ module.exports = {
 
 /***/ }),
 
-/***/ 9603:
+/***/ 9054:
 /***/ ((module) => {
 
 
@@ -26052,7 +26052,7 @@ const {
   kResult,
   kAborted,
   kLastProgressEventFired
-} = __nccwpck_require__(9603)
+} = __nccwpck_require__(9054)
 const { ProgressEvent } = __nccwpck_require__(5504)
 const { getEncoding } = __nccwpck_require__(4854)
 const { DOMException } = __nccwpck_require__(1037)
@@ -33880,12 +33880,79 @@ const matchTodo = (textLine, issueNumber) => {
     };
 };
 
+;// CONCATENATED MODULE: ./src/error.ts
+class EnvironmentLoadError extends Error {
+}
+
+;// CONCATENATED MODULE: ./src/util/action-environment.ts
+
+
+
+const parse = () => {
+    var _a, _b;
+    const context = github.context;
+    const payload = github.context.payload;
+    const githubToken = core.getInput('TOKEN');
+    if (!githubToken) {
+        throw new EnvironmentLoadError('Failed to load <TOKEN> from <input>');
+    }
+    const maxLineLength = Number.parseInt(core.getInput('MAX_LINE_LENGTH'));
+    if (!githubToken || Number.isNaN(maxLineLength)) {
+        throw new EnvironmentLoadError('Failed to load <MAX_LINE_LENGTH> from <input>');
+    }
+    const defaultBranch = payload.repository.default_branch;
+    if (!defaultBranch) {
+        throw new EnvironmentLoadError('Failed to load <repository.default_branch> from <context.payload>');
+    }
+    const repo = github.context.repo.repo;
+    if (!defaultBranch) {
+        throw new EnvironmentLoadError('Failed to load <repo.repo> from <context>');
+    }
+    const repoOwner = github.context.repo.owner;
+    if (!defaultBranch) {
+        throw new EnvironmentLoadError('Failed to load <repo.owner> from <context>');
+    }
+    const ref = github.context.ref;
+    if (!defaultBranch) {
+        throw new EnvironmentLoadError('Failed to load <ref> from <context>');
+    }
+    const branchName = ref.split('/').pop();
+    if (!branchName) {
+        throw new EnvironmentLoadError('Could not parse branchName from <ref.context>');
+    }
+    const featureBranchNumber = (_b = (_a = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b['featureBranch'];
+    let featureBranchNumberParsed;
+    if (featureBranchNumber) {
+        featureBranchNumberParsed = Number.parseInt(featureBranchNumber);
+        if (Number.isNaN(featureBranchNumber)) {
+            throw new EnvironmentLoadError('Parsed Feature Branch Number appears to not be an integer.');
+        }
+    }
+    const commitSha = context.sha;
+    const isDefaultBranch = branchName === defaultBranch;
+    const isFeatureBranch = featureBranchNumber !== undefined;
+    return {
+        commitSha,
+        branchName,
+        ref,
+        githubToken,
+        repo,
+        repoOwner,
+        defaultBranch,
+        isDefaultBranch,
+        featureBranchNumber: featureBranchNumberParsed,
+        isFeatureBranch,
+        maxLineLength,
+    };
+};
+const env = parse();
+/* harmony default export */ const action_environment = (env);
+
 ;// CONCATENATED MODULE: ./src/util/find-todo-stream.ts
 
 
 
-// TODO #60 move to config
-const MAX_LINE_LENGTH_FOR_SEARCHING = 500;
+
 class FindTodoStream extends external_node_stream_.Writable {
     constructor(todoState, filename, issueNr, todoMetadata) {
         super({ objectMode: true });
@@ -33897,8 +33964,9 @@ class FindTodoStream extends external_node_stream_.Writable {
     }
     _write(line, encoding, next) {
         this.currentLineNr++;
-        if (line.length > MAX_LINE_LENGTH_FOR_SEARCHING) {
-            core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${MAX_LINE_LENGTH_FOR_SEARCHING} characters. If this is a generated file, you might want to add it to .todoignore.`);
+        if (line.length > action_environment.maxLineLength) {
+            core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${action_environment.maxLineLength} characters.
+        If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`);
             return next();
         }
         const matchedTodo = matchTodo(line, this.issueNr);
@@ -34493,69 +34561,6 @@ class TodohubControlIssue {
         });
     }
 }
-
-;// CONCATENATED MODULE: ./src/error.ts
-class EnvironmentLoadError extends Error {
-}
-
-;// CONCATENATED MODULE: ./src/action-environment.ts
-
-
-
-const parse = () => {
-    var _a, _b;
-    const context = github.context;
-    const payload = github.context.payload;
-    const githubToken = core.getInput('token');
-    if (!githubToken) {
-        throw new EnvironmentLoadError('Failed to load <token> from <input>');
-    }
-    const defaultBranch = payload.repository.default_branch;
-    if (!defaultBranch) {
-        throw new EnvironmentLoadError('Failed to load <repository.default_branch> from <context.payload>');
-    }
-    const repo = github.context.repo.repo;
-    if (!defaultBranch) {
-        throw new EnvironmentLoadError('Failed to load <repo.repo> from <context>');
-    }
-    const repoOwner = github.context.repo.owner;
-    if (!defaultBranch) {
-        throw new EnvironmentLoadError('Failed to load <repo.owner> from <context>');
-    }
-    const ref = github.context.ref;
-    if (!defaultBranch) {
-        throw new EnvironmentLoadError('Failed to load <ref> from <context>');
-    }
-    const branchName = ref.split('/').pop();
-    if (!branchName) {
-        throw new EnvironmentLoadError('Could not parse branchName from <ref.context>');
-    }
-    const featureBranchNumber = (_b = (_a = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b['featureBranch'];
-    let featureBranchNumberParsed;
-    if (featureBranchNumber) {
-        featureBranchNumberParsed = Number.parseInt(featureBranchNumber);
-        if (Number.isNaN(featureBranchNumber)) {
-            throw new EnvironmentLoadError('Parsed Feature Branch Number appears to not be an integer.');
-        }
-    }
-    const commitSha = context.sha;
-    const isDefaultBranch = branchName === defaultBranch;
-    const isFeatureBranch = featureBranchNumber !== undefined;
-    return {
-        commitSha,
-        branchName,
-        ref,
-        githubToken,
-        repo,
-        repoOwner,
-        defaultBranch,
-        isDefaultBranch,
-        featureBranchNumber: featureBranchNumberParsed,
-        isFeatureBranch,
-    };
-};
-const env = parse();
-/* harmony default export */ const action_environment = (env);
 
 ;// CONCATENATED MODULE: ./src/main.ts
 var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arguments, P, generator) {
