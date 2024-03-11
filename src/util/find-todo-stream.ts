@@ -8,10 +8,10 @@ export class FindTodoStream extends Writable {
   private filename: string
   private currentLineNr = 0
   private todoState: TodoState
-  private issueNr?: string
+  private issueNr?: number
   private todoMetadata?: { [key: string]: string }
 
-  constructor(todoState: TodoState, filename: string, issueNr?: string, todoMetadata?: { [key: string]: string }) {
+  constructor(todoState: TodoState, filename: string, issueNr?: number, todoMetadata?: { [key: string]: string }) {
     super({ objectMode: true })
     this.todoState = todoState
     this.filename = filename
@@ -26,7 +26,7 @@ export class FindTodoStream extends Writable {
         If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`)
       return next()
     }
-    const matchedTodo = matchTodo(line, this.issueNr)
+    const matchedTodo = matchTodo(line, this.issueNr?.toString())
     if (!matchedTodo) {
       return next()
     }

@@ -64,6 +64,10 @@ export class ControlIssueParsingError extends TodohubError {
   constructor(message: string) { super(message, 'control-issue-parse') }
 }
 
+export class ControlIssueDataDecodingError extends TodohubError {
+  constructor(message: string) { super(message, 'control-issue-decode') }
+}
+
 export function assersTodohubError(error: unknown): asserts error is TodohubError {
   assert(error instanceof TodohubError)
 }

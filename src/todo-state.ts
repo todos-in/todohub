@@ -2,11 +2,12 @@ import { ITodo } from './types/todo.js'
 
 // merge with TodohubData
 export default class TodoState {
-  todosByIssueNo: Record<number, ITodo[]> = {}
+  private STRAY_TODO_KEY = 0
+  private todosByIssueNo: Record<number, ITodo[]> = {}
 
   addTodos(todos: ITodo[]) {
     for (const todo of todos) {
-      const issueNr = todo.issueNumber || 0
+      const issueNr = todo.issueNumber || this.STRAY_TODO_KEY
       if (!this.todosByIssueNo[issueNr]) {
         this.todosByIssueNo[issueNr] = []
       }
@@ -15,8 +16,8 @@ export default class TodoState {
   }
 
   getIssuesNumbers() {
-    const issueNrs = new Set(Object.keys(this.todosByIssueNo))
-    issueNrs.delete('0')
+    const issueNrs = new Set(Object.keys(this.todosByIssueNo).map((key) => Number.parseInt(key)))
+    issueNrs.delete(this.STRAY_TODO_KEY)
     return issueNrs
   }
 

@@ -1,13 +1,14 @@
 import { gunzipSync, gzipSync } from 'node:zlib'
-import { IssueNotInStateError } from '../error.js'
+import { ControlIssueDataDecodingError, IssueNotInStateError } from '../error.js'
 import { ITodo, TrackedIssue } from '../types/todo.js'
 
 export default class TodohubData {
-  raw?: string
+  private STRAY_TODO_KEY = 0
+  private raw?: string
   // TODO #70 use Map() when parsing? - number keys are allowed..
   // TODO #70 order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
   // TODO #69 set private and only interact with data via methods
-  decodedData: Record<number, TrackedIssue>
+  private decodedData: Record<number, TrackedIssue>
 
   constructor(tag?: string) {
     if (tag) {
@@ -32,20 +33,20 @@ export default class TodohubData {
   }
 
   getTrackedIssuesNumbers() {
-    const issueNrs = new Set(Object.keys(this.decodedData))
-    issueNrs.delete('0')
+    const issueNrs = new Set(Object.keys(this.decodedData).map((key) => Number.parseInt(key)))
+    issueNrs.delete(this.STRAY_TODO_KEY)
     return issueNrs
   }
 
   // TODO #69 naming: stray/lost?
   getTodosWithIssueReference() {
     const cloned = Object.assign({}, this.decodedData)
-    delete cloned[0]
+    delete cloned[this.STRAY_TODO_KEY]
     return cloned
   }
 
   getTodosWithoutIssueReference() {
-    return this.decodedData[0]
+    return this.decodedData[this.STRAY_TODO_KEY]
   }
 
   setTodosWithoutIssueReference(
@@ -53,7 +54,7 @@ export default class TodohubData {
     commitSha: string,
     trackedBranch: string,
   ) {
-    this.setTodoState(0, todoState, commitSha, trackedBranch)
+    this.setTodoState(this.STRAY_TODO_KEY, todoState, commitSha, trackedBranch)
   }
 
   clearEmptyTrackedIssue(issueNr: number) {
@@ -155,6 +156,13 @@ export default class TodohubData {
     const b64Decoded = Buffer.from(tag, 'base64')
     const unzipped = gunzipSync(b64Decoded)
     const parsed = JSON.parse(unzipped.toString('utf-8'))
+
+    // Enforces keys format to be positive integers
+    const nonIntegerKeys = Object.keys(parsed).filter((key) => !/^[0-9]+$/.test(key))
+    if (nonIntegerKeys.length) {
+      throw new ControlIssueDataDecodingError(`Found non-integer key during Control issue data decoding: <${nonIntegerKeys.join(',')}>`)
+    }
+
     return parsed
   }
 

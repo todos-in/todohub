@@ -109,7 +109,7 @@ export default class Repo {
 
   private async extractTodosFromTarGz(
     tarBallStream: IncomingMessage,
-    issueNr?: string,
+    issueNr?: number,
     todoMetadata?: { [key: string]: string },
     ignore?: ignore.Ignore,
   ): Promise<TodoState> {
@@ -189,16 +189,15 @@ export default class Repo {
    */
   async getTodosFromGitRef(
     ref?: string,
-    issueNr?: string | number,
+    issueNr?: number,
     todoMetadata?: Record<string, string>,
   ) {
-    const issueStr = issueNr && typeof issueNr === 'number' ? issueNr.toString() : issueNr as (string | undefined)
     // TODO #62 parallelize
     const tar = await this.downloadTarball(ref)
     const ignore = await this.getTodoIgnoreFile()
     const todoState = await this.extractTodosFromTarGz(
       tar,
-      issueStr,
+      issueNr,
       todoMetadata,
       ignore,
     )

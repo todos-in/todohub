@@ -6,29 +6,24 @@ import env from './util/action-environment.js'
 import { TodohubError } from './error.js'
 
 class RunInfo  {
-  succesfullyUpdatedIssues: (number | string)[] = []
-  skippedIssues: (number | string)[] = []
+  succesfullyUpdatedIssues: number[] = []
+  skippedIssues: number[] = []
 }
 
 const runInfo = new RunInfo()
 
-async function updateIssue(issueNr: string | number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
+async function updateIssue(issueNr: number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)
-  const issueNumber = typeof issueNr === 'string' ? Number.parseInt(issueNr) : issueNr
-  if (Number.isNaN(issueNumber)) {
-    core.warning(`Cannot process with non-integer issue ${issueNr}.`)
-    return
-  }
-  const todos = todoState.getByIssueNo(issueNumber)
-  core.info(`Found ${todos?.length || 0} Todos for Issue ${issueNumber}...`)
+  const todos = todoState.getByIssueNo(issueNr)
+  core.info(`Found ${todos?.length || 0} Todos for Issue ${issueNr}...`)
 
-  const updateNecessary = !todohubIssue.data.todoStateEquals(issueNumber, todos)
+  const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, todos)
 
-  todohubIssue.data.setTodoState(issueNumber, todos, commitSha, ref)
+  todohubIssue.data.setTodoState(issueNr, todos, commitSha, ref)
 
   if (updateNecessary) {
-    await todohubIssue.writeComment(issueNumber)
-    await todohubIssue.reopenIssueWithOpenTodos(issueNumber)
+    await todohubIssue.writeComment(issueNr)
+    await todohubIssue.reopenIssueWithOpenTodos(issueNr)
     runInfo.succesfullyUpdatedIssues.push(issueNr)  
   } else {
     core.info(`No changes in todo state for issue ${issueNr} - skip updating.`)
@@ -88,8 +83,8 @@ export async function run(): Promise<void> {
 
       todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), env.commitSha, env.ref)
 
-      for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
-        await updateIssue(issue, todoState, todohubIssue, env.commitSha, env.ref)
+      for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
+        await updateIssue(issueNr, todoState, todohubIssue, env.commitSha, env.ref)
       }
     } else {
       core.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): ${env.branchName} Doing nothing...`)
