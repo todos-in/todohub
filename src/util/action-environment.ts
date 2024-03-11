@@ -1,7 +1,7 @@
 import * as github from '@actions/github'
 import * as core from '@actions/core'
 import { PushEvent } from '@octokit/webhooks-types'
-import { EnvironmentLoadError } from '../error.js'
+import { EnvironmentLoadError, EnvironmentParsingError } from '../error.js'
 
 interface Environment {
   commitSha: string
@@ -24,37 +24,37 @@ const parse: () => Environment = () => {
 
   const githubToken = core.getInput('TOKEN')
   if (!githubToken) {
-    throw new EnvironmentLoadError('Failed to load <TOKEN> from <input>')
+    throw new EnvironmentLoadError({key: 'TOKEN', place: 'input'})
   }
 
   const maxLineLength = Number.parseInt(core.getInput('MAX_LINE_LENGTH'))
   if (!githubToken || Number.isNaN(maxLineLength)) {
-    throw new EnvironmentLoadError('Failed to load <MAX_LINE_LENGTH> from <input>')
+    throw new EnvironmentLoadError({key: 'MAX_LINE_LENGTH', place: 'input'})
   }
 
   const defaultBranch = payload.repository.default_branch
   if (!defaultBranch) {
-    throw new EnvironmentLoadError('Failed to load <repository.default_branch> from <context.payload>')
+    throw new EnvironmentLoadError({key: 'repository.default_branch', place: 'context.payload'})
   }
 
   const repo = github.context.repo.repo
   if (!defaultBranch) {
-    throw new EnvironmentLoadError('Failed to load <repo.repo> from <context>')
+    throw new EnvironmentLoadError({key: 'repo.repo', place: 'context'})
   }
 
   const repoOwner = github.context.repo.owner
   if (!defaultBranch) {
-    throw new EnvironmentLoadError('Failed to load <repo.owner> from <context>')
+    throw new EnvironmentLoadError({key: 'repo.owner', place: 'context'})
   }
 
   const ref = github.context.ref
   if (!defaultBranch) {
-    throw new EnvironmentLoadError('Failed to load <ref> from <context>')
+    throw new EnvironmentLoadError({key: 'ref', place: 'context'})
   }
 
   const branchName = ref.split('/').pop()
   if (!branchName) {
-    throw new EnvironmentLoadError('Could not parse branchName from <ref.context>')
+    throw new EnvironmentParsingError(`Could not parse branchName from ref.context <${ref}>`)
   }
 
   const featureBranchNumber = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)?.groups?.['featureBranch']
@@ -63,7 +63,7 @@ const parse: () => Environment = () => {
   if (featureBranchNumber) {
     featureBranchNumberParsed = Number.parseInt(featureBranchNumber)
     if (Number.isNaN(featureBranchNumber)) {
-      throw new EnvironmentLoadError('Parsed Feature Branch Number appears to not be an integer.')
+      throw new EnvironmentParsingError(`Could not parse Feature Branch Number - not an integer <${featureBranchNumber}>`)
     }
   }
   const commitSha = context.sha
