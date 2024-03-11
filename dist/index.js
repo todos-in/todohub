@@ -34443,7 +34443,8 @@ class TodohubControlIssue {
                 // TODO #64 add state hash to check whether anything needs to be updated?
                 core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`);
                 try {
-                    return this.repo.updateComment(existingCommentId, composedComment);
+                    yield this.repo.updateComment(existingCommentId, composedComment);
+                    return;
                 }
                 catch (err) {
                     // TODO #59 check if error is actually due to comment not existing
@@ -34638,7 +34639,7 @@ function run() {
         }
         catch (error) {
             if (error instanceof Error) {
-                core.error(error.message + ' ' + error.stack + JSON.stringify(error));
+                core.error(error.message + ' ' + error.stack);
                 core.setFailed(error.message);
             }
             else

@@ -117,7 +117,8 @@ export class TodohubControlIssue {
       // TODO #64 add state hash to check whether anything needs to be updated?
       core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`)
       try {
-        return this.repo.updateComment(existingCommentId, composedComment)
+        await this.repo.updateComment(existingCommentId, composedComment)
+        return
       } catch (err) {
         // TODO #59 check if error is actually due to comment not existing
         core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Creating new Comment instead...`)
@@ -132,7 +133,6 @@ export class TodohubControlIssue {
       // TODO #59 check if error is actually because of non existant issue - otherwise throw?
       core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
         If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue ${issueNr} to the new issue.`)
-      
     }
   }
 

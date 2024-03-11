@@ -15,5 +15,4 @@ export const load = (file?: string, additionalEnv?: Record<string, string>) => {
   } catch (err) {
     console.warn('Could not set environment variables')
   }
-
 }

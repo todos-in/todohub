@@ -8,9 +8,13 @@ branding:
   color: 'red'
 
 inputs:
-  token:
+  TOKEN:
     description: The GitHub token to use when calling the API
     default: ${{ github.token }}
+    required: false
+  MAX_LINE_LENGTH:
+    description: Lines of code with more characters will be excluded from TODO-search, since these typically minimized/generated files, which should be ignored (in .todoignore file) anyway
+    default: '500'
     required: false
 
 outputs:
