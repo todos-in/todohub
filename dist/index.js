@@ -34385,9 +34385,9 @@ class TodohubControlIssue {
                 link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`;
             }
             else if (trackedIssue.deadIssue) {
-                footnotes.push(`(Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr})`);
+                footnotes.push(`Associated issue ${18} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`);
                 const currentFootnoteIndex = footnotes.length;
-                link = `Issue ${issueNr} (❗ Associated issue seems to have been deleted permanently.[^${currentFootnoteIndex}])`;
+                link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`;
             }
             else {
                 link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`;
