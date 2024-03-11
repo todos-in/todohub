@@ -3,9 +3,7 @@ import { matchTodo } from './todo-match.js'
 import TodoState from 'src/todo-state.js'
 import { ITodo } from 'src/types/todo.js'
 import * as core from '@actions/core'
-
-// TODO #60 move to config
-const MAX_LINE_LENGTH_FOR_SEARCHING = 500
+import env from './action-environment.js'
 
 export class FindTodoStream extends Writable {
   private filename: string
@@ -24,8 +22,9 @@ export class FindTodoStream extends Writable {
 
   _write(line: string, encoding: string, next: () => void) {
     this.currentLineNr++
-    if (line.length > MAX_LINE_LENGTH_FOR_SEARCHING) {
-      core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${MAX_LINE_LENGTH_FOR_SEARCHING} characters. If this is a generated file, you might want to add it to .todoignore.`)
+    if (line.length > env.maxLineLength) {
+      core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${env.maxLineLength} characters.
+        If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`)
       return next()
     }
     const matchedTodo = matchTodo(line, this.issueNr)

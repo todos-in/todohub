@@ -2,7 +2,7 @@ import * as core from '@actions/core'
 import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
 import TodoState from './todo-state.js'
-import env from './action-environment.js'
+import env from './util/action-environment.js'
 
 async function updateIssue(issueNr: string | number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)

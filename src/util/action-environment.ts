@@ -1,7 +1,7 @@
 import * as github from '@actions/github'
 import * as core from '@actions/core'
 import { PushEvent } from '@octokit/webhooks-types'
-import { EnvironmentLoadError } from './error.js'
+import { EnvironmentLoadError } from '../error.js'
 
 interface Environment {
   commitSha: string
@@ -14,6 +14,7 @@ interface Environment {
   isDefaultBranch: boolean
   featureBranchNumber?: number
   isFeatureBranch: boolean
+  maxLineLength: number
 }
 
 
@@ -21,9 +22,14 @@ const parse: () => Environment = () => {
   const context = github.context
   const payload = github.context.payload as PushEvent
 
-  const githubToken = core.getInput('token')
+  const githubToken = core.getInput('TOKEN')
   if (!githubToken) {
-    throw new EnvironmentLoadError('Failed to load <token> from <input>')
+    throw new EnvironmentLoadError('Failed to load <TOKEN> from <input>')
+  }
+
+  const maxLineLength = Number.parseInt(core.getInput('MAX_LINE_LENGTH'))
+  if (!githubToken || Number.isNaN(maxLineLength)) {
+    throw new EnvironmentLoadError('Failed to load <MAX_LINE_LENGTH> from <input>')
   }
 
   const defaultBranch = payload.repository.default_branch
@@ -76,6 +82,7 @@ const parse: () => Environment = () => {
     isDefaultBranch,
     featureBranchNumber: featureBranchNumberParsed,
     isFeatureBranch,
+    maxLineLength,
   }
 }
 
