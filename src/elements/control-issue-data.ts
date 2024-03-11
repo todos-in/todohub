@@ -145,7 +145,7 @@ export default class TodohubData {
     let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos'
     for (const todo of trackedIssue.todoState) {
       const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`
-      composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.rawLine} <sub>${link}</sub>}`
+      composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${todo.rawLine} <sub>${link}</sub>}`
     }
     composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`</sub>`
 

@@ -76,7 +76,7 @@ export class TodohubControlIssue {
       for (const strayTodo of strayTodos.todoState) {
         // TODO #74 make sure todos dont contain characters that break the comment
         const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`
-        this.midTag += `\n* [ ] \`${strayTodo.fileName}${strayTodo.lineNumber ? `:${strayTodo.lineNumber}` : ''}\`: ${strayTodo.rawLine} <sub>${codeLink}</sub>}`
+        this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${strayTodo.rawLine} <sup>${codeLink}</sup>`
       }
     }
 

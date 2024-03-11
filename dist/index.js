@@ -34473,7 +34473,7 @@ class TodohubData {
         let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos';
         for (const todo of trackedIssue.todoState) {
             const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`;
-            composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.rawLine} <sub>${link}</sub>}`;
+            composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${todo.rawLine} <sub>${link}</sub>}`;
         }
         composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`</sub>`;
         return composed;
@@ -34568,7 +34568,7 @@ class TodohubControlIssue {
             for (const strayTodo of strayTodos.todoState) {
                 // TODO #74 make sure todos dont contain characters that break the comment
                 const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
-                this.midTag += `\n* [ ] \`${strayTodo.fileName}${strayTodo.lineNumber ? `:${strayTodo.lineNumber}` : ''}\`: ${strayTodo.rawLine} <sub>${codeLink}</sub>}`;
+                this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${strayTodo.rawLine} <sup>${codeLink}</sup>`;
             }
         }
         return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
