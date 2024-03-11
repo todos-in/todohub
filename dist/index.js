@@ -33853,9 +33853,6 @@ const getRegex = (issueNumber) => {
 };
 const matchTodo = (textLine, issueNumber) => {
     var _a;
-    if (issueNumber && (Number.isNaN(Number.parseInt(issueNumber)))) {
-        throw new Error('issueNumber is not an integer.');
-    }
     const regex = getRegex(issueNumber);
     const match = textLine.match(regex);
     if (!match) {
@@ -33880,8 +33877,74 @@ const matchTodo = (textLine, issueNumber) => {
     };
 };
 
+;// CONCATENATED MODULE: external "node:assert"
+const external_node_assert_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:assert");
+var external_node_assert_default = /*#__PURE__*/__nccwpck_require__.n(external_node_assert_namespaceObject);
+// EXTERNAL MODULE: ./node_modules/@octokit/request-error/dist-node/index.js
+var dist_node = __nccwpck_require__(537);
 ;// CONCATENATED MODULE: ./src/error.ts
-class EnvironmentLoadError extends Error {
+
+
+class TodohubError extends Error {
+    /**
+     * @param message Message displayed to users (in non-debug environment)
+     * @param code Application specific code that should not change from occurrence to occurrence (Displayed to users)
+     * @param debugInformation Generic object with additional information meant to be displayed in debug logs only
+     * @param cause Original Error that caused the Exception
+     */
+    constructor(message, code, debugInformation, cause) {
+        super(message);
+        this.code = code || this.constructor.name;
+        this.cause = cause;
+        this.debugInformation = debugInformation;
+    }
+    log() {
+        return `${this.code}: ${this.message}`;
+    }
+    debugLog() {
+        var _a, _b, _c;
+        return JSON.stringify({
+            message: this.message,
+            code: this.code,
+            stack: this.stack,
+            debugInformation: this.debugInformation,
+            cause: {
+                message: (_a = this.cause) === null || _a === void 0 ? void 0 : _a.message,
+                stack: (_b = this.cause) === null || _b === void 0 ? void 0 : _b.stack,
+                errorName: (_c = this.cause) === null || _c === void 0 ? void 0 : _c.constructor.name,
+            },
+        });
+    }
+}
+class ApiError extends TodohubError {
+    constructor(message, debugInfo) {
+        super(message, 'api-error', debugInfo);
+    }
+}
+class EnvironmentLoadError extends TodohubError {
+    constructor(debugInformation) {
+        super(`Failed to load from environment: ${debugInformation.key}`, 'env-load', debugInformation);
+    }
+}
+class EnvironmentParsingError extends TodohubError {
+    constructor(message) { super(message, 'env-parse'); }
+}
+class IssueNotInStateError extends TodohubError {
+    constructor(issueNr) {
+        super(`Issue number ${issueNr} not found in Todohub control issues state.`, 'issue-not-in-state', { issueNr: issueNr });
+    }
+}
+class ControlIssueParsingError extends TodohubError {
+    constructor(message) { super(message, 'control-issue-parse'); }
+}
+function assersTodohubError(error) {
+    assert(error instanceof TodohubError);
+}
+function assertError(error) {
+    assert(error instanceof Error);
+}
+function assertGithubError(error) {
+    external_node_assert_default()(error instanceof dist_node.RequestError);
 }
 
 ;// CONCATENATED MODULE: ./src/util/action-environment.ts
@@ -33894,38 +33957,38 @@ const parse = () => {
     const payload = github.context.payload;
     const githubToken = core.getInput('TOKEN');
     if (!githubToken) {
-        throw new EnvironmentLoadError('Failed to load <TOKEN> from <input>');
+        throw new EnvironmentLoadError({ key: 'TOKEN', place: 'input' });
     }
     const maxLineLength = Number.parseInt(core.getInput('MAX_LINE_LENGTH'));
     if (!githubToken || Number.isNaN(maxLineLength)) {
-        throw new EnvironmentLoadError('Failed to load <MAX_LINE_LENGTH> from <input>');
+        throw new EnvironmentLoadError({ key: 'MAX_LINE_LENGTH', place: 'input' });
     }
     const defaultBranch = payload.repository.default_branch;
     if (!defaultBranch) {
-        throw new EnvironmentLoadError('Failed to load <repository.default_branch> from <context.payload>');
+        throw new EnvironmentLoadError({ key: 'repository.default_branch', place: 'context.payload' });
     }
     const repo = github.context.repo.repo;
     if (!defaultBranch) {
-        throw new EnvironmentLoadError('Failed to load <repo.repo> from <context>');
+        throw new EnvironmentLoadError({ key: 'repo.repo', place: 'context' });
     }
     const repoOwner = github.context.repo.owner;
     if (!defaultBranch) {
-        throw new EnvironmentLoadError('Failed to load <repo.owner> from <context>');
+        throw new EnvironmentLoadError({ key: 'repo.owner', place: 'context' });
     }
     const ref = github.context.ref;
     if (!defaultBranch) {
-        throw new EnvironmentLoadError('Failed to load <ref> from <context>');
+        throw new EnvironmentLoadError({ key: 'ref', place: 'context' });
     }
     const branchName = ref.split('/').pop();
     if (!branchName) {
-        throw new EnvironmentLoadError('Could not parse branchName from <ref.context>');
+        throw new EnvironmentParsingError(`Could not parse branchName from ref.context <${ref}>`);
     }
     const featureBranchNumber = (_b = (_a = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)) === null || _a === void 0 ? void 0 : _a.groups) === null || _b === void 0 ? void 0 : _b['featureBranch'];
     let featureBranchNumberParsed;
     if (featureBranchNumber) {
         featureBranchNumberParsed = Number.parseInt(featureBranchNumber);
         if (Number.isNaN(featureBranchNumber)) {
-            throw new EnvironmentLoadError('Parsed Feature Branch Number appears to not be an integer.');
+            throw new EnvironmentParsingError(`Could not parse Feature Branch Number - not an integer <${featureBranchNumber}>`);
         }
     }
     const commitSha = context.sha;
@@ -33973,12 +34036,7 @@ class FindTodoStream extends external_node_stream_.Writable {
         if (!matchedTodo) {
             return next();
         }
-        const todoWithMetadata = matchedTodo;
-        todoWithMetadata.lineNumber = this.currentLineNr;
-        todoWithMetadata.fileName = this.filename;
-        for (const [key, value] of Object.entries(this.todoMetadata || {})) {
-            todoWithMetadata[key] = value;
-        }
+        const todoWithMetadata = Object.assign(matchedTodo, { fileName: this.filename, lineNumber: this.currentLineNr }, this.todoMetadata || {});
         this.todoState.addTodos([todoWithMetadata]);
         next();
     }
@@ -34011,6 +34069,7 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
 
 
 
+
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
 class Repo {
@@ -34033,14 +34092,14 @@ class Repo {
                     },
                 });
             }
-            catch (error) {
-                const statusErr = error;
-                if (statusErr.status && statusErr.status === 404) {
-                    return;
+            catch (err) {
+                assertGithubError(err);
+                if (err.status === 404) {
+                    core.debug('No ".todoignore" file found.');
                 }
-                throw error;
+                throw err;
             }
-            // TODO #59 error handling if file cant be parsed
+            core.debug('.todoignore file found. Parsing contents: ' + todoIgnoreFileRaw.data.substring(0, 200) + '...');
             return ignore_default()["default"]().add(todoIgnoreFileRaw.data);
         });
     }
@@ -34058,15 +34117,17 @@ class Repo {
                         Authorization: `Bearer ${this.githubToken}`,
                     }),
                 }, (res) => {
-                    if (res.statusCode && res.statusCode >= 200 && res.statusCode < 399) {
-                        if (res.headers['location']) {
-                            return resolve(res.headers['location']);
-                        }
-                        else {
-                            reject(new Error('Getting tarball URL request failed due to missing location header.'));
-                        }
+                    if (res.statusCode &&
+                        res.statusCode >= 200 &&
+                        res.statusCode < 399 &&
+                        res.headers['location']) {
+                        return resolve(res.headers['location']);
                     }
-                    reject(new Error(`Getting tarball URL request failed: ${res.statusCode}`));
+                    return reject(new ApiError('Getting tarball URL request failed.', {
+                        request: `${method} ${url}`,
+                        status: res.statusCode,
+                        locationHeader: res.headers['location'],
+                    }));
                 });
                 getReq.end();
             });
@@ -34079,7 +34140,7 @@ class Repo {
                     if (res.statusCode && res.statusCode >= 200 && res.statusCode < 299) {
                         return resolve(res);
                     }
-                    reject(new Error(`Getting tarball URL request failed: ${res.statusCode}`));
+                    reject(new ApiError(`Getting tarball URL request failed: ${res.statusCode}`, { status: res.statusCode, request: url }));
                 });
                 downloadRequest.end();
             });
@@ -34098,13 +34159,9 @@ class Repo {
             // });
             return new Promise((resolve, reject) => {
                 // TODO #80 check and test event & error handling 
-                unzipStream.on('error', (err) => {
-                    reject(`Error unzipping tarball stream: ${err.message}`);
-                });
+                unzipStream.on('error', (err) => reject(err));
                 // TODO #80 check and test event & error handling
-                extractStream.on('error', (err) => {
-                    reject(new Error(`Error reading tarball stream: ${err.message}`));
-                });
+                extractStream.on('error', (err) => reject(err));
                 extractStream.on('finish', () => {
                     core.info('Todos extraction completed successfully.');
                     return resolve(todoState);
@@ -34122,10 +34179,12 @@ class Repo {
                         stream.resume();
                         return next();
                     }
+                    core.debug(`Extracting Todos from file ${fileName}...`);
                     const splitLineStream = new SplitLineStream();
                     // TODO #69 refactor: meta data should prob be added in post processing not in find stream
                     const findTodosStream = new FindTodoStream(todoState, fileName, issueNr, todoMetadata);
                     splitLineStream.on('end', () => findTodosStream.end());
+                    // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
                     stream.pipe(splitLineStream).pipe(findTodosStream);
                     stream.on('error', () => {
                         core.warning(`Error extracting Todos from file: ${fileName}`);
@@ -34142,7 +34201,6 @@ class Repo {
     }
     downloadTarball(ref) {
         return __awaiter(this, void 0, void 0, function* () {
-            // TODO #59 try catch
             const url = yield this.getTarballUrl(ref);
             return this.getTarballStream(url);
         });
@@ -34223,26 +34281,16 @@ class Repo {
         return __awaiter(this, void 0, void 0, function* () {
             // TODO #79 author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
             const todohubIssues = yield this.octokit.rest.search.issuesAndPullRequests({
-                per_page: 100,
+                per_page: 1,
                 q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
             });
             if (todohubIssues.data.total_count > 1) {
-                // TODO #79 check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
-                throw new Error('More than one Todohub Issue found');
+                core.warning(`More than one candidate for Todohub Control Issue found (matching 'todohub_ctrl_issue_data') - choosing first.
+      Check and consider closing stale Todohub Control issues.`);
             }
             if (todohubIssues.data.total_count === 1) {
                 return todohubIssues.data.items[0];
             }
-            // const issuePages = this.octokit.paginate.iterator(
-            //   this.octokit.rest.search.issuesAndPullRequests, {
-            //   owner: this.owner,
-            //   repo: this.repo,
-            //   per_page: 1,
-            //   q: 'todohub_ctrl_issue label:todohub is:issue author:@me',
-            //   headers: {
-            //     Accept: 'application/vnd.github.text-match+json'
-            //   }
-            // })
         });
     }
     updateComment(commentId, body) {
@@ -34306,6 +34354,7 @@ class Repo {
 
 ;// CONCATENATED MODULE: ./src/elements/control-issue-data.ts
 
+
 class TodohubData {
     constructor(tag) {
         if (tag) {
@@ -34317,13 +34366,20 @@ class TodohubData {
             this.decodedData = {};
         }
     }
+    setTrackedIssue(issueNr, trackedIssue) {
+        this.decodedData[issueNr] = trackedIssue;
+    }
+    getTrackedIssue(issueNr) {
+        const trackedIssue = this.decodedData[issueNr];
+        if (!trackedIssue) {
+            throw new IssueNotInStateError(issueNr);
+        }
+        return trackedIssue;
+    }
     getTrackedIssuesNumbers() {
         const issueNrs = new Set(Object.keys(this.decodedData));
         issueNrs.delete('0');
         return issueNrs;
-    }
-    getTrackedIssue(issueNr) {
-        return this.decodedData[issueNr];
     }
     // TODO #69 naming: stray/lost?
     getTodosWithIssueReference() {
@@ -34338,49 +34394,44 @@ class TodohubData {
         this.setTodoState(0, todoState, commitSha, trackedBranch);
     }
     setTodoState(issueNr, todoState = [], commitSha, trackedBranch) {
-        this.decodedData[issueNr] = Object.assign(this.decodedData[issueNr] || {}, {
+        const trackedIssue = Object.assign(this.decodedData[issueNr] || {}, {
             todoState: todoState,
             commitSha,
             trackedBranch,
         });
+        this.setTrackedIssue(issueNr, trackedIssue);
     }
     isEmpty(issueNr) {
-        const trackedIssue = this.decodedData[issueNr];
-        if (!trackedIssue) {
+        try {
+            const trackedIssue = this.getTrackedIssue(issueNr);
+            return trackedIssue.todoState.length === 0;
+        }
+        catch (err) {
             return true;
         }
-        return trackedIssue.todoState.length === 0;
     }
     setCommentId(issueNr, commentId) {
-        const trackedIssue = this.decodedData[issueNr];
-        if (!trackedIssue) {
-            throw new Error('Cannot set commentId without tracked Issue');
-        }
-        this.decodedData[issueNr] = Object.assign(trackedIssue, { commentId });
+        const trackedIssue = this.getTrackedIssue(issueNr);
+        trackedIssue.commentId = commentId;
     }
     setDeadIssue(issueNr) {
-        const trackedIssue = this.decodedData[issueNr];
-        if (!trackedIssue) {
-            throw new Error('Cannot set dead issue without tracked Issue');
-        }
+        const trackedIssue = this.getTrackedIssue(issueNr);
         trackedIssue.deadIssue = true;
     }
     deleteExistingCommentId(issueNr) {
-        const trackedIssue = this.decodedData[issueNr];
-        if (!trackedIssue) {
-            throw new Error('Cannot unset commentId without tracked Issue');
-        }
+        const trackedIssue = this.getTrackedIssue(issueNr);
         delete trackedIssue.commentId;
     }
     getExistingCommentId(issueNr) {
-        var _a;
-        return (_a = this.decodedData[issueNr]) === null || _a === void 0 ? void 0 : _a.commentId;
+        try {
+            return this.getTrackedIssue(issueNr).commentId;
+        }
+        catch (err) {
+            return;
+        }
     }
     composeTrackedIssueComment(issueNr) {
-        const trackedIssue = this.decodedData[issueNr];
-        if (!trackedIssue) {
-            throw new Error(`Issue Comment to be composed does not exist: ${issueNr}`);
-        }
+        const trackedIssue = this.getTrackedIssue(issueNr);
         let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos';
         for (const todo of trackedIssue.todoState) {
             composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
@@ -34413,6 +34464,7 @@ var control_issue_awaiter = (undefined && undefined.__awaiter) || function (this
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+
 
 
 // TODO #60 move to config file
@@ -34483,10 +34535,9 @@ class TodohubControlIssue {
             // TODO #60 get this issue title and label settings from config from input?
             // TODO #60 label is not created with right config (color + description)
             return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), [TODOHUB_LABEL]);
-            // TODO #61 return updated issues - can be used to update the respective feature comments
         });
     }
-    updateTrackedIssueState(issueNr) {
+    reopenIssueWithOpenTodos(issueNr) {
         return control_issue_awaiter(this, void 0, void 0, function* () {
             if (!this.data.isEmpty(issueNr)) {
                 core.debug(`Opening issue ${issueNr}...`);
@@ -34494,10 +34545,12 @@ class TodohubControlIssue {
                     yield this.repo.updateIssue(issueNr, undefined, undefined, 'open');
                 }
                 catch (err) {
-                    // TODO #59 check if error is actually because of non existant issue - otherwise throw?
-                    core.warning(`Error (re)opening issue ${issueNr}. Are there Todos with reference to issue ${issueNr}, which does not exist?`);
-                    if (err instanceof Error) {
-                        core.warning(err.message);
+                    assertGithubError(err);
+                    if (err.status === 410) {
+                        core.warning(`Error (re)opening issue ${issueNr}. Issue does not exist.`);
+                    }
+                    else {
+                        throw err;
                     }
                 }
             }
@@ -34508,16 +34561,20 @@ class TodohubControlIssue {
             const existingCommentId = this.data.getExistingCommentId(issueNr);
             const composedComment = this.data.composeTrackedIssueComment(issueNr);
             if (existingCommentId) {
-                // TODO #64 add state hash to check whether anything needs to be updated?
                 core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`);
                 try {
                     yield this.repo.updateComment(existingCommentId, composedComment);
                     return;
                 }
                 catch (err) {
-                    // TODO #59 check if error is actually due to comment not existing
-                    core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Creating new Comment instead...`);
-                    this.data.deleteExistingCommentId(issueNr);
+                    assertGithubError(err);
+                    if (err.status === 404) {
+                        core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Trying to create new Comment instead...`);
+                        this.data.deleteExistingCommentId(issueNr);
+                    }
+                    else {
+                        throw err;
+                    }
                 }
             }
             try {
@@ -34526,10 +34583,15 @@ class TodohubControlIssue {
                 this.data.setCommentId(issueNr, created.data.id);
             }
             catch (err) {
-                // TODO #59 check if error is actually because of non existant issue - otherwise throw?
-                core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
+                assertGithubError(err);
+                if (err.status === 404 || err.status === 410) {
+                    core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
         If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue ${issueNr} to the new issue.`);
-                this.data.setDeadIssue(issueNr);
+                    this.data.setDeadIssue(issueNr);
+                }
+                else {
+                    throw err;
+                }
             }
         });
     }
@@ -34542,15 +34604,15 @@ class TodohubControlIssue {
             parsed.groups.data === undefined ||
             parsed.groups.midTag === undefined ||
             parsed.groups.postTag === undefined) {
-            throw new Error(`Error parsing Todohub Issue: ${issueBody}`);
+            throw new ControlIssueParsingError(`Error parsing Todohub Control Issue: ${issueBody}`);
         }
         return parsed.groups;
     }
     static get(repo) {
         return control_issue_awaiter(this, void 0, void 0, function* () {
             const issue = yield repo.findTodohubControlIssue();
+            // TODO #59 handle error if parsing fails and keep searching?
             if (issue) {
-                // TODO #59 handle error and keep searching if parsing fails?
                 return new TodohubControlIssue(repo, {
                     body: issue.body || '',
                     number: issue.number,
@@ -34576,6 +34638,13 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 
 
 
+
+class RunInfo {
+    constructor() {
+        this.succesfullyUpdatedIssues = [];
+    }
+}
+const runInfo = new RunInfo();
 function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
     return main_awaiter(this, void 0, void 0, function* () {
         core.startGroup(`Processing Issue ${issueNr}`);
@@ -34588,7 +34657,8 @@ function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
         core.info(`Found ${(todos === null || todos === void 0 ? void 0 : todos.length) || 0} Todos for Issue ${issueNumber}...`);
         todohubIssue.data.setTodoState(issueNumber, todos, commitSha, ref);
         yield todohubIssue.writeComment(issueNumber);
-        yield todohubIssue.updateTrackedIssueState(issueNumber);
+        yield todohubIssue.reopenIssueWithOpenTodos(issueNumber);
+        runInfo.succesfullyUpdatedIssues.push(issueNr);
         core.endGroup();
     });
 }
@@ -34643,12 +34713,20 @@ function run() {
             // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
         }
         catch (error) {
-            if (error instanceof Error) {
-                core.error(error.message + ' ' + error.stack);
+            if (error instanceof TodohubError) {
+                core.error('Error: ' + error.log());
+                core.debug('Error debug info: ' + error.debugLog());
                 core.setFailed(error.message);
             }
-            else
-                core.setFailed(`Non error was thrown: ${error}`);
+            else if (error instanceof Error) {
+                core.error(error.message);
+                core.debug('Error debug info: ' + error.stack);
+                core.setFailed(error.message);
+            }
+            else {
+                core.setFailed('Failed.');
+                core.error('Non-error object was thrown: ' + JSON.stringify(error));
+            }
         }
     });
 }

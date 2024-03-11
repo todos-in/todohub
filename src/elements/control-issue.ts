@@ -1,7 +1,7 @@
-import Repo from 'src/github-repo.js'
+import Repo from '../github-repo.js'
 import TodohubData from './control-issue-data.js'
 import * as core from '@actions/core'
-import { ControlIssueParsingError, assertGithubError } from 'src/error.js'
+import { ControlIssueParsingError, assertGithubError } from '../error.js'
 
 // TODO #60 move to config file
 const TODOHUB_LABEL = {

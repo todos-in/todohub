@@ -1,6 +1,6 @@
 import { gunzipSync, gzipSync } from 'node:zlib'
-import { IssueNotInStateError } from 'src/error.js'
-import { ITodo, TrackedIssue } from 'src/types/todo.js'
+import { IssueNotInStateError } from '../error.js'
+import { ITodo, TrackedIssue } from '../types/todo.js'
 
 export default class TodohubData {
   raw?: string
