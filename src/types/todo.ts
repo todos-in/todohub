@@ -1,6 +1,6 @@
 export interface ITodo {
   fileName: string;
-  lineNumber?: number;
+  lineNumber: number;
   rawLine: string;
   keyword: string;
   issueNumber?: number;
