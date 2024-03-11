@@ -17,7 +17,6 @@ interface Environment {
   maxLineLength: number
 }
 
-
 const parse: () => Environment = () => {
   const context = github.context
   const payload = github.context.payload as PushEvent

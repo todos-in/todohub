@@ -19,7 +19,7 @@ export class FindTodoStream extends Writable {
     this.todoMetadata = todoMetadata
   }
 
-  _write(line: string, encoding: string, next: () => void) {
+  _write(line: string, _encoding: string, next: () => void) {
     this.currentLineNr++
     if (line.length > env.maxLineLength) {
       core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${env.maxLineLength} characters.
