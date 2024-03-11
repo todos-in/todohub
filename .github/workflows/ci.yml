@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
   issues: write
+  pull-requests: write
 
 jobs:
   # test-typescript:
@@ -55,6 +56,9 @@ jobs:
       - name: Test Local Action
         id: test-action
         uses: ./
+        with:
+          MAX_LINE_LENGTH: '350'
+          
 
       # - name: Test Remote Action
       #   id: test-action
