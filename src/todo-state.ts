@@ -25,7 +25,7 @@ export default class TodoState {
     return this.todosByIssueNo[issueNo]
   }
 
-  getTodosWithoutIssueNo() {
+  getStrayTodos() {
     return this.getByIssueNo(0)
   }
 }

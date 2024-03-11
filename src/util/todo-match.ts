@@ -18,9 +18,6 @@ const getRegex = (issueNumber?: string) => {
   return regex
 }
 
-// (?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?(([^\S\r\n]+(?<todoText>.*))|$)
-// (?<keyword>TODO)[^\S\r\n]*(?<numberGroup>\(?#?(?<issueNumber>[0-9]+)\)?)?[^\S\r\n]+(?<todoText>.*)
-
 interface TodoRegexMatch {
   rawLine: string;
   keyword: string;

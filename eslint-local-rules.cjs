@@ -31,8 +31,8 @@ module.exports = {
         Program() {
           context.sourceCode.getAllComments().forEach(comment => {
             const matches = comment.value.matchAll(todoWithoutIssueRefRegex)
-            // in multiline comment blocks we are looking for all matches and giving one error for the whole block without hint where exactly error occurred
-            // The suggestion while replace all occurrences in the block and override the whole block
+            // Currently, in multiline comment blocks, we are looking for all matches and we are reporting one error for the whole block without hint where exactly error occurred
+            // The suggestion replaces all occurrences in the block and overrides the whole block
             // TODO #72 give more precise hints of occurrences + and allow fixing indiviual occurrences in a comment block
 
             // Find Todos in Comments which match the Regex but do NOT have an issue reference

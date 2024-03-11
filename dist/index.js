@@ -33781,12 +33781,13 @@ var ignore_default = /*#__PURE__*/__nccwpck_require__.n(ignore);
 // merge with TodohubData
 class TodoState {
     constructor() {
+        this.STRAY_TODO_KEY = 0;
         this.todosByIssueNo = {};
     }
     addTodos(todos) {
         var _a;
         for (const todo of todos) {
-            const issueNr = todo.issueNumber || 0;
+            const issueNr = todo.issueNumber || this.STRAY_TODO_KEY;
             if (!this.todosByIssueNo[issueNr]) {
                 this.todosByIssueNo[issueNr] = [];
             }
@@ -33794,14 +33795,14 @@ class TodoState {
         }
     }
     getIssuesNumbers() {
-        const issueNrs = new Set(Object.keys(this.todosByIssueNo));
-        issueNrs.delete('0');
+        const issueNrs = new Set(Object.keys(this.todosByIssueNo).map((key) => Number.parseInt(key)));
+        issueNrs.delete(this.STRAY_TODO_KEY);
         return issueNrs;
     }
     getByIssueNo(issueNo) {
         return this.todosByIssueNo[issueNo];
     }
-    getTodosWithoutIssueNo() {
+    getStrayTodos() {
         return this.getByIssueNo(0);
     }
 }
@@ -33937,6 +33938,9 @@ class IssueNotInStateError extends TodohubError {
 class ControlIssueParsingError extends TodohubError {
     constructor(message) { super(message, 'control-issue-parse'); }
 }
+class ControlIssueDataDecodingError extends TodohubError {
+    constructor(message) { super(message, 'control-issue-decode'); }
+}
 function assersTodohubError(error) {
     assert(error instanceof TodohubError);
 }
@@ -34028,13 +34032,14 @@ class FindTodoStream extends external_node_stream_.Writable {
         this.todoMetadata = todoMetadata;
     }
     _write(line, _encoding, next) {
+        var _a;
         this.currentLineNr++;
         if (line.length > action_environment.maxLineLength) {
             core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${action_environment.maxLineLength} characters.
         If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`);
             return next();
         }
-        const matchedTodo = matchTodo(line, this.issueNr);
+        const matchedTodo = matchTodo(line, (_a = this.issueNr) === null || _a === void 0 ? void 0 : _a.toString());
         if (!matchedTodo) {
             return next();
         }
@@ -34216,11 +34221,10 @@ class Repo {
      */
     getTodosFromGitRef(ref, issueNr, todoMetadata) {
         return __awaiter(this, void 0, void 0, function* () {
-            const issueStr = issueNr && typeof issueNr === 'number' ? issueNr.toString() : issueNr;
             // TODO #62 parallelize
             const tar = yield this.downloadTarball(ref);
             const ignore = yield this.getTodoIgnoreFile();
-            const todoState = yield this.extractTodosFromTarGz(tar, issueStr, todoMetadata, ignore);
+            const todoState = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata, ignore);
             return todoState;
         });
     }
@@ -34359,6 +34363,7 @@ class Repo {
 
 class TodohubData {
     constructor(tag) {
+        this.STRAY_TODO_KEY = 0;
         if (tag) {
             this.raw = tag;
             this.decodedData = this.decode(tag);
@@ -34379,21 +34384,20 @@ class TodohubData {
         return trackedIssue;
     }
     getTrackedIssuesNumbers() {
-        const issueNrs = new Set(Object.keys(this.decodedData));
-        issueNrs.delete('0');
+        const issueNrs = new Set(Object.keys(this.decodedData).map((key) => Number.parseInt(key)));
+        issueNrs.delete(this.STRAY_TODO_KEY);
         return issueNrs;
     }
-    // TODO #69 naming: stray/lost?
-    getTodosWithIssueReference() {
+    getTodos() {
         const cloned = Object.assign({}, this.decodedData);
-        delete cloned[0];
+        delete cloned[this.STRAY_TODO_KEY];
         return cloned;
     }
-    getTodosWithoutIssueReference() {
-        return this.decodedData[0];
+    getStrayTodos() {
+        return this.decodedData[this.STRAY_TODO_KEY];
     }
-    setTodosWithoutIssueReference(todoState = [], commitSha, trackedBranch) {
-        this.setTodoState(0, todoState, commitSha, trackedBranch);
+    setStrayTodos(todoState = [], commitSha, trackedBranch) {
+        this.setTodoState(this.STRAY_TODO_KEY, todoState, commitSha, trackedBranch);
     }
     clearEmptyTrackedIssue(issueNr) {
         if (this.isEmpty(issueNr)) {
@@ -34464,11 +34468,12 @@ class TodohubData {
             return;
         }
     }
-    composeTrackedIssueComment(issueNr) {
+    composeTrackedIssueComment(issueNr, baseRepoUrl) {
         const trackedIssue = this.getTrackedIssue(issueNr);
         let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos';
         for (const todo of trackedIssue.todoState) {
-            composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
+            const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`;
+            composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.rawLine} <sub>${link}</sub>}`;
         }
         composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`</sub>`;
         return composed;
@@ -34477,6 +34482,11 @@ class TodohubData {
         const b64Decoded = Buffer.from(tag, 'base64');
         const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
         const parsed = JSON.parse(unzipped.toString('utf-8'));
+        // Enforces keys format to be positive integers
+        const nonIntegerKeys = Object.keys(parsed).filter((key) => !/^[0-9]+$/.test(key));
+        if (nonIntegerKeys.length) {
+            throw new ControlIssueDataDecodingError(`Found non-integer key during Control issue data decoding: <${nonIntegerKeys.join(',')}>`);
+        }
         return parsed;
     }
     encode() {
@@ -34510,6 +34520,7 @@ const TODOHUB_LABEL = {
 class TodohubControlIssue {
     constructor(repo, existingIssue) {
         this.repo = repo;
+        this.baseRepoUrl = `https://github.com/${this.repo.owner}/${this.repo.repo}`;
         if (existingIssue) {
             this.existingIssueNumber = existingIssue.number;
             this.existingIsClosed = existingIssue.isClosed;
@@ -34527,10 +34538,10 @@ class TodohubControlIssue {
         return this.existingIssueNumber !== undefined;
     }
     compose() {
-        const todosWithIssueReference = Object.entries(this.data.getTodosWithIssueReference());
-        this.midTag = todosWithIssueReference.length ? '\n### Tracked Issues:' : '';
+        const todos = Object.entries(this.data.getTodos());
+        this.midTag = todos.length ? '\n### Tracked Issues:' : '';
         const footnotes = [];
-        for (const [issueNr, trackedIssue] of todosWithIssueReference) {
+        for (const [issueNr, trackedIssue] of todos) {
             if (!trackedIssue.todoState.length) {
                 continue;
             }
@@ -34551,12 +34562,13 @@ class TodohubControlIssue {
         for (const [index, value] of footnotes.entries()) {
             this.midTag += `\n[^${index + 1}]: ${value}`;
         }
-        const issueWORefernce = this.data.getTodosWithoutIssueReference();
-        if (issueWORefernce && issueWORefernce.todoState.length) {
+        const strayTodos = this.data.getStrayTodos();
+        if (strayTodos && strayTodos.todoState.length) {
             this.midTag += '\n### Todos without Issue Reference:';
-            for (const todo of issueWORefernce.todoState) {
+            for (const strayTodo of strayTodos.todoState) {
                 // TODO #74 make sure todos dont contain characters that break the comment
-                this.midTag += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`;
+                const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
+                this.midTag += `\n* [ ] \`${strayTodo.fileName}${strayTodo.lineNumber ? `:${strayTodo.lineNumber}` : ''}\`: ${strayTodo.rawLine} <sub>${codeLink}</sub>}`;
             }
         }
         return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
@@ -34593,7 +34605,7 @@ class TodohubControlIssue {
     writeComment(issueNr) {
         return control_issue_awaiter(this, void 0, void 0, function* () {
             const existingCommentId = this.data.getExistingCommentId(issueNr);
-            const composedComment = this.data.composeTrackedIssueComment(issueNr);
+            const composedComment = this.data.composeTrackedIssueComment(issueNr, this.baseRepoUrl);
             if (existingCommentId) {
                 core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`);
                 try {
@@ -34683,18 +34695,13 @@ const runInfo = new RunInfo();
 function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
     return main_awaiter(this, void 0, void 0, function* () {
         core.startGroup(`Processing Issue ${issueNr}`);
-        const issueNumber = typeof issueNr === 'string' ? Number.parseInt(issueNr) : issueNr;
-        if (Number.isNaN(issueNumber)) {
-            core.warning(`Cannot process with non-integer issue ${issueNr}.`);
-            return;
-        }
-        const todos = todoState.getByIssueNo(issueNumber);
-        core.info(`Found ${(todos === null || todos === void 0 ? void 0 : todos.length) || 0} Todos for Issue ${issueNumber}...`);
-        const updateNecessary = !todohubIssue.data.todoStateEquals(issueNumber, todos);
-        todohubIssue.data.setTodoState(issueNumber, todos, commitSha, ref);
+        const todos = todoState.getByIssueNo(issueNr);
+        core.info(`Found ${(todos === null || todos === void 0 ? void 0 : todos.length) || 0} Todos for Issue ${issueNr}...`);
+        const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, todos);
+        todohubIssue.data.setTodoState(issueNr, todos, commitSha, ref);
         if (updateNecessary) {
-            yield todohubIssue.writeComment(issueNumber);
-            yield todohubIssue.reopenIssueWithOpenTodos(issueNumber);
+            yield todohubIssue.writeComment(issueNr);
+            yield todohubIssue.reopenIssueWithOpenTodos(issueNr);
             runInfo.succesfullyUpdatedIssues.push(issueNr);
         }
         else {
@@ -34704,7 +34711,6 @@ function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
         core.endGroup();
     });
 }
-// TODO use issue number as string everywhere (we do not as number anywhere)
 // TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
 /**
  * The main function for the action.
@@ -34742,9 +34748,9 @@ function run() {
                 const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)));
                 const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf(action_environment.defaultBranch, trackedFeatureBranches.map((branch) => branch.name));
                 const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) => !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)));
-                todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), action_environment.commitSha, action_environment.ref);
-                for (const issue of issuesWithNoFeatureBranchAheadOfDefault) {
-                    yield updateIssue(issue, todoState, todohubIssue, action_environment.commitSha, action_environment.ref);
+                todohubIssue.data.setStrayTodos(todoState.getStrayTodos(), action_environment.commitSha, action_environment.ref);
+                for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
+                    yield updateIssue(issueNr, todoState, todohubIssue, action_environment.commitSha, action_environment.ref);
                 }
             }
             else {

@@ -81,7 +81,7 @@ export async function run(): Promise<void> {
       const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
         !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
 
-      todohubIssue.data.setTodosWithoutIssueReference(todoState.getTodosWithoutIssueNo(), env.commitSha, env.ref)
+      todohubIssue.data.setStrayTodos(todoState.getStrayTodos(), env.commitSha, env.ref)
 
       for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
         await updateIssue(issueNr, todoState, todohubIssue, env.commitSha, env.ref)

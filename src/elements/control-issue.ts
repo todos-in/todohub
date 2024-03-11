@@ -18,6 +18,7 @@ export class TodohubControlIssue {
   existingIssueNumber?: number
   private existingIsClosed?: boolean
   private repo: Repo
+  private baseRepoUrl: string
 
   private constructor(repo: Repo, existingIssue?: {
     body: string;
@@ -25,6 +26,7 @@ export class TodohubControlIssue {
     isClosed: boolean;
   }) {
     this.repo = repo
+    this.baseRepoUrl = `https://github.com/${this.repo.owner}/${this.repo.repo}`
     if (existingIssue) {
       this.existingIssueNumber = existingIssue.number
       this.existingIsClosed = existingIssue.isClosed
@@ -43,11 +45,11 @@ export class TodohubControlIssue {
   }
 
   private compose() {
-    const todosWithIssueReference = Object.entries(this.data.getTodosWithIssueReference())
-    this.midTag = todosWithIssueReference.length ? '\n### Tracked Issues:' : ''
+    const todos = Object.entries(this.data.getTodos())
+    this.midTag = todos.length ? '\n### Tracked Issues:' : ''
 
     const footnotes: string[] = []
-    for (const [issueNr, trackedIssue] of todosWithIssueReference) {
+    for (const [issueNr, trackedIssue] of todos) {
       if (!trackedIssue.todoState.length) {
         continue
       }
@@ -68,12 +70,13 @@ export class TodohubControlIssue {
       this.midTag += `\n[^${index + 1}]: ${value}`
     }
 
-    const issueWORefernce = this.data.getTodosWithoutIssueReference()
-    if (issueWORefernce && issueWORefernce.todoState.length) {
+    const strayTodos = this.data.getStrayTodos()
+    if (strayTodos && strayTodos.todoState.length) {
       this.midTag += '\n### Todos without Issue Reference:'
-      for (const todo of issueWORefernce.todoState) {
+      for (const strayTodo of strayTodos.todoState) {
         // TODO #74 make sure todos dont contain characters that break the comment
-        this.midTag += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
+        const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`
+        this.midTag += `\n* [ ] \`${strayTodo.fileName}${strayTodo.lineNumber ? `:${strayTodo.lineNumber}` : ''}\`: ${strayTodo.rawLine} <sub>${codeLink}</sub>}`
       }
     }
 
@@ -112,7 +115,7 @@ export class TodohubControlIssue {
 
   async writeComment(issueNr: number) {
     const existingCommentId = this.data.getExistingCommentId(issueNr)
-    const composedComment = this.data.composeTrackedIssueComment(issueNr)
+    const composedComment = this.data.composeTrackedIssueComment(issueNr, this.baseRepoUrl)
 
     if (existingCommentId) {
       core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`)

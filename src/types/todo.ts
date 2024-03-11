@@ -5,7 +5,6 @@ export interface ITodo {
   keyword: string;
   issueNumber?: number;
   todoText: string;
-  link?: string;
   foundInCommit?: string;
   doneInCommit?: string;
 }

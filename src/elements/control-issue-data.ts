@@ -38,18 +38,17 @@ export default class TodohubData {
     return issueNrs
   }
 
-  // TODO #69 naming: stray/lost?
-  getTodosWithIssueReference() {
+  getTodos() {
     const cloned = Object.assign({}, this.decodedData)
     delete cloned[this.STRAY_TODO_KEY]
     return cloned
   }
 
-  getTodosWithoutIssueReference() {
+  getStrayTodos() {
     return this.decodedData[this.STRAY_TODO_KEY]
   }
 
-  setTodosWithoutIssueReference(
+  setStrayTodos(
     todoState: ITodo[] = [],
     commitSha: string,
     trackedBranch: string,
@@ -140,12 +139,13 @@ export default class TodohubData {
     }
   }
 
-  composeTrackedIssueComment(issueNr: number) {
+  composeTrackedIssueComment(issueNr: number, baseRepoUrl: string) {
     const trackedIssue = this.getTrackedIssue(issueNr)
 
     let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos'
     for (const todo of trackedIssue.todoState) {
-      composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.keyword} ${todo.todoText} ${todo.link ? `(${todo.link})` : ''}`
+      const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`
+      composed += `\n* [ ] \`${todo.fileName}${todo.lineNumber ? `:${todo.lineNumber}` : ''}\`: ${todo.rawLine} <sub>${link}</sub>}`
     }
     composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${trackedIssue.trackedBranch}\`</sub>`
 
