@@ -29,10 +29,6 @@ interface TodoRegexMatch {
 }
 
 export const matchTodo = (textLine: string, issueNumber?: string): TodoRegexMatch | undefined => {
-  if (issueNumber && (Number.isNaN(Number.parseInt(issueNumber)))) {
-    throw new Error('issueNumber is not an integer.')
-  }
-
   const regex = getRegex(issueNumber)
   const match = textLine.match(regex)
 
