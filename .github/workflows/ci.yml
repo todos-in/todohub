@@ -59,7 +59,6 @@ jobs:
         with:
           MAX_LINE_LENGTH: '350'
           
-
       # - name: Test Remote Action
       #   id: test-action
       #   uses: nigeisel/todohub@main

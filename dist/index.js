@@ -34029,8 +34029,6 @@ class FindTodoStream extends external_node_stream_.Writable {
     }
     _write(line, _encoding, next) {
         this.currentLineNr++;
-        // TODO env seems to not be loaded properly
-        core.debug(`Line length ${action_environment.maxLineLength}`);
         if (line.length > action_environment.maxLineLength) {
             core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${action_environment.maxLineLength} characters.
         If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`);
@@ -34700,7 +34698,7 @@ function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
             runInfo.succesfullyUpdatedIssues.push(issueNr);
         }
         else {
-            core.debug(`No changes in todo state for issue ${issueNr} - skip updating.`);
+            core.info(`No changes in todo state for issue ${issueNr} - skip updating.`);
             runInfo.skippedIssues.push(issueNr);
         }
         core.endGroup();

@@ -31,7 +31,7 @@ async function updateIssue(issueNr: string | number, todoState: TodoState, todoh
     await todohubIssue.reopenIssueWithOpenTodos(issueNumber)
     runInfo.succesfullyUpdatedIssues.push(issueNr)  
   } else {
-    core.debug(`No changes in todo state for issue ${issueNr} - skip updating.`)
+    core.info(`No changes in todo state for issue ${issueNr} - skip updating.`)
     runInfo.skippedIssues.push(issueNr)  
   }
   core.endGroup()
