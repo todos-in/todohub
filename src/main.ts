@@ -3,6 +3,13 @@ import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
 import TodoState from './todo-state.js'
 import env from './util/action-environment.js'
+import { TodohubError } from './error.js'
+
+class RunInfo  {
+  succesfullyUpdatedIssues: (number | string)[] = []
+}
+
+const runInfo = new RunInfo()
 
 async function updateIssue(issueNr: string | number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)
@@ -17,7 +24,8 @@ async function updateIssue(issueNr: string | number, todoState: TodoState, todoh
   todohubIssue.data.setTodoState(issueNumber, todos, commitSha, ref)
 
   await todohubIssue.writeComment(issueNumber)
-  await todohubIssue.updateTrackedIssueState(issueNumber)
+  await todohubIssue.reopenIssueWithOpenTodos(issueNumber)
+  runInfo.succesfullyUpdatedIssues.push(issueNr)
   core.endGroup()
 }
 
@@ -86,9 +94,17 @@ export async function run(): Promise<void> {
     // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
 
   } catch (error) {
-    if (error instanceof Error) {
-      core.error(error.message + ' ' + error.stack)
+    if (error instanceof TodohubError) {
+      core.error('Error: ' + error.log())
+      core.debug('Error debug info: ' + error.debugLog())
       core.setFailed(error.message)
-    } else core.setFailed(`Non error was thrown: ${error}`)
+    } else if (error instanceof Error) {
+      core.error(error.message)
+      core.debug('Error debug info: ' + error.stack)
+      core.setFailed(error.message)
+    } else {
+      core.setFailed('Failed.')
+      core.error('Non-error object was thrown: ' + JSON.stringify(error))
+    }
   }
 }
