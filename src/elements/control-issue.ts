@@ -1,6 +1,7 @@
 import Repo from 'src/github-repo.js'
 import TodohubData from './control-issue-data.js'
 import * as core from '@actions/core'
+import { ControlIssueParsingError, assertGithubError } from 'src/error.js'
 
 // TODO #60 move to config file
 const TODOHUB_LABEL = {
@@ -86,10 +87,9 @@ export class TodohubControlIssue {
     // TODO #60 get this issue title and label settings from config from input?
     // TODO #60 label is not created with right config (color + description)
     return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), [TODOHUB_LABEL])
-    // TODO #61 return updated issues - can be used to update the respective feature comments
   }
 
-  async updateTrackedIssueState(issueNr: number) {
+  async reopenIssueWithOpenTodos(issueNr: number) {
     if (!this.data.isEmpty(issueNr)) {
       core.debug(`Opening issue ${issueNr}...`)
       try {
@@ -99,11 +99,12 @@ export class TodohubControlIssue {
           undefined,
           'open',
         )
-      } catch (err) {
-        // TODO #59 check if error is actually because of non existant issue - otherwise throw?
-        core.warning(`Error (re)opening issue ${issueNr}. Are there Todos with reference to issue ${issueNr}, which does not exist?`)
-        if (err instanceof Error) {
-          core.warning(err.message)
+      } catch (err: unknown) {
+        assertGithubError(err)
+        if (err.status === 410) {
+          core.warning(`Error (re)opening issue ${issueNr}. Issue does not exist.`)
+        } else {
+          throw err
         }
       }
     }
@@ -114,15 +115,18 @@ export class TodohubControlIssue {
     const composedComment = this.data.composeTrackedIssueComment(issueNr)
 
     if (existingCommentId) {
-      // TODO #64 add state hash to check whether anything needs to be updated?
       core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`)
       try {
         await this.repo.updateComment(existingCommentId, composedComment)
         return
       } catch (err) {
-        // TODO #59 check if error is actually due to comment not existing
-        core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Creating new Comment instead...`)
-        this.data.deleteExistingCommentId(issueNr)
+        assertGithubError(err)
+        if (err.status === 404) {
+          core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Trying to create new Comment instead...`)
+          this.data.deleteExistingCommentId(issueNr)
+        } else {
+          throw err
+        }
       }
     }
     try {
@@ -130,10 +134,14 @@ export class TodohubControlIssue {
       const created = await this.repo.createComment(issueNr, composedComment)
       this.data.setCommentId(issueNr, created.data.id)
     } catch (err) {
-      // TODO #59 check if error is actually because of non existant issue - otherwise throw?
-      core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
+      assertGithubError(err)
+      if (err.status === 404 || err.status === 410) {
+        core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
         If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue ${issueNr} to the new issue.`)
-      this.data.setDeadIssue(issueNr)
+        this.data.setDeadIssue(issueNr)
+      } else {
+        throw err
+      }
     }
   }
 
@@ -149,7 +157,7 @@ export class TodohubControlIssue {
       parsed.groups.midTag === undefined ||
       parsed.groups.postTag === undefined
     ) {
-      throw new Error(`Error parsing Todohub Issue: ${issueBody}`)
+      throw new ControlIssueParsingError(`Error parsing Todohub Control Issue: ${issueBody}`)
     }
     return parsed.groups as {
       preTag: string;
@@ -161,8 +169,8 @@ export class TodohubControlIssue {
 
   static async get(repo: Repo) {
     const issue = await repo.findTodohubControlIssue()
+    // TODO #59 handle error if parsing fails and keep searching?
     if (issue) {
-      // TODO #59 handle error and keep searching if parsing fails?
       return new TodohubControlIssue(repo, {
         body: issue.body || '',
         number: issue.number,
