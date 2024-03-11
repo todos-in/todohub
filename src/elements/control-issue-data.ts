@@ -56,6 +56,43 @@ export default class TodohubData {
     this.setTodoState(0, todoState, commitSha, trackedBranch)
   }
 
+  clearEmptyTrackedIssue(issueNr: number) {
+    if (this.isEmpty(issueNr)) {
+      this.clearTrackedIssue(issueNr)
+    }
+  }
+
+  clearTrackedIssue(issueNr: number) {
+    delete this.decodedData[issueNr]
+  }
+
+  todoEquals(todoA: ITodo, todoB: ITodo) {
+    // TODO #65 is this enough to compare?
+    return (
+      todoA.fileName === todoB.fileName &&
+      todoA.lineNumber === todoB.lineNumber &&
+      todoA.rawLine === todoB.rawLine
+    )
+  }
+
+  todoStateEquals(issueNr: number, todoState: ITodo[] = []) {
+    try {
+      const trackedIssue = this.getTrackedIssue(issueNr)
+      if (trackedIssue.todoState.length !== todoState.length) {
+        return false
+      }
+      for (const trackedTodo of trackedIssue.todoState) {
+        const found = todoState.some((newTodo) => this.todoEquals(newTodo, trackedTodo))
+        if (!found) {
+          return false
+        }
+      }
+      return true
+    } catch (err) {
+      return false
+    }
+  }
+
   setTodoState(
     issueNr: number,
     todoState: ITodo[] = [],

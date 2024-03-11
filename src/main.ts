@@ -7,6 +7,7 @@ import { TodohubError } from './error.js'
 
 class RunInfo  {
   succesfullyUpdatedIssues: (number | string)[] = []
+  skippedIssues: (number | string)[] = []
 }
 
 const runInfo = new RunInfo()
@@ -21,11 +22,18 @@ async function updateIssue(issueNr: string | number, todoState: TodoState, todoh
   const todos = todoState.getByIssueNo(issueNumber)
   core.info(`Found ${todos?.length || 0} Todos for Issue ${issueNumber}...`)
 
+  const updateNecessary = !todohubIssue.data.todoStateEquals(issueNumber, todos)
+
   todohubIssue.data.setTodoState(issueNumber, todos, commitSha, ref)
 
-  await todohubIssue.writeComment(issueNumber)
-  await todohubIssue.reopenIssueWithOpenTodos(issueNumber)
-  runInfo.succesfullyUpdatedIssues.push(issueNr)
+  if (updateNecessary) {
+    await todohubIssue.writeComment(issueNumber)
+    await todohubIssue.reopenIssueWithOpenTodos(issueNumber)
+    runInfo.succesfullyUpdatedIssues.push(issueNr)  
+  } else {
+    core.debug(`No changes in todo state for issue ${issueNr} - skip updating.`)
+    runInfo.skippedIssues.push(issueNr)  
+  }
   core.endGroup()
 }
 

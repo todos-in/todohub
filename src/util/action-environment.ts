@@ -70,7 +70,8 @@ const parse: () => Environment = () => {
   const isDefaultBranch = branchName === defaultBranch
   const isFeatureBranch = featureBranchNumber !== undefined
 
-  return {
+  core.debug(`Loaded env: <${commitSha}> <${ref}> <${repoOwner}> <${repo}> <${maxLineLength}>`)
+  const environment = {
     commitSha,
     branchName,
     ref,
@@ -83,6 +84,7 @@ const parse: () => Environment = () => {
     isFeatureBranch,
     maxLineLength,
   }
+  return environment
 }
 
 const env = parse()

@@ -33994,7 +33994,8 @@ const parse = () => {
     const commitSha = context.sha;
     const isDefaultBranch = branchName === defaultBranch;
     const isFeatureBranch = featureBranchNumber !== undefined;
-    return {
+    core.debug(`Loaded env: <${commitSha}> <${ref}> <${repoOwner}> <${repo}> <${maxLineLength}>`);
+    const environment = {
         commitSha,
         branchName,
         ref,
@@ -34007,6 +34008,7 @@ const parse = () => {
         isFeatureBranch,
         maxLineLength,
     };
+    return environment;
 };
 const env = parse();
 /* harmony default export */ const action_environment = (env);
@@ -34025,8 +34027,10 @@ class FindTodoStream extends external_node_stream_.Writable {
         this.issueNr = issueNr;
         this.todoMetadata = todoMetadata;
     }
-    _write(line, encoding, next) {
+    _write(line, _encoding, next) {
         this.currentLineNr++;
+        // TODO env seems to not be loaded properly
+        core.debug(`Line length ${action_environment.maxLineLength}`);
         if (line.length > action_environment.maxLineLength) {
             core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${action_environment.maxLineLength} characters.
         If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`);
@@ -34393,6 +34397,38 @@ class TodohubData {
     setTodosWithoutIssueReference(todoState = [], commitSha, trackedBranch) {
         this.setTodoState(0, todoState, commitSha, trackedBranch);
     }
+    clearEmptyTrackedIssue(issueNr) {
+        if (this.isEmpty(issueNr)) {
+            this.clearTrackedIssue(issueNr);
+        }
+    }
+    clearTrackedIssue(issueNr) {
+        delete this.decodedData[issueNr];
+    }
+    todoEquals(todoA, todoB) {
+        // TODO #65 is this enough to compare?
+        return (todoA.fileName === todoB.fileName &&
+            todoA.lineNumber === todoB.lineNumber &&
+            todoA.rawLine === todoB.rawLine);
+    }
+    todoStateEquals(issueNr, todoState = []) {
+        try {
+            const trackedIssue = this.getTrackedIssue(issueNr);
+            if (trackedIssue.todoState.length !== todoState.length) {
+                return false;
+            }
+            for (const trackedTodo of trackedIssue.todoState) {
+                const found = todoState.some((newTodo) => this.todoEquals(newTodo, trackedTodo));
+                if (!found) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        catch (err) {
+            return false;
+        }
+    }
     setTodoState(issueNr, todoState = [], commitSha, trackedBranch) {
         const trackedIssue = Object.assign(this.decodedData[issueNr] || {}, {
             todoState: todoState,
@@ -34642,6 +34678,7 @@ var main_awaiter = (undefined && undefined.__awaiter) || function (thisArg, _arg
 class RunInfo {
     constructor() {
         this.succesfullyUpdatedIssues = [];
+        this.skippedIssues = [];
     }
 }
 const runInfo = new RunInfo();
@@ -34655,13 +34692,21 @@ function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
         }
         const todos = todoState.getByIssueNo(issueNumber);
         core.info(`Found ${(todos === null || todos === void 0 ? void 0 : todos.length) || 0} Todos for Issue ${issueNumber}...`);
+        const updateNecessary = !todohubIssue.data.todoStateEquals(issueNumber, todos);
         todohubIssue.data.setTodoState(issueNumber, todos, commitSha, ref);
-        yield todohubIssue.writeComment(issueNumber);
-        yield todohubIssue.reopenIssueWithOpenTodos(issueNumber);
-        runInfo.succesfullyUpdatedIssues.push(issueNr);
+        if (updateNecessary) {
+            yield todohubIssue.writeComment(issueNumber);
+            yield todohubIssue.reopenIssueWithOpenTodos(issueNumber);
+            runInfo.succesfullyUpdatedIssues.push(issueNr);
+        }
+        else {
+            core.debug(`No changes in todo state for issue ${issueNr} - skip updating.`);
+            runInfo.skippedIssues.push(issueNr);
+        }
         core.endGroup();
     });
 }
+// TODO use issue number as string everywhere (we do not as number anywhere)
 // TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
 /**
  * The main function for the action.
