@@ -10,6 +10,7 @@ import TodoState from './todo-state.js'
 import { SplitLineStream } from './util/line-stream.js'
 import { FindTodoStream } from './util/find-todo-stream.js'
 import * as core from '@actions/core'
+import { ApiError, assertGithubError } from './error.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
@@ -40,14 +41,14 @@ export default class Repo {
           },
         },
       )
-    } catch (error) {
-      const statusErr = error as { status?: number }
-      if (statusErr.status && statusErr.status === 404) {
-        return
+    } catch (err) {
+      assertGithubError(err)
+      if (err.status === 404) {
+        core.debug('No ".todoignore" file found.')
       }
-      throw error
+      throw err
     }
-    // TODO #59 error handling if file cant be parsed
+    core.debug('.todoignore file found. Parsing contents: ' + todoIgnoreFileRaw.data.substring(0, 200) + '...')
     return ignore.default().add(todoIgnoreFileRaw.data)
   }
 
@@ -71,20 +72,17 @@ export default class Repo {
           }),
         },
         (res) => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 399) {
-            if (res.headers['location']) {
-              return resolve(res.headers['location'])
-            } else {
-              reject(
-                new Error(
-                  'Getting tarball URL request failed due to missing location header.',
-                ),
-              )
-            }
+          if (res.statusCode &&
+            res.statusCode >= 200 &&
+            res.statusCode < 399 &&
+            res.headers['location']) {
+            return resolve(res.headers['location'])
           }
-          reject(
-            new Error(`Getting tarball URL request failed: ${res.statusCode}`),
-          )
+          return reject(new ApiError('Getting tarball URL request failed.', {
+            request: `${method} ${url}`,
+            status: res.statusCode,
+            locationHeader: res.headers['location'],
+          }))
         },
       )
       getReq.end()
@@ -101,7 +99,7 @@ export default class Repo {
             return resolve(res)
           }
           reject(
-            new Error(`Getting tarball URL request failed: ${res.statusCode}`),
+            new ApiError(`Getting tarball URL request failed: ${res.statusCode}`, { status: res.statusCode, request: url }),
           )
         },
       )
@@ -129,14 +127,10 @@ export default class Repo {
 
     return new Promise((resolve, reject) => {
       // TODO #80 check and test event & error handling 
-      unzipStream.on('error', (err) => {
-        reject(`Error unzipping tarball stream: ${err.message}`)
-      })
+      unzipStream.on('error', (err) => reject(err))
 
       // TODO #80 check and test event & error handling
-      extractStream.on('error', (err: Error) => {
-        reject(new Error(`Error reading tarball stream: ${err.message}`))
-      })
+      extractStream.on('error', (err: Error) => reject(err))
 
       extractStream.on('finish', () => {
         core.info('Todos extraction completed successfully.')
@@ -159,10 +153,14 @@ export default class Repo {
           return next()
         }
 
+        core.debug(`Extracting Todos from file ${fileName}...`)
+
         const splitLineStream = new SplitLineStream()
         // TODO #69 refactor: meta data should prob be added in post processing not in find stream
         const findTodosStream = new FindTodoStream(todoState, fileName, issueNr, todoMetadata)
         splitLineStream.on('end', () => findTodosStream.end())
+        // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
+
         stream.pipe(splitLineStream).pipe(findTodosStream)
         stream.on('error', () => {
           core.warning(`Error extracting Todos from file: ${fileName}`)
@@ -178,7 +176,6 @@ export default class Repo {
   }
 
   private async downloadTarball(ref?: string) {
-    // TODO #59 try catch
     const url = await this.getTarballUrl(ref)
     return this.getTarballStream(url)
   }
@@ -195,7 +192,7 @@ export default class Repo {
     issueNr?: string | number,
     todoMetadata?: Record<string, string>,
   ) {
-    const issueStr = issueNr && typeof issueNr === 'number' ? issueNr.toString() : issueNr as string
+    const issueStr = issueNr && typeof issueNr === 'number' ? issueNr.toString() : issueNr as (string | undefined)
     // TODO #62 parallelize
     const tar = await this.downloadTarball(ref)
     const ignore = await this.getTodoIgnoreFile()
@@ -258,26 +255,16 @@ export default class Repo {
   async findTodohubControlIssue() {
     // TODO #79 author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
     const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
-      per_page: 100,
+      per_page: 1,
       q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
     })
     if (todohubIssues.data.total_count > 1) {
-      // TODO #79 check issues and return first one that matches criteria of (TodohubAdminIssue.parse)
-      throw new Error('More than one Todohub Issue found')
+      core.warning(`More than one candidate for Todohub Control Issue found (matching 'todohub_ctrl_issue_data') - choosing first.
+      Check and consider closing stale Todohub Control issues.`)
     }
     if (todohubIssues.data.total_count === 1) {
       return todohubIssues.data.items[0]
     }
-    // const issuePages = this.octokit.paginate.iterator(
-    //   this.octokit.rest.search.issuesAndPullRequests, {
-    //   owner: this.owner,
-    //   repo: this.repo,
-    //   per_page: 1,
-    //   q: 'todohub_ctrl_issue label:todohub is:issue author:@me',
-    //   headers: {
-    //     Accept: 'application/vnd.github.text-match+json'
-    //   }
-    // })
   }
 
   async updateComment(commentId: number, body: string) {
