@@ -4,8 +4,8 @@ import * as core from '@actions/core'
 
 const regexCache: Record<string, RegExp> = {}
 /**
- * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TODO‎ dothis, TODO #18 dothis, TODO 5 dothis, etc)
- * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TODO‎ 18, TODO‎ #18 dothis, TODO‎ (18) dothis, etc)
+ * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TOD‎O dothis, TOD‎O #18 dothis, TODO 5 dothis, etc)
+ * If issueNumber is unset: matches only Todos with specific issue reference,  e.g. with issueNumber = 18: (TOD‎O 18, TOD‎O #18 dothis, TOD‎O (18) dothis, etc)
  */
 const getRegex = (issueNumber?: string) => {
   const index = issueNumber || '0'
