@@ -1,19 +1,19 @@
 import { Writable } from 'node:stream'
 import { matchTodo } from './todo-match.js'
-import TodoState from 'src/todo-state.js'
 import * as core from '@actions/core'
 import env from './action-environment.js'
+import { ITodo } from '../types/todo.js'
 
 export class FindTodoStream extends Writable {
   private filename: string
   private currentLineNr = 0
-  private todoState: TodoState
+  private todos: ITodo[]
   private issueNr?: number
   private todoMetadata?: { [key: string]: string }
 
-  constructor(todoState: TodoState, filename: string, issueNr?: number, todoMetadata?: { [key: string]: string }) {
+  constructor(todos: ITodo[], filename: string, issueNr?: number, todoMetadata?: { [key: string]: string }) {
     super({ objectMode: true })
-    this.todoState = todoState
+    this.todos = todos
     this.filename = filename
     this.issueNr = issueNr
     this.todoMetadata = todoMetadata
@@ -31,7 +31,7 @@ export class FindTodoStream extends Writable {
       return next()
     }
     const todoWithMetadata = Object.assign(matchedTodo, {fileName: this.filename, lineNumber: this.currentLineNr}, this.todoMetadata || {})
-    this.todoState.addTodos([todoWithMetadata])
+    this.todos = this.todos.concat([todoWithMetadata])
     next()
   }
 } 

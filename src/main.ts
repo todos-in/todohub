@@ -1,9 +1,9 @@
 import * as core from '@actions/core'
 import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
-import TodoState from './todo-state.js'
 import env from './util/action-environment.js'
 import { TodohubError } from './error.js'
+import { ITodo } from './types/todo.js'
 
 class RunInfo  {
   succesfullyUpdatedIssues: number[] = []
@@ -12,14 +12,14 @@ class RunInfo  {
 
 const runInfo = new RunInfo()
 
-async function updateIssue(issueNr: number, todoState: TodoState, todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
+async function updateIssue(issueNr: number, todos: ITodo[], todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)
-  const todos = todoState.getByIssueNo(issueNr)
   core.info(`Found ${todos?.length || 0} Todos for Issue ${issueNr}...`)
 
-  const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, todos)
+  const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
+  const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos)
 
-  todohubIssue.data.setTodoState(issueNr, todos, commitSha, ref)
+  todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref)
 
   if (updateNecessary) {
     await todohubIssue.writeComment(issueNr)
@@ -57,16 +57,16 @@ export async function run(): Promise<void> {
       // TODO #62 parallelize stuff (+ add workers)
 
       core.debug(`Searching state ${env.commitSha} for Todos with issue number ${env.featureBranchNumber}...`)
-      const todoState = await repo.getTodosFromGitRef(env.commitSha, env.featureBranchNumber, { foundInCommit: env.commitSha })
+      const todos = await repo.getTodosFromGitRef(env.commitSha, env.featureBranchNumber, { foundInCommit: env.commitSha })
 
-      await updateIssue(env.featureBranchNumber, todoState, todohubIssue, env.commitSha, env.ref)
+      await updateIssue(env.featureBranchNumber, todos, todohubIssue, env.commitSha, env.ref)
     } else if (env.isDefaultBranch) {
       core.info(`Push Event into default branch ${env.defaultBranch}`)
 
       core.debug(`Searching state ${env.commitSha} for all Todos`)
-      const todoState = await repo.getTodosFromGitRef(env.commitSha, undefined, {foundInCommit: env.commitSha})
+      const todos = await repo.getTodosFromGitRef(env.commitSha, undefined, {foundInCommit: env.commitSha})
 
-      const issuesWithTodosInCode = todoState.getIssuesNumbers()
+      const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0))
       core.debug(`Found Todos for ${issuesWithTodosInCode.size} different issues.`)
 
       const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers()
@@ -81,10 +81,11 @@ export async function run(): Promise<void> {
       const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
         !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
 
-      todohubIssue.data.setStrayTodos(todoState.getStrayTodos(), env.commitSha, env.ref)
+      const strayTodos = todos.filter((todo) => !todo.issueNumber)
+      todohubIssue.data.setStrayTodos(strayTodos, env.commitSha, env.ref)
 
       for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
-        await updateIssue(issueNr, todoState, todohubIssue, env.commitSha, env.ref)
+        await updateIssue(issueNr, todos, todohubIssue, env.commitSha, env.ref)
       }
     } else {
       core.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): ${env.branchName} Doing nothing...`)

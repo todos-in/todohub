@@ -33777,36 +33777,6 @@ var tar_stream = __nccwpck_require__(2283);
 // EXTERNAL MODULE: ./node_modules/ignore/index.js
 var ignore = __nccwpck_require__(1230);
 var ignore_default = /*#__PURE__*/__nccwpck_require__.n(ignore);
-;// CONCATENATED MODULE: ./src/todo-state.ts
-// merge with TodohubData
-class TodoState {
-    constructor() {
-        this.STRAY_TODO_KEY = 0;
-        this.todosByIssueNo = {};
-    }
-    addTodos(todos) {
-        var _a;
-        for (const todo of todos) {
-            const issueNr = todo.issueNumber || this.STRAY_TODO_KEY;
-            if (!this.todosByIssueNo[issueNr]) {
-                this.todosByIssueNo[issueNr] = [];
-            }
-            (_a = this.todosByIssueNo[issueNr]) === null || _a === void 0 ? void 0 : _a.push(todo);
-        }
-    }
-    getIssuesNumbers() {
-        const issueNrs = new Set(Object.keys(this.todosByIssueNo).map((key) => Number.parseInt(key)));
-        issueNrs.delete(this.STRAY_TODO_KEY);
-        return issueNrs;
-    }
-    getByIssueNo(issueNo) {
-        return this.todosByIssueNo[issueNo];
-    }
-    getStrayTodos() {
-        return this.getByIssueNo(0);
-    }
-}
-
 // EXTERNAL MODULE: external "stream"
 var external_stream_ = __nccwpck_require__(2781);
 ;// CONCATENATED MODULE: ./src/util/line-stream.ts
@@ -34023,10 +33993,10 @@ const env = parse();
 
 
 class FindTodoStream extends external_node_stream_.Writable {
-    constructor(todoState, filename, issueNr, todoMetadata) {
+    constructor(todos, filename, issueNr, todoMetadata) {
         super({ objectMode: true });
         this.currentLineNr = 0;
-        this.todoState = todoState;
+        this.todos = todos;
         this.filename = filename;
         this.issueNr = issueNr;
         this.todoMetadata = todoMetadata;
@@ -34044,7 +34014,7 @@ class FindTodoStream extends external_node_stream_.Writable {
             return next();
         }
         const todoWithMetadata = Object.assign(matchedTodo, { fileName: this.filename, lineNumber: this.currentLineNr }, this.todoMetadata || {});
-        this.todoState.addTodos([todoWithMetadata]);
+        this.todos = this.todos.concat([todoWithMetadata]);
         next();
     }
 }
@@ -34066,7 +34036,6 @@ var __asyncValues = (undefined && undefined.__asyncValues) || function (o) {
     function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
-
 
 
 
@@ -34158,7 +34127,7 @@ class Repo {
             // TODO #69 move logic
             const extractStream = tar_stream.extract();
             const unzipStream = (0,external_node_zlib_namespaceObject.createGunzip)();
-            const todoState = new TodoState();
+            const todos = [];
             tarBallStream.pipe(unzipStream).pipe(extractStream);
             // TODO #80 check and test event & error handling in streams (are they closed properly?) check for memory leaks
             // response.on('end', () => {
@@ -34171,7 +34140,7 @@ class Repo {
                 extractStream.on('error', (err) => reject(err));
                 extractStream.on('finish', () => {
                     core.info('Todos extraction completed successfully.');
-                    return resolve(todoState);
+                    return resolve(todos);
                 });
                 extractStream.on('entry', (header, stream, next) => {
                     if (header.type !== 'file') {
@@ -34189,7 +34158,7 @@ class Repo {
                     core.debug(`Extracting Todos from file ${fileName}...`);
                     const splitLineStream = new SplitLineStream();
                     // TODO #69 refactor: meta data should prob be added in post processing not in find stream
-                    const findTodosStream = new FindTodoStream(todoState, fileName, issueNr, todoMetadata);
+                    const findTodosStream = new FindTodoStream(todos, fileName, issueNr, todoMetadata);
                     splitLineStream.on('end', () => findTodosStream.end());
                     // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
                     stream.pipe(splitLineStream).pipe(findTodosStream);
@@ -34738,13 +34707,13 @@ class RunInfo {
     }
 }
 const runInfo = new RunInfo();
-function updateIssue(issueNr, todoState, todohubIssue, commitSha, ref) {
+function updateIssue(issueNr, todos, todohubIssue, commitSha, ref) {
     return main_awaiter(this, void 0, void 0, function* () {
         core.startGroup(`Processing Issue ${issueNr}`);
-        const todos = todoState.getByIssueNo(issueNr);
         core.info(`Found ${(todos === null || todos === void 0 ? void 0 : todos.length) || 0} Todos for Issue ${issueNr}...`);
-        const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, todos);
-        todohubIssue.data.setTodoState(issueNr, todos, commitSha, ref);
+        const issueTodos = todos.filter(todo => todo.issueNumber === issueNr);
+        const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos);
+        todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref);
         if (updateNecessary) {
             yield todohubIssue.writeComment(issueNr);
             yield todohubIssue.reopenIssueWithOpenTodos(issueNr);
@@ -34778,14 +34747,14 @@ function run() {
                 // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
                 // TODO #62 parallelize stuff (+ add workers)
                 core.debug(`Searching state ${action_environment.commitSha} for Todos with issue number ${action_environment.featureBranchNumber}...`);
-                const todoState = yield repo.getTodosFromGitRef(action_environment.commitSha, action_environment.featureBranchNumber, { foundInCommit: action_environment.commitSha });
-                yield updateIssue(action_environment.featureBranchNumber, todoState, todohubIssue, action_environment.commitSha, action_environment.ref);
+                const todos = yield repo.getTodosFromGitRef(action_environment.commitSha, action_environment.featureBranchNumber, { foundInCommit: action_environment.commitSha });
+                yield updateIssue(action_environment.featureBranchNumber, todos, todohubIssue, action_environment.commitSha, action_environment.ref);
             }
             else if (action_environment.isDefaultBranch) {
                 core.info(`Push Event into default branch ${action_environment.defaultBranch}`);
                 core.debug(`Searching state ${action_environment.commitSha} for all Todos`);
-                const todoState = yield repo.getTodosFromGitRef(action_environment.commitSha, undefined, { foundInCommit: action_environment.commitSha });
-                const issuesWithTodosInCode = todoState.getIssuesNumbers();
+                const todos = yield repo.getTodosFromGitRef(action_environment.commitSha, undefined, { foundInCommit: action_environment.commitSha });
+                const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0));
                 core.debug(`Found Todos for ${issuesWithTodosInCode.size} different issues.`);
                 const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers();
                 core.debug(`Currently ${trackedIssues.size} issues are tracked in Control Issue.`);
@@ -34794,9 +34763,10 @@ function run() {
                 const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)));
                 const branchesAheadOfDefault = yield repo.getFeatureBranchesAheadOf(action_environment.defaultBranch, trackedFeatureBranches.map((branch) => branch.name));
                 const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) => !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)));
-                todohubIssue.data.setStrayTodos(todoState.getStrayTodos(), action_environment.commitSha, action_environment.ref);
+                const strayTodos = todos.filter((todo) => !todo.issueNumber);
+                todohubIssue.data.setStrayTodos(strayTodos, action_environment.commitSha, action_environment.ref);
                 for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
-                    yield updateIssue(issueNr, todoState, todohubIssue, action_environment.commitSha, action_environment.ref);
+                    yield updateIssue(issueNr, todos, todohubIssue, action_environment.commitSha, action_environment.ref);
                 }
             }
             else {

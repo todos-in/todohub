@@ -6,11 +6,11 @@ import * as github from '@actions/github'
 import { GitHub } from '@actions/github/lib/utils.js'
 import * as tar from 'tar-stream'
 import ignore from 'ignore'
-import TodoState from './todo-state.js'
 import { SplitLineStream } from './util/line-stream.js'
 import { FindTodoStream } from './util/find-todo-stream.js'
 import * as core from '@actions/core'
 import { ApiError, assertGithubError } from './error.js'
+import { ITodo } from './types/todo.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
@@ -112,12 +112,12 @@ export default class Repo {
     issueNr?: number,
     todoMetadata?: { [key: string]: string },
     ignore?: ignore.Ignore,
-  ): Promise<TodoState> {
+  ): Promise<ITodo[]> {
     // TODO #69 move logic
     const extractStream = tar.extract()
     const unzipStream = createGunzip()
 
-    const todoState = new TodoState()
+    const todos: ITodo[] = []
 
     tarBallStream.pipe(unzipStream).pipe(extractStream)
     // TODO #80 check and test event & error handling in streams (are they closed properly?) check for memory leaks
@@ -134,7 +134,7 @@ export default class Repo {
 
       extractStream.on('finish', () => {
         core.info('Todos extraction completed successfully.')
-        return resolve(todoState)
+        return resolve(todos)
       })
 
       extractStream.on('entry', (header, stream, next) => {
@@ -157,7 +157,7 @@ export default class Repo {
 
         const splitLineStream = new SplitLineStream()
         // TODO #69 refactor: meta data should prob be added in post processing not in find stream
-        const findTodosStream = new FindTodoStream(todoState, fileName, issueNr, todoMetadata)
+        const findTodosStream = new FindTodoStream(todos, fileName, issueNr, todoMetadata)
         splitLineStream.on('end', () => findTodosStream.end())
         // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
 
