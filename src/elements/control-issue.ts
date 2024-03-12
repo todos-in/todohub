@@ -72,6 +72,8 @@ export class TodohubControlIssue {
         this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`
       }
     }
+    
+    this.midTag += `\n\n<sub>**Last updated:** ${this.data.getLastUpdatedCommit()}</sub>`
 
     return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`
   }

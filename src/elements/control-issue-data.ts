@@ -3,26 +3,31 @@ import { ControlIssueDataDecodingError, IssueNotInStateError } from '../error.js
 import { ITodo, TrackedIssue } from '../types/todo.js'
 import { escapeMd } from '../util/escape-markdown.js'
 
+interface ControlIssueData {
+  /** This State was last updated in this commit */
+  lastUpdatedCommitSha?: string
+  todoStates: Record<number, TrackedIssue>
+}
+
 export default class TodohubData {
   private STRAY_TODO_KEY = 0
-  private raw?: string
   // TODO #70 use Map() when parsing? - number keys are allowed..
   // TODO #70 order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
   // TODO #69 set private and only interact with data via methods
-  private decodedData: Record<number, TrackedIssue>
+  private decodedData: ControlIssueData
 
   constructor(tag?: string) {
     if (tag) {
-      this.raw = tag
       this.decodedData = this.decode(tag)
-      // TODO #59 check decoded JSON schema
     } else {
-      this.decodedData = {}
+      this.decodedData = {
+        todoStates: {},
+      }
     }
   }
 
   private setTrackedIssue(issueNr: number, trackedIssue: TrackedIssue) {
-    this.decodedData[issueNr] = trackedIssue
+    this.decodedData.todoStates[issueNr] = trackedIssue
   }
 
   private setTodoStateOnly(issueNr: number, todoState: ITodo[]) {
@@ -31,7 +36,7 @@ export default class TodohubData {
   }
 
   private getTrackedIssue(issueNr: number) {
-    const trackedIssue = this.decodedData[issueNr]
+    const trackedIssue = this.decodedData.todoStates[issueNr]
     if (!trackedIssue) {
       throw new IssueNotInStateError(issueNr)
     }
@@ -45,7 +50,7 @@ export default class TodohubData {
   }
 
   getIssueTodos() {
-    const cloned = Object.assign({}, this.decodedData)
+    const cloned = Object.assign({}, this.decodedData.todoStates)
     delete cloned[this.STRAY_TODO_KEY]
     return cloned
   }
@@ -55,7 +60,7 @@ export default class TodohubData {
   }
 
   getStrayTodos() {
-    return this.decodedData[this.STRAY_TODO_KEY]
+    return this.decodedData.todoStates[this.STRAY_TODO_KEY]
   }
 
   setStrayTodos(
@@ -73,7 +78,7 @@ export default class TodohubData {
   }
 
   clearTrackedIssue(issueNr: number) {
-    delete this.decodedData[issueNr]
+    delete this.decodedData.todoStates[issueNr]
   }
 
   todoOrder(todoA: ITodo, todoB: ITodo) { 
@@ -116,12 +121,20 @@ export default class TodohubData {
     commitSha: string,
     trackedBranch: string,
   ) {
-    const trackedIssue = Object.assign(this.decodedData[issueNr] || {}, {
+    const trackedIssue = Object.assign(this.decodedData.todoStates[issueNr] || {}, {
       todoState: todoState,
       commitSha,
       trackedBranch,
     })
     this.setTrackedIssue(issueNr, trackedIssue)
+  }
+
+  setLastUpdatedCommit(commitSha: string) {
+    this.decodedData.lastUpdatedCommitSha = commitSha
+  }
+
+  getLastUpdatedCommit() {
+    return this.decodedData.lastUpdatedCommitSha
   }
 
   isEmpty(issueNr: number) {
@@ -169,17 +182,17 @@ export default class TodohubData {
     return composed
   }
 
-  private decode(tag: string) {
+  private decode(tag: string): ControlIssueData {
     const b64Decoded = Buffer.from(tag, 'base64')
     const unzipped = gunzipSync(b64Decoded)
-    const parsed = JSON.parse(unzipped.toString('utf-8'))
+    // TODO #59 check decoded JSON schema conforms to ControlIssueData
+    const parsed = JSON.parse(unzipped.toString('utf-8')) as ControlIssueData
 
     // Enforces keys format to be positive integers
-    const nonIntegerKeys = Object.keys(parsed).filter((key) => !/^[0-9]+$/.test(key))
+    const nonIntegerKeys = Object.keys(parsed.todoStates).filter((key) => !/^[0-9]+$/.test(key))
     if (nonIntegerKeys.length) {
       throw new ControlIssueDataDecodingError(`Found non-integer key during Control issue data decoding: <${nonIntegerKeys.join(',')}>`)
     }
-
     return parsed
   }
 

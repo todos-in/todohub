@@ -91,6 +91,7 @@ export async function run(): Promise<void> {
       return
     }
 
+    todohubIssue.data.setLastUpdatedCommit(env.commitSha)
     core.debug('Writing Todohub Control issue...')
     await todohubIssue.write()
 

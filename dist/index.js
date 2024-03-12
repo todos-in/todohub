@@ -33806,19 +33806,6 @@ class TodoState {
         return this.getByIssueNo(0);
     }
 }
-// // TODO create one shared classe for Todohubdata and TodoState
-// export class Todo implements ITodo {
-//   constructor(
-//     public fileName: string,
-//     public lineNumber: number,
-//     public rawLine: string,
-//     public keyword: string,
-//     public todoText: string,
-//     public issueNumber?: number,
-//     public foundInCommit?: string,
-//     public doneInCommit?: string,
-//   ) { }
-// }
 
 // EXTERNAL MODULE: external "stream"
 var external_stream_ = __nccwpck_require__(2781);
@@ -34404,24 +34391,23 @@ class TodohubData {
     constructor(tag) {
         this.STRAY_TODO_KEY = 0;
         if (tag) {
-            this.raw = tag;
             this.decodedData = this.decode(tag);
-            // TODO #59 check decoded JSON schema
         }
         else {
-            this.decodedData = {};
+            this.decodedData = {
+                todoStates: {},
+            };
         }
     }
     setTrackedIssue(issueNr, trackedIssue) {
-        this.decodedData[issueNr] = trackedIssue;
+        this.decodedData.todoStates[issueNr] = trackedIssue;
     }
-    // TODO refactor namings in this file
     setTodoStateOnly(issueNr, todoState) {
         const trackedIssue = this.getTrackedIssue(issueNr);
         trackedIssue.todoState = todoState;
     }
     getTrackedIssue(issueNr) {
-        const trackedIssue = this.decodedData[issueNr];
+        const trackedIssue = this.decodedData.todoStates[issueNr];
         if (!trackedIssue) {
             throw new IssueNotInStateError(issueNr);
         }
@@ -34433,7 +34419,7 @@ class TodohubData {
         return issueNrs;
     }
     getIssueTodos() {
-        const cloned = Object.assign({}, this.decodedData);
+        const cloned = Object.assign({}, this.decodedData.todoStates);
         delete cloned[this.STRAY_TODO_KEY];
         return cloned;
     }
@@ -34441,7 +34427,7 @@ class TodohubData {
         return this.decodedData;
     }
     getStrayTodos() {
-        return this.decodedData[this.STRAY_TODO_KEY];
+        return this.decodedData.todoStates[this.STRAY_TODO_KEY];
     }
     setStrayTodos(todoState = [], commitSha, trackedBranch) {
         this.setTodoState(this.STRAY_TODO_KEY, todoState, commitSha, trackedBranch);
@@ -34452,7 +34438,7 @@ class TodohubData {
         }
     }
     clearTrackedIssue(issueNr) {
-        delete this.decodedData[issueNr];
+        delete this.decodedData.todoStates[issueNr];
     }
     todoOrder(todoA, todoB) {
         return ((todoA.issueNumber || 0) - (todoB.issueNumber || 0))
@@ -34485,12 +34471,18 @@ class TodohubData {
         }
     }
     setTodoState(issueNr, todoState = [], commitSha, trackedBranch) {
-        const trackedIssue = Object.assign(this.decodedData[issueNr] || {}, {
+        const trackedIssue = Object.assign(this.decodedData.todoStates[issueNr] || {}, {
             todoState: todoState,
             commitSha,
             trackedBranch,
         });
         this.setTrackedIssue(issueNr, trackedIssue);
+    }
+    setLastUpdatedCommit(commitSha) {
+        this.decodedData.lastUpdatedCommitSha = commitSha;
+    }
+    getLastUpdatedCommit() {
+        return this.decodedData.lastUpdatedCommitSha;
     }
     isEmpty(issueNr) {
         try {
@@ -34534,9 +34526,10 @@ class TodohubData {
     decode(tag) {
         const b64Decoded = Buffer.from(tag, 'base64');
         const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
+        // TODO #59 check decoded JSON schema conforms to ControlIssueData
         const parsed = JSON.parse(unzipped.toString('utf-8'));
         // Enforces keys format to be positive integers
-        const nonIntegerKeys = Object.keys(parsed).filter((key) => !/^[0-9]+$/.test(key));
+        const nonIntegerKeys = Object.keys(parsed.todoStates).filter((key) => !/^[0-9]+$/.test(key));
         if (nonIntegerKeys.length) {
             throw new ControlIssueDataDecodingError(`Found non-integer key during Control issue data decoding: <${nonIntegerKeys.join(',')}>`);
         }
@@ -34628,6 +34621,7 @@ class TodohubControlIssue {
                 this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`;
             }
         }
+        this.midTag += `\n\n<sub>**Last updated:** ${this.data.getLastUpdatedCommit()}</sub>`;
         return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
     }
     write() {
@@ -34812,6 +34806,7 @@ function run() {
                 core.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): ${action_environment.branchName} Doing nothing...`);
                 return;
             }
+            todohubIssue.data.setLastUpdatedCommit(action_environment.commitSha);
             core.debug('Writing Todohub Control issue...');
             yield todohubIssue.write();
             // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
