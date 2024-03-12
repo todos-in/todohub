@@ -33764,12 +33764,13 @@ var __webpack_exports__ = {};
 
 // EXTERNAL MODULE: ./node_modules/@actions/core/lib/core.js
 var core = __nccwpck_require__(2186);
-;// CONCATENATED MODULE: external "node:https"
-const external_node_https_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:https");
 ;// CONCATENATED MODULE: external "node:zlib"
 const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:zlib");
 ;// CONCATENATED MODULE: external "node:path"
 const external_node_path_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:path");
+// EXTERNAL MODULE: external "node:stream"
+var external_node_stream_ = __nccwpck_require__(4492);
+var external_node_stream_default = /*#__PURE__*/__nccwpck_require__.n(external_node_stream_);
 // EXTERNAL MODULE: ./node_modules/@actions/github/lib/github.js
 var github = __nccwpck_require__(5438);
 // EXTERNAL MODULE: ./node_modules/tar-stream/index.js
@@ -33802,8 +33803,6 @@ class SplitLineStream extends external_stream_.Transform {
     }
 }
 
-// EXTERNAL MODULE: external "node:stream"
-var external_node_stream_ = __nccwpck_require__(4492);
 ;// CONCATENATED MODULE: ./src/util/todo-match.ts
 
 // TODO #76 refine regex (make simpler?)
@@ -33887,7 +33886,7 @@ class TodohubError extends Error {
         });
     }
 }
-class ApiError extends TodohubError {
+class ApiError extends (/* unused pure expression or super */ null && (TodohubError)) {
     constructor(message, debugInfo) {
         super(message, 'api-error', debugInfo);
     }
@@ -34079,47 +34078,18 @@ class Repo {
             return ignore_default()["default"]().add(todoIgnoreFileRaw.data);
         });
     }
-    getTarballUrl(ref) {
+    getTarballStream(ref) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { url, headers, method } = this.octokit.request.endpoint('GET /repos/{owner}/{repo}/tarball/{ref}', {
+            const tarballUrl = yield this.octokit.request('GET /repos/{owner}/{repo}/tarball/{ref}', {
                 owner: this.owner,
                 repo: this.repo,
                 ref: ref || '',
+                request: {
+                    parseSuccessResponseBody: false, // required to access response as stream
+                    fetch,
+                },
             });
-            return new Promise((resolve, reject) => {
-                const getReq = (0,external_node_https_namespaceObject.request)(url, {
-                    method,
-                    headers: Object.assign(headers, {
-                        Authorization: `Bearer ${this.githubToken}`,
-                    }),
-                }, (res) => {
-                    if (res.statusCode &&
-                        res.statusCode >= 200 &&
-                        res.statusCode < 399 &&
-                        res.headers['location']) {
-                        return resolve(res.headers['location']);
-                    }
-                    return reject(new ApiError('Getting tarball URL request failed.', {
-                        request: `${method} ${url}`,
-                        status: res.statusCode,
-                        locationHeader: res.headers['location'],
-                    }));
-                });
-                getReq.end();
-            });
-        });
-    }
-    getTarballStream(url) {
-        return __awaiter(this, void 0, void 0, function* () {
-            return new Promise((resolve, reject) => {
-                const downloadRequest = (0,external_node_https_namespaceObject.request)(url, { method: 'GET', timeout: 5000 }, (res) => {
-                    if (res.statusCode && res.statusCode >= 200 && res.statusCode < 299) {
-                        return resolve(res);
-                    }
-                    reject(new ApiError(`Getting tarball URL request failed: ${res.statusCode}`, { status: res.statusCode, request: url }));
-                });
-                downloadRequest.end();
-            });
+            return external_node_stream_default().Readable.fromWeb(tarballUrl.data);
         });
     }
     extractTodosFromTarGz(tarBallStream, issueNr, todoMetadata, ignore) {
@@ -34175,12 +34145,6 @@ class Repo {
             });
         });
     }
-    downloadTarball(ref) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const url = yield this.getTarballUrl(ref);
-            return this.getTarballStream(url);
-        });
-    }
     /**
      * Searches for all "TODOs" occurrences in a certain git ref
      * @param ref ref of the git state to be searched, defaults to the head of default branch if unset
@@ -34191,9 +34155,9 @@ class Repo {
     getTodosFromGitRef(ref, issueNr, todoMetadata) {
         return __awaiter(this, void 0, void 0, function* () {
             // TODO #62 parallelize
-            const tar = yield this.downloadTarball(ref);
+            const tarStream = yield this.getTarballStream(ref);
             const ignore = yield this.getTodoIgnoreFile();
-            const todos = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata, ignore);
+            const todos = yield this.extractTodosFromTarGz(tarStream, issueNr, todoMetadata, ignore);
             return todos;
         });
     }
@@ -34202,8 +34166,8 @@ class Repo {
      * @returns Feature Branches
      */
     getFeatureBranches() {
-        var _a, e_1, _b, _c;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a, e_1, _b, _c;
             const isFeatureBranch = (branch) => /[0-9]+-.*/.test(branch.name);
             const featureBranches = [];
             const branchesPages = this.octokit.paginate.iterator(this.octokit.rest.repos.listBranches, {
@@ -34229,8 +34193,8 @@ class Repo {
         });
     }
     getFeatureBranchesAheadOf(base, heads) {
-        var _a;
         return __awaiter(this, void 0, void 0, function* () {
+            var _a;
             // TODO #63 concurrent requests could be a problem for secondary rate limits: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
             const comparisons = yield Promise.all(heads.map((head) => this.compareCommits(base, head)));
             const featureBranchesAheadOf = [];

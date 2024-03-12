@@ -1,7 +1,7 @@
-import { request } from 'node:https'
 import { createGunzip } from 'node:zlib'
-import { IncomingMessage } from 'node:http'
 import * as path from 'node:path'
+import { ReadableStream } from 'node:stream/web'
+import stream from 'node:stream'
 import * as github from '@actions/github'
 import { GitHub } from '@actions/github/lib/utils.js'
 import * as tar from 'tar-stream'
@@ -9,7 +9,7 @@ import ignore from 'ignore'
 import { SplitLineStream } from './util/line-stream.js'
 import { FindTodoStream } from './util/find-todo-stream.js'
 import * as core from '@actions/core'
-import { ApiError, assertGithubError } from './error.js'
+import {  assertGithubError } from './error.js'
 import { ITodo } from './types/todo.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
@@ -52,63 +52,25 @@ export default class Repo {
     return ignore.default().add(todoIgnoreFileRaw.data)
   }
 
-  private async getTarballUrl(ref?: string): Promise<string> {
-    const { url, headers, method } = this.octokit.request.endpoint(
+  private async getTarballStream(ref?: string) {
+    const tarballUrl = await this.octokit.request(
       'GET /repos/{owner}/{repo}/tarball/{ref}',
       {
         owner: this.owner,
         repo: this.repo,
         ref: ref || '',
+        request: {
+          parseSuccessResponseBody: false, // required to access response as stream
+          fetch,
+        },
       },
     )
 
-    return new Promise((resolve, reject) => {
-      const getReq = request(
-        url,
-        {
-          method,
-          headers: Object.assign(headers, {
-            Authorization: `Bearer ${this.githubToken}`,
-          }),
-        },
-        (res) => {
-          if (res.statusCode &&
-            res.statusCode >= 200 &&
-            res.statusCode < 399 &&
-            res.headers['location']) {
-            return resolve(res.headers['location'])
-          }
-          return reject(new ApiError('Getting tarball URL request failed.', {
-            request: `${method} ${url}`,
-            status: res.statusCode,
-            locationHeader: res.headers['location'],
-          }))
-        },
-      )
-      getReq.end()
-    })
-  }
-
-  private async getTarballStream(url: string): Promise<IncomingMessage> {
-    return new Promise((resolve, reject) => {
-      const downloadRequest = request(
-        url,
-        { method: 'GET', timeout: 5000 },
-        (res) => {
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 299) {
-            return resolve(res)
-          }
-          reject(
-            new ApiError(`Getting tarball URL request failed: ${res.statusCode}`, { status: res.statusCode, request: url }),
-          )
-        },
-      )
-      downloadRequest.end()
-    })
+    return stream.Readable.fromWeb(tarballUrl.data as ReadableStream)
   }
 
   private async extractTodosFromTarGz(
-    tarBallStream: IncomingMessage,
+    tarBallStream: stream.Readable,
     issueNr?: number,
     todoMetadata?: { [key: string]: string },
     ignore?: ignore.Ignore,
@@ -175,11 +137,6 @@ export default class Repo {
     })
   }
 
-  private async downloadTarball(ref?: string) {
-    const url = await this.getTarballUrl(ref)
-    return this.getTarballStream(url)
-  }
-
   /**
    * Searches for all "TODOs" occurrences in a certain git ref
    * @param ref ref of the git state to be searched, defaults to the head of default branch if unset
@@ -193,10 +150,10 @@ export default class Repo {
     todoMetadata?: Record<string, string>,
   ) {
     // TODO #62 parallelize
-    const tar = await this.downloadTarball(ref)
+    const tarStream = await this.getTarballStream(ref)
     const ignore = await this.getTodoIgnoreFile()
     const todos = await this.extractTodosFromTarGz(
-      tar,
+      tarStream,
       issueNr,
       todoMetadata,
       ignore,
