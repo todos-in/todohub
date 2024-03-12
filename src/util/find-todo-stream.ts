@@ -31,7 +31,7 @@ export class FindTodoStream extends Writable {
       return next()
     }
     const todoWithMetadata = Object.assign(matchedTodo, {fileName: this.filename, lineNumber: this.currentLineNr}, this.todoMetadata || {})
-    this.todos = this.todos.concat([todoWithMetadata])
+    this.todos.push(todoWithMetadata)
     next()
   }
 } 

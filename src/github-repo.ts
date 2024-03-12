@@ -195,13 +195,13 @@ export default class Repo {
     // TODO #62 parallelize
     const tar = await this.downloadTarball(ref)
     const ignore = await this.getTodoIgnoreFile()
-    const todoState = await this.extractTodosFromTarGz(
+    const todos = await this.extractTodosFromTarGz(
       tar,
       issueNr,
       todoMetadata,
       ignore,
     )
-    return todoState
+    return todos
   }
 
   /**

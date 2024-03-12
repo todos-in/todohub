@@ -14,9 +14,9 @@ const runInfo = new RunInfo()
 
 async function updateIssue(issueNr: number, todos: ITodo[], todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
   core.startGroup(`Processing Issue ${issueNr}`)
-  core.info(`Found ${todos?.length || 0} Todos for Issue ${issueNr}...`)
-
   const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
+  core.info(`Found ${issueTodos?.length || 0} Todos for Issue ${issueNr}...`)
+
   const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos)
 
   todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref)

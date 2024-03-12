@@ -34014,7 +34014,7 @@ class FindTodoStream extends external_node_stream_.Writable {
             return next();
         }
         const todoWithMetadata = Object.assign(matchedTodo, { fileName: this.filename, lineNumber: this.currentLineNr }, this.todoMetadata || {});
-        this.todos = this.todos.concat([todoWithMetadata]);
+        this.todos.push(todoWithMetadata);
         next();
     }
 }
@@ -34193,8 +34193,8 @@ class Repo {
             // TODO #62 parallelize
             const tar = yield this.downloadTarball(ref);
             const ignore = yield this.getTodoIgnoreFile();
-            const todoState = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata, ignore);
-            return todoState;
+            const todos = yield this.extractTodosFromTarGz(tar, issueNr, todoMetadata, ignore);
+            return todos;
         });
     }
     /**
@@ -34710,8 +34710,8 @@ const runInfo = new RunInfo();
 function updateIssue(issueNr, todos, todohubIssue, commitSha, ref) {
     return main_awaiter(this, void 0, void 0, function* () {
         core.startGroup(`Processing Issue ${issueNr}`);
-        core.info(`Found ${(todos === null || todos === void 0 ? void 0 : todos.length) || 0} Todos for Issue ${issueNr}...`);
         const issueTodos = todos.filter(todo => todo.issueNumber === issueNr);
+        core.info(`Found ${(issueTodos === null || issueTodos === void 0 ? void 0 : issueTodos.length) || 0} Todos for Issue ${issueNr}...`);
         const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos);
         todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref);
         if (updateNecessary) {
