@@ -4,13 +4,6 @@ import * as core from '@actions/core'
 import { ControlIssueParsingError, assertGithubError } from '../error.js'
 import { escapeMd } from '../util/escape-markdown.js'
 
-// TODO #60 move to config file
-const TODOHUB_LABEL = {
-  name: 'todohub',
-  description: 'todohub control issue',
-  color: '1D76DB',
-}
-
 export class TodohubControlIssue {
   private preTag?: string
   private midTag?: string
@@ -87,9 +80,7 @@ export class TodohubControlIssue {
     if (this.existingIssueNumber) {
       return this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose())
     }
-    // TODO #60 get this issue title and label settings from config from input?
-    // TODO #60 label is not created with right config (color + description)
-    return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), [TODOHUB_LABEL])
+    return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub'])
   }
 
   async reopenIssueWithOpenTodos(issueNr: number) {

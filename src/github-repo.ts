@@ -293,7 +293,7 @@ export default class Repo {
   async createIssue(
     title: string,
     body: string,
-    labels?: { name: string; description: string; color: string }[],
+    labels?: string[],
   ) {
     return this.octokit.rest.issues.create({
       owner: this.owner,
@@ -307,7 +307,7 @@ export default class Repo {
   async createPinnedIssue(
     title: string,
     body: string,
-    labels?: { name: string; description: string; color: string }[],
+    labels?: string[],
   ) {
     const issue = await this.createIssue(title, body, labels)
     await this.pinIssue(issue.data.node_id)
