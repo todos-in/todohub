@@ -44,7 +44,7 @@ export default class TodohubData {
   }
 
   getTrackedIssuesNumbers() {
-    const issueNrs = new Set(Object.keys(this.decodedData).map((key) => Number.parseInt(key)))
+    const issueNrs = new Set(Object.keys(this.decodedData.todoStates).map((key) => Number.parseInt(key)))
     issueNrs.delete(this.STRAY_TODO_KEY)
     return issueNrs
   }
@@ -53,10 +53,6 @@ export default class TodohubData {
     const cloned = Object.assign({}, this.decodedData.todoStates)
     delete cloned[this.STRAY_TODO_KEY]
     return cloned
-  }
-
-  getAllTodos() {
-    return this.decodedData
   }
 
   getStrayTodos() {
@@ -202,7 +198,7 @@ export default class TodohubData {
   }
 
   orderTodoStates() {
-    for (const issueNr of Object.keys(this.decodedData)) {
+    for (const issueNr of Object.keys(this.decodedData.todoStates)) {
       this.orderTodoState(parseInt(issueNr))
     }
   }
