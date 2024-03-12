@@ -61,7 +61,7 @@ jobs:
           
       # - name: Test Remote Action
       #   id: test-action
-      #   uses: nigeisel/todohub@main
+      #   uses: todos-in/todohub@main
 
       # - name: Print Output
       #   id: output
