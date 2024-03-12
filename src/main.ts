@@ -5,7 +5,6 @@ import TodoState from './todo-state.js'
 import env from './util/action-environment.js'
 import { TodohubError } from './error.js'
 
-// TODO #83 test
 class RunInfo  {
   succesfullyUpdatedIssues: number[] = []
   skippedIssues: number[] = []

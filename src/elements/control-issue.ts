@@ -68,8 +68,8 @@ export class TodohubControlIssue {
     if (strayTodos && strayTodos.todoState.length) {
       this.midTag += '\n### Todos without Issue Reference:'
       for (const strayTodo of strayTodos.todoState) {
-        const codeLink = `[click](${this.baseRepoUrl}/blob/main/${escapeMd(strayTodo.fileName)}#L${strayTodo.lineNumber})`
-        this.midTag += `\n* [ ] \`${escapeMd(strayTodo.fileName)}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`
+        const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`
+        this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`
       }
     }
 

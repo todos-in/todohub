@@ -33806,6 +33806,19 @@ class TodoState {
         return this.getByIssueNo(0);
     }
 }
+// // TODO create one shared classe for Todohubdata and TodoState
+// export class Todo implements ITodo {
+//   constructor(
+//     public fileName: string,
+//     public lineNumber: number,
+//     public rawLine: string,
+//     public keyword: string,
+//     public todoText: string,
+//     public issueNumber?: number,
+//     public foundInCommit?: string,
+//     public doneInCommit?: string,
+//   ) { }
+// }
 
 // EXTERNAL MODULE: external "stream"
 var external_stream_ = __nccwpck_require__(2781);
@@ -33964,7 +33977,7 @@ const parse = () => {
         throw new EnvironmentLoadError({ key: 'TOKEN', place: 'input' });
     }
     const maxLineLength = Number.parseInt(core.getInput('MAX_LINE_LENGTH'));
-    if (!githubToken || Number.isNaN(maxLineLength)) {
+    if (!maxLineLength || Number.isNaN(maxLineLength)) {
         throw new EnvironmentLoadError({ key: 'MAX_LINE_LENGTH', place: 'input' });
     }
     const defaultBranch = payload.repository.default_branch;
@@ -34276,6 +34289,7 @@ class Repo {
     }
     compareCommits(base, head) {
         return __awaiter(this, void 0, void 0, function* () {
+            // TODO #77 these are potentially traffic intensive requests since they include the whole diff
             return this.octokit.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
                 owner: this.owner,
                 repo: this.repo,
@@ -34511,8 +34525,8 @@ class TodohubData {
         const trackedIssue = this.getTrackedIssue(issueNr);
         let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos';
         for (const todo of trackedIssue.todoState) {
-            const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${escapeMd(todo.fileName)}#L${todo.lineNumber})`;
-            composed += `\n* [ ] \`${escapeMd(todo.fileName)}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
+            const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`;
+            composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
         }
         composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${escapeMd(trackedIssue.trackedBranch)}\`</sub>`;
         return composed;
@@ -34561,12 +34575,6 @@ var control_issue_awaiter = (undefined && undefined.__awaiter) || function (this
 
 
 
-// TODO #60 move to config file
-const TODOHUB_LABEL = {
-    name: 'todohub',
-    description: 'todohub control issue',
-    color: '1D76DB',
-};
 class TodohubControlIssue {
     constructor(repo, existingIssue) {
         this.repo = repo;
@@ -34616,8 +34624,8 @@ class TodohubControlIssue {
         if (strayTodos && strayTodos.todoState.length) {
             this.midTag += '\n### Todos without Issue Reference:';
             for (const strayTodo of strayTodos.todoState) {
-                const codeLink = `[click](${this.baseRepoUrl}/blob/main/${escapeMd(strayTodo.fileName)}#L${strayTodo.lineNumber})`;
-                this.midTag += `\n* [ ] \`${escapeMd(strayTodo.fileName)}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`;
+                const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
+                this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`;
             }
         }
         return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
@@ -34627,9 +34635,7 @@ class TodohubControlIssue {
             if (this.existingIssueNumber) {
                 return this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
             }
-            // TODO #60 get this issue title and label settings from config from input?
-            // TODO #60 label is not created with right config (color + description)
-            return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), [TODOHUB_LABEL]);
+            return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub']);
         });
     }
     reopenIssueWithOpenTodos(issueNr) {

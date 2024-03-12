@@ -27,7 +27,7 @@ const parse: () => Environment = () => {
   }
 
   const maxLineLength = Number.parseInt(core.getInput('MAX_LINE_LENGTH'))
-  if (!githubToken || Number.isNaN(maxLineLength)) {
+  if (!maxLineLength || Number.isNaN(maxLineLength)) {
     throw new EnvironmentLoadError({key: 'MAX_LINE_LENGTH', place: 'input'})
   }
 

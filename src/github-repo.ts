@@ -241,6 +241,7 @@ export default class Repo {
   }
 
   private async compareCommits(base: string, head: string) {
+    // TODO #77 these are potentially traffic intensive requests since they include the whole diff
     return this.octokit.request(
       'GET /repos/{owner}/{repo}/compare/{basehead}',
       {
