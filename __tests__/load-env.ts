@@ -1,9 +1,8 @@
 import fs from 'node:fs'
-import path from 'node:path'
 
-export const load = (file?: string, additionalEnv?: Record<string, string>) => {
+export const load = (file: string, additionalEnv?: Record<string, string>) => {
   try {
-    const envFile = fs.readFileSync(path.join(__dirname, file || './.test.env.json'), 'utf8')
+    const envFile = fs.readFileSync(file, 'utf8')
     const parsedFile = JSON.parse(envFile) as Record<string, string>
   
     for (const [key, value] of Object.entries(parsedFile)) {
