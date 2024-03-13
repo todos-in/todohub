@@ -4,19 +4,17 @@
     "lib": ["es2023"],
     "module": "node16",
     "target": "es2022",
-    "rootDir": "./src",
+    "rootDir": "../",
     "moduleResolution": "node16",
-    "baseUrl": "./src",
-    "sourceMap": true,
-    "outDir": "./dist/",
+    "baseUrl": "../",
     "noImplicitAny": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
-    "newLine": "lf"
+    "newLine": "lf",
+    "noEmit": true
   },
-  "exclude": ["./dist", "./node_modules", "./coverage", "__tests__"],
-  "include": ["./src"]
+  "include": ["."]
 }

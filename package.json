@@ -24,8 +24,8 @@
   "scripts": {
     "bundle": "npm run lint && npm run package",
     "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",
-    "lint": "npx eslint ./src",
-    "lint-fix": "npx eslint --fix ./src",
+    "lint": "npx eslint .",
+    "lint-fix": "npx eslint --fix .",
     "package": "ncc build src/index.ts --license licenses.txt",
     "package-debug": "tsc -p tsconfig.json",
     "package:watch": "npm run package -- --watch",

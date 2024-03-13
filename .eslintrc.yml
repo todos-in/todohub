@@ -12,7 +12,6 @@ ignorePatterns:
   - 'node_modules/'
   - 'dist/'
   - 'coverage/'
-  - '__tests__/'
   - git_tests
   - eslint-local-rules.cjs
   - jest.config.ts
@@ -26,6 +25,7 @@ parserOptions:
   sourceType: module
   project:
     - './tsconfig.json'
+    - './__tests__/tsconfig.json'
 
 plugins:
   - jest
