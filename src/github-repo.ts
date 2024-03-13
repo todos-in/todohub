@@ -5,11 +5,11 @@ import stream from 'node:stream'
 import * as github from '@actions/github'
 import { GitHub } from '@actions/github/lib/utils.js'
 import * as tar from 'tar-stream'
-import {ignoreWrapper, Ignore} from 'ignore-wrapper'
+import { ignoreWrapper, Ignore } from 'ignore-wrapper'
 import { SplitLineStream } from './util/line-stream.js'
 import { FindTodoStream } from './util/find-todo-stream.js'
 import * as core from '@actions/core'
-import {  assertGithubError } from './error.js'
+import { assertGithubError } from './error.js'
 import { ITodo } from './types/todo.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
@@ -30,17 +30,15 @@ export default class Repo {
   private async getTodoIgnoreFile(ref?: string) {
     let todoIgnoreFileRaw
     try {
-      todoIgnoreFileRaw = await this.octokit.request(
-        'GET /repos/{owner}/{repo}/contents/.todoignore{?ref}',
-        {
-          owner: this.owner,
-          repo: this.repo,
-          ref,
-          headers: {
-            accept: 'application/vnd.github.raw+json',
-          },
+      todoIgnoreFileRaw = await this.octokit.rest.repos.getContent({
+        owner: this.owner,
+        repo: this.repo,
+        ref,
+        path: '.todoignore',
+        headers: {
+          accept: 'application/vnd.github.raw+json',
         },
-      )
+      })
     } catch (err) {
       assertGithubError(err)
       if (err.status === 404) {
@@ -48,23 +46,20 @@ export default class Repo {
       }
       throw err
     }
-    core.debug('.todoignore file found. Parsing contents: ' + todoIgnoreFileRaw.data.substring(0, 200) + '...')
-    return ignoreWrapper().add(todoIgnoreFileRaw.data)
+    const contents = todoIgnoreFileRaw.data.toString()
+    core.debug('.todoignore file found. Parsing contents: ' + contents.substring(0, 200) + '...')
+    return ignoreWrapper().add(contents)
   }
 
   private async getTarballStream(ref?: string) {
-    const tarballUrl = await this.octokit.request(
-      'GET /repos/{owner}/{repo}/tarball/{ref}',
-      {
-        owner: this.owner,
-        repo: this.repo,
-        ref: ref || '',
-        request: {
-          parseSuccessResponseBody: false, // required to access response as stream
-          fetch,
-        },
+    const tarballUrl = await this.octokit.rest.repos.downloadTarballArchive({
+      owner: this.owner,
+      repo: this.repo,
+      ref: ref || '',
+      request: {
+        parseSuccessResponseBody: false,
       },
-    )
+    })
 
     return stream.Readable.fromWeb(tarballUrl.data as ReadableStream)
   }
@@ -199,14 +194,12 @@ export default class Repo {
 
   private async compareCommits(base: string, head: string) {
     // TODO #77 these are potentially traffic intensive requests since they include the whole diff
-    return this.octokit.request(
-      'GET /repos/{owner}/{repo}/compare/{basehead}',
-      {
-        owner: this.owner,
-        repo: this.repo,
-        basehead: `${base}...${head}`,
-      },
-    )
+    return this.octokit.rest.repos.compareCommits({
+      owner: this.owner,
+      repo: this.repo,
+      base,
+      head,
+    })
   }
 
   async findTodohubControlIssue() {
@@ -225,27 +218,21 @@ export default class Repo {
   }
 
   async updateComment(commentId: number, body: string) {
-    return this.octokit.request(
-      'PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}',
-      {
-        owner: this.owner,
-        repo: this.repo,
-        comment_id: commentId,
-        body,
-      },
-    )
+    return this.octokit.rest.issues.updateComment({
+      owner: this.owner,
+      repo: this.repo,
+      comment_id: commentId,
+      body,
+    })
   }
 
   async createComment(issueNumber: number, body: string) {
-    return this.octokit.request(
-      'POST /repos/{owner}/{repo}/issues/{issue_number}/comments',
-      {
-        owner: this.owner,
-        repo: this.repo,
-        issue_number: issueNumber,
-        body,
-      },
-    )
+    return this.octokit.rest.issues.createComment({
+      owner: this.owner,
+      repo: this.repo,
+      issue_number: issueNumber,
+      body,
+    })
   }
 
   async createIssue(

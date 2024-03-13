@@ -31906,16 +31906,14 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
 /**
  * The entrypoint for the action.
  */
-// import {ignoreWrapper} from 'ignore-wrapper'
-// console.log(ignoreWrapper().add('test').ignores('test'))
 
-// TODO do env parsing + error handling here
-try {
-    await (0,_main_js__WEBPACK_IMPORTED_MODULE_0__/* .run */ .K)();
-}
-catch (err) {
-    console.error(err);
-}
+await (0,_main_js__WEBPACK_IMPORTED_MODULE_0__/* .run */ .K)();
+// // TODO do env parsing + error handling here
+// try {
+//   await run()
+// } catch (err) {
+//   console.error(err)
+// }
 
 __webpack_async_result__();
 } catch(e) { __webpack_async_result__(e); } }, 1);
@@ -32217,10 +32215,11 @@ class Repo {
     async getTodoIgnoreFile(ref) {
         let todoIgnoreFileRaw;
         try {
-            todoIgnoreFileRaw = await this.octokit.request('GET /repos/{owner}/{repo}/contents/.todoignore{?ref}', {
+            todoIgnoreFileRaw = await this.octokit.rest.repos.getContent({
                 owner: this.owner,
                 repo: this.repo,
                 ref,
+                path: '.todoignore',
                 headers: {
                     accept: 'application/vnd.github.raw+json',
                 },
@@ -32233,17 +32232,17 @@ class Repo {
             }
             throw err;
         }
-        core.debug('.todoignore file found. Parsing contents: ' + todoIgnoreFileRaw.data.substring(0, 200) + '...');
-        return (0,ignore.ignoreWrapper)().add(todoIgnoreFileRaw.data);
+        const contents = todoIgnoreFileRaw.data.toString();
+        core.debug('.todoignore file found. Parsing contents: ' + contents.substring(0, 200) + '...');
+        return (0,ignore.ignoreWrapper)().add(contents);
     }
     async getTarballStream(ref) {
-        const tarballUrl = await this.octokit.request('GET /repos/{owner}/{repo}/tarball/{ref}', {
+        const tarballUrl = await this.octokit.rest.repos.downloadTarballArchive({
             owner: this.owner,
             repo: this.repo,
             ref: ref || '',
             request: {
-                parseSuccessResponseBody: false, // required to access response as stream
-                fetch,
+                parseSuccessResponseBody: false,
             },
         });
         return external_node_stream_default().Readable.fromWeb(tarballUrl.data);
@@ -32343,10 +32342,11 @@ class Repo {
     }
     async compareCommits(base, head) {
         // TODO #77 these are potentially traffic intensive requests since they include the whole diff
-        return this.octokit.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
+        return this.octokit.rest.repos.compareCommits({
             owner: this.owner,
             repo: this.repo,
-            basehead: `${base}...${head}`,
+            base,
+            head,
         });
     }
     async findTodohubControlIssue() {
@@ -32364,7 +32364,7 @@ class Repo {
         }
     }
     async updateComment(commentId, body) {
-        return this.octokit.request('PATCH /repos/{owner}/{repo}/issues/comments/{comment_id}', {
+        return this.octokit.rest.issues.updateComment({
             owner: this.owner,
             repo: this.repo,
             comment_id: commentId,
@@ -32372,7 +32372,7 @@ class Repo {
         });
     }
     async createComment(issueNumber, body) {
-        return this.octokit.request('POST /repos/{owner}/{repo}/issues/{issue_number}/comments', {
+        return this.octokit.rest.issues.createComment({
             owner: this.owner,
             repo: this.repo,
             issue_number: issueNumber,
