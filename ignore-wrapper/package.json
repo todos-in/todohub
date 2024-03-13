@@ -1,0 +1,10 @@
+{
+  "name": "ignore-wrapper",
+  "version": "1.0.0",
+  "description": "Wrapper for generic import of ignore package",
+  "main": "ignore.js",
+  "types": "./ignore.d.ts",
+  "dependencies": {
+    "ignore": "^5.3.1"
+  }
+}

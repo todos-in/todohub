@@ -5,7 +5,7 @@ import stream from 'node:stream'
 import * as github from '@actions/github'
 import { GitHub } from '@actions/github/lib/utils.js'
 import * as tar from 'tar-stream'
-import ignore from 'ignore'
+import {ignoreWrapper, Ignore} from 'ignore-wrapper'
 import { SplitLineStream } from './util/line-stream.js'
 import { FindTodoStream } from './util/find-todo-stream.js'
 import * as core from '@actions/core'
@@ -49,7 +49,7 @@ export default class Repo {
       throw err
     }
     core.debug('.todoignore file found. Parsing contents: ' + todoIgnoreFileRaw.data.substring(0, 200) + '...')
-    return ignore.default().add(todoIgnoreFileRaw.data)
+    return ignoreWrapper().add(todoIgnoreFileRaw.data)
   }
 
   private async getTarballStream(ref?: string) {
@@ -73,7 +73,7 @@ export default class Repo {
     tarBallStream: stream.Readable,
     issueNr?: number,
     todoMetadata?: { [key: string]: string },
-    ignore?: ignore.Ignore,
+    ignore?: Ignore,
   ): Promise<ITodo[]> {
     // TODO #69 move logic
     const extractStream = tar.extract()

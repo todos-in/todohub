@@ -15,6 +15,9 @@ ignorePatterns:
   - '__tests__/'
   - git_tests
   - eslint-local-rules.cjs
+  - jest.config.ts
+  - script/**
+  - ignore-wrapper
 
 parser: '@typescript-eslint/parser'
 
