@@ -1,5 +1,5 @@
 import fs from 'node:fs'
-import { assertError } from 'src/error.js'
+import { assertError } from '../src/error.js'
 
 export const load = (file: string, additionalEnv?: Record<string, string>) => {
   try {
