@@ -24,7 +24,7 @@ export class TodohubControlIssue {
     if (existingIssue) {
       this.existingIssueNumber = existingIssue.number
       this.existingIsClosed = existingIssue.isClosed
-      const components = this.parseContent(existingIssue.body)
+      const components = TodohubControlIssue.parseContent(existingIssue.body)
       this.data = new TodohubData(components.data)
       this.preTag = components.preTag
       this.midTag = components.midTag
@@ -141,7 +141,7 @@ export class TodohubControlIssue {
     }
   }
 
-  private parseContent(issueBody: string) {
+  static parseContent(issueBody: string) {
     const regex =
       /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/
     const parsed = issueBody.match(regex)

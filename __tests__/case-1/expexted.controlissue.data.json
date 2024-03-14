@@ -1,0 +1,60 @@
+{
+  "todoStates": {
+    "0": {
+      "todoState": [
+        {
+          "rawLine": "TODO this is a stray-todo it should reference an issue number!",
+          "todoText": "this is a stray-todo it should reference an issue number!",
+          "keyword": "TODO",
+          "lineNumber": 5,
+          "fileName": "file_with_todos",
+          "foundInCommit": "xyz"
+        }
+      ],
+      "commitSha": "xyz",
+      "trackedBranch": "refs/heads/main"
+    },
+    "1": {
+      "todoState": [
+        {
+          "rawLine": "TODO #1 first this needs to be done",
+          "todoText": "first this needs to be done",
+          "keyword": "TODO",
+          "lineNumber": 1,
+          "issueNumber": 1,
+          "fileName": "file_with_todos",
+          "foundInCommit": "xyz"
+        }
+      ],
+      "commitSha": "xyz",
+      "trackedBranch": "refs/heads/main",
+      "commentId": 42
+    },
+    "3": {
+      "todoState": [
+        {
+          "rawLine": "TODO (3) third this needs to be done",
+          "todoText": "third this needs to be done",
+          "keyword": "TODO",
+          "lineNumber": 3,
+          "issueNumber": 3,
+          "fileName": "file_with_todos",
+          "foundInCommit": "xyz"
+        },
+        {
+          "rawLine": "TODO (#3) fourth this needs to be done",
+          "todoText": "fourth this needs to be done",
+          "keyword": "TODO",
+          "lineNumber": 4,
+          "issueNumber": 3,
+          "fileName": "file_with_todos",
+          "foundInCommit": "xyz"
+        }
+      ],
+      "commitSha": "xyz",
+      "trackedBranch": "refs/heads/main",
+      "commentId": 42
+    }
+  },
+  "lastUpdatedCommitSha": "xyz"
+}

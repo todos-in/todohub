@@ -1,0 +1,8 @@
+{
+  "GITHUB_SHA": "xyz",
+  "GITHUB_REF": "refs/heads/main",
+  "GITHUB_REF_NAME": "main",
+  "GITHUB_REPOSITORY": "todos-in/todohub",
+  "INPUT_TOKEN": "token",
+  "INPUT_MAX_LINE_LENGTH": "550"
+}
