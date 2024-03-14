@@ -73,9 +73,17 @@ export function assersTodohubError(error: unknown): asserts error is TodohubErro
 }
 
 export function assertError(error: unknown): asserts error is Error {
-  assert(error instanceof Error)
+  try {
+    assert(error instanceof Error)
+  } catch (assertError) {
+    throw error
+  }
 }
 
 export function assertGithubError(error: unknown): asserts error is RequestError {
-  assert(error instanceof RequestError)
+  try {
+    assert(error instanceof RequestError)
+  } catch (assertError) {
+    throw error
+  }
 }

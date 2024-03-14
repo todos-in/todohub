@@ -32077,10 +32077,20 @@ function assersTodohubError(error) {
     assert(error instanceof TodohubError);
 }
 function assertError(error) {
-    assert(error instanceof Error);
+    try {
+        assert(error instanceof Error);
+    }
+    catch (assertError) {
+        throw error;
+    }
 }
 function assertGithubError(error) {
-    external_node_assert_default()(error instanceof dist_node.RequestError);
+    try {
+        external_node_assert_default()(error instanceof dist_node.RequestError);
+    }
+    catch (assertError) {
+        throw error;
+    }
 }
 
 ;// CONCATENATED MODULE: ./src/util/action-environment.ts
