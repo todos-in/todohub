@@ -1,8 +1,8 @@
 {
-  "name": "typescript-action",
-  "description": "GitHub Actions TypeScript template",
-  "version": "0.0.0",
-  "author": "",
+  "name": "todohub-typescript-action",
+  "description": "Github action that collects TODOs in code and sorts them into issues",
+  "version": "0.0.1",
+  "author": "nigeisel",
   "type": "module",
   "private": true,
   "homepage": "https://github.com/actions/typescript-action",
