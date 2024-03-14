@@ -47,7 +47,7 @@ export default class Repo {
       throw err
     }
     const contents = todoIgnoreFileRaw.data.toString()
-    core.debug('.todoignore file found. Parsing contents: ' + contents.substring(0, 200) + '...')
+    core.debug(`".todoignore" file found. Parsing contents: <${contents.substring(0, 200)}>...`)
     return ignoreWrapper().add(contents)
   }
 
@@ -105,12 +105,12 @@ export default class Repo {
         const fileName = path.join(...filePathParts)
 
         if (ignore?.ignores(fileName)) {
-          core.info(`Skipping ${fileName} due to '.todoignore' rule...`)
+          core.info(`Skipping <${fileName}> due to '.todoignore' rule...`)
           stream.resume()
           return next()
         }
 
-        core.debug(`Extracting Todos from file ${fileName}...`)
+        core.debug(`Extracting Todos from file <${fileName}>...`)
 
         const splitLineStream = new SplitLineStream()
         // TODO #69 refactor: meta data should prob be added in post processing not in find stream
@@ -120,7 +120,7 @@ export default class Repo {
 
         stream.pipe(splitLineStream).pipe(findTodosStream)
         stream.on('error', () => {
-          core.warning(`Error extracting Todos from file: ${fileName}`)
+          core.warning(`Error extracting Todos from file: <${fileName}>`)
           splitLineStream.end()
           next()
         })

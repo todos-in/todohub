@@ -87,7 +87,7 @@ export class TodohubControlIssue {
 
   async reopenIssueWithOpenTodos(issueNr: number) {
     if (!this.data.isEmpty(issueNr)) {
-      core.debug(`Opening issue ${issueNr}...`)
+      core.debug(`Opening issue <${issueNr}>...`)
       try {
         await this.repo.updateIssue(
           issueNr,
@@ -98,7 +98,7 @@ export class TodohubControlIssue {
       } catch (err: unknown) {
         assertGithubError(err)
         if (err.status === 410) {
-          core.warning(`Error (re)opening issue ${issueNr}. Issue does not exist.`)
+          core.warning(`Error (re)opening issue <${issueNr}>. Issue does not exist.`)
         } else {
           throw err
         }
@@ -111,14 +111,14 @@ export class TodohubControlIssue {
     const composedComment = this.data.composeTrackedIssueComment(issueNr, this.baseRepoUrl)
 
     if (existingCommentId) {
-      core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`)
+      core.debug(`Updating comment on issue <${issueNr}-${existingCommentId}>...`)
       try {
         await this.repo.updateComment(existingCommentId, composedComment)
         return
       } catch (err) {
         assertGithubError(err)
         if (err.status === 404) {
-          core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Trying to create new Comment instead...`)
+          core.warning(`Failed to update Issue Comment <${issueNr}-${existingCommentId}>. Trying to create new Comment instead...`)
           this.data.deleteExistingCommentId(issueNr)
         } else {
           throw err
@@ -132,8 +132,8 @@ export class TodohubControlIssue {
     } catch (err) {
       assertGithubError(err)
       if (err.status === 404 || err.status === 410) {
-        core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
-        If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue ${issueNr} to the new issue.`)
+        core.warning(`Error creating comment: It appears Issue <${issueNr}> does not exist.
+        If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue <${issueNr}> to the new issue.`)
         this.data.setDeadIssue(issueNr)
       } else {
         throw err
@@ -153,7 +153,7 @@ export class TodohubControlIssue {
       parsed.groups.midTag === undefined ||
       parsed.groups.postTag === undefined
     ) {
-      throw new ControlIssueParsingError(`Error parsing Todohub Control Issue: ${issueBody}`)
+      throw new ControlIssueParsingError(`Error parsing Todohub Control Issue: <${issueBody}>`)
     }
     return parsed.groups as {
       preTag: string;

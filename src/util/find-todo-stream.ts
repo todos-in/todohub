@@ -22,7 +22,7 @@ export class FindTodoStream extends Writable {
   _write(line: string, _encoding: string, next: () => void) {
     this.currentLineNr++
     if (line.length > env.maxLineLength) {
-      core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${env.maxLineLength} characters.
+      core.debug(`Skipping line in <${this.filename}> because it exceeds max length of <${env.maxLineLength}> characters.
         If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`)
       return next()
     }
