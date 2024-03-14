@@ -31907,13 +31907,8 @@ __nccwpck_require__.a(module, async (__webpack_handle_async_dependencies__, __we
  * The entrypoint for the action.
  */
 
+// TODO #80 do env parsing + error handling here?
 await (0,_main_js__WEBPACK_IMPORTED_MODULE_0__/* .run */ .K)();
-// // TODO do env parsing + error handling here
-// try {
-//   await run()
-// } catch (err) {
-//   console.error(err)
-// }
 
 __webpack_async_result__();
 } catch(e) { __webpack_async_result__(e); } }, 1);
@@ -32174,7 +32169,7 @@ class FindTodoStream extends external_node_stream_.Writable {
     _write(line, _encoding, next) {
         this.currentLineNr++;
         if (line.length > action_environment.maxLineLength) {
-            core.debug(`Skipping line in ${this.filename} because it exceeds max length of ${action_environment.maxLineLength} characters.
+            core.debug(`Skipping line in <${this.filename}> because it exceeds max length of <${action_environment.maxLineLength}> characters.
         If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`);
             return next();
         }
@@ -32229,11 +32224,12 @@ class Repo {
             assertGithubError(err);
             if (err.status === 404) {
                 core.debug('No ".todoignore" file found.');
+                return;
             }
             throw err;
         }
         const contents = todoIgnoreFileRaw.data.toString();
-        core.debug('.todoignore file found. Parsing contents: ' + contents.substring(0, 200) + '...');
+        core.debug(`".todoignore" file found. Parsing contents: <${contents.substring(0, 200)}>...`);
         return (0,ignore.ignoreWrapper)().add(contents);
     }
     async getTarballStream(ref) {
@@ -32275,11 +32271,11 @@ class Repo {
                 filePathParts.shift();
                 const fileName = external_node_path_namespaceObject.join(...filePathParts);
                 if (ignore?.ignores(fileName)) {
-                    core.info(`Skipping ${fileName} due to '.todoignore' rule...`);
+                    core.info(`Skipping <${fileName}> due to '.todoignore' rule...`);
                     stream.resume();
                     return next();
                 }
-                core.debug(`Extracting Todos from file ${fileName}...`);
+                core.debug(`Extracting Todos from file <${fileName}>...`);
                 const splitLineStream = new SplitLineStream();
                 // TODO #69 refactor: meta data should prob be added in post processing not in find stream
                 const findTodosStream = new FindTodoStream(todos, fileName, issueNr, todoMetadata);
@@ -32287,7 +32283,7 @@ class Repo {
                 // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
                 stream.pipe(splitLineStream).pipe(findTodosStream);
                 stream.on('error', () => {
-                    core.warning(`Error extracting Todos from file: ${fileName}`);
+                    core.warning(`Error extracting Todos from file: <${fileName}>`);
                     splitLineStream.end();
                     next();
                 });
@@ -32626,7 +32622,7 @@ class TodohubControlIssue {
         if (existingIssue) {
             this.existingIssueNumber = existingIssue.number;
             this.existingIsClosed = existingIssue.isClosed;
-            const components = this.parseContent(existingIssue.body);
+            const components = TodohubControlIssue.parseContent(existingIssue.body);
             this.data = new TodohubData(components.data);
             this.preTag = components.preTag;
             this.midTag = components.midTag;
@@ -32683,14 +32679,14 @@ class TodohubControlIssue {
     }
     async reopenIssueWithOpenTodos(issueNr) {
         if (!this.data.isEmpty(issueNr)) {
-            core.debug(`Opening issue ${issueNr}...`);
+            core.debug(`Opening issue <${issueNr}>...`);
             try {
                 await this.repo.updateIssue(issueNr, undefined, undefined, 'open');
             }
             catch (err) {
                 assertGithubError(err);
                 if (err.status === 410) {
-                    core.warning(`Error (re)opening issue ${issueNr}. Issue does not exist.`);
+                    core.warning(`Error (re)opening issue <${issueNr}>. Issue does not exist.`);
                 }
                 else {
                     throw err;
@@ -32702,7 +32698,7 @@ class TodohubControlIssue {
         const existingCommentId = this.data.getExistingCommentId(issueNr);
         const composedComment = this.data.composeTrackedIssueComment(issueNr, this.baseRepoUrl);
         if (existingCommentId) {
-            core.debug(`Updating comment on issue ${issueNr}-${existingCommentId}...`);
+            core.debug(`Updating comment on issue <${issueNr}-${existingCommentId}>...`);
             try {
                 await this.repo.updateComment(existingCommentId, composedComment);
                 return;
@@ -32710,7 +32706,7 @@ class TodohubControlIssue {
             catch (err) {
                 assertGithubError(err);
                 if (err.status === 404) {
-                    core.warning(`Failed to update Issue Comment ${issueNr}-${existingCommentId}. Trying to create new Comment instead...`);
+                    core.warning(`Failed to update Issue Comment <${issueNr}-${existingCommentId}>. Trying to create new Comment instead...`);
                     this.data.deleteExistingCommentId(issueNr);
                 }
                 else {
@@ -32726,8 +32722,8 @@ class TodohubControlIssue {
         catch (err) {
             assertGithubError(err);
             if (err.status === 404 || err.status === 410) {
-                core.warning(`Error creating comment: It appears Issue ${issueNr} does not exist.
-        If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue ${issueNr} to the new issue.`);
+                core.warning(`Error creating comment: It appears Issue <${issueNr}> does not exist.
+        If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue <${issueNr}> to the new issue.`);
                 this.data.setDeadIssue(issueNr);
             }
             else {
@@ -32735,7 +32731,7 @@ class TodohubControlIssue {
             }
         }
     }
-    parseContent(issueBody) {
+    static parseContent(issueBody) {
         const regex = /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/;
         const parsed = issueBody.match(regex);
         if (!parsed ||
@@ -32744,7 +32740,7 @@ class TodohubControlIssue {
             parsed.groups.data === undefined ||
             parsed.groups.midTag === undefined ||
             parsed.groups.postTag === undefined) {
-            throw new ControlIssueParsingError(`Error parsing Todohub Control Issue: ${issueBody}`);
+            throw new ControlIssueParsingError(`Error parsing Todohub Control Issue: <${issueBody}>`);
         }
         return parsed.groups;
     }
@@ -32774,9 +32770,9 @@ class RunInfo {
 }
 const runInfo = new RunInfo();
 async function updateIssue(issueNr, todos, todohubIssue, commitSha, ref) {
-    core.startGroup(`Processing Issue ${issueNr}`);
+    core.startGroup(`Processing Issue <${issueNr}>`);
     const issueTodos = todos.filter(todo => todo.issueNumber === issueNr);
-    core.info(`Found ${issueTodos?.length || 0} Todos for Issue ${issueNr}...`);
+    core.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`);
     const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos);
     todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref);
     if (updateNecessary) {
@@ -32785,7 +32781,7 @@ async function updateIssue(issueNr, todos, todohubIssue, commitSha, ref) {
         runInfo.succesfullyUpdatedIssues.push(issueNr);
     }
     else {
-        core.info(`No changes in todo state for issue ${issueNr} - skip updating.`);
+        core.info(`No changes in todo state for issue <${issueNr}> - skip updating.`);
         runInfo.skippedIssues.push(issueNr);
     }
     core.endGroup();
@@ -32797,35 +32793,36 @@ async function updateIssue(issueNr, todos, todohubIssue, commitSha, ref) {
  */
 async function run() {
     // TODO #68 check what happens for deleted branches?
-    core.info(`Pushing commit: ${action_environment.commitSha}, ref: ${action_environment.ref}`);
+    core.info(`Pushing commit: <${action_environment.commitSha}>, ref: <${action_environment.ref}>`);
     try {
         const repo = new Repo(action_environment.githubToken, action_environment.repoOwner, action_environment.repo);
         core.debug('Getting existing Todohub Control Issue...');
         const todohubIssue = await TodohubControlIssue.get(repo);
         core.debug(todohubIssue.exists() ?
-            `Found existing Todohub Control Issue: ${todohubIssue.existingIssueNumber}.` :
+            `Found existing Todohub Control Issue: <${todohubIssue.existingIssueNumber}>.` :
             'No existing Todohub Control Issue. Needs to be initiated.');
         if (action_environment.isFeatureBranch && action_environment.featureBranchNumber) {
-            core.info(`Push Event into feature branch ${action_environment.branchName} related to issue ${action_environment.featureBranchNumber}...`);
+            core.info(`Push Event into feature branch <${action_environment.branchName}> related to issue <${action_environment.featureBranchNumber}>...`);
             // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
             // TODO #62 parallelize stuff (+ add workers)
-            core.debug(`Searching state ${action_environment.commitSha} for Todos with issue number ${action_environment.featureBranchNumber}...`);
+            core.debug(`Searching state <${action_environment.commitSha}> for Todos with issue number <${action_environment.featureBranchNumber}>...`);
             const todos = await repo.getTodosFromGitRef(action_environment.commitSha, action_environment.featureBranchNumber, { foundInCommit: action_environment.commitSha });
             await updateIssue(action_environment.featureBranchNumber, todos, todohubIssue, action_environment.commitSha, action_environment.ref);
         }
         else if (action_environment.isDefaultBranch) {
-            core.info(`Push Event into default branch ${action_environment.defaultBranch}`);
-            core.debug(`Searching state ${action_environment.commitSha} for all Todos`);
+            core.info(`Push Event into default branch <${action_environment.defaultBranch}>`);
+            core.debug(`Searching state< ${action_environment.commitSha}> for all Todos`);
             const todos = await repo.getTodosFromGitRef(action_environment.commitSha, undefined, { foundInCommit: action_environment.commitSha });
             const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0));
-            core.debug(`Found Todos for ${issuesWithTodosInCode.size} different issues.`);
+            core.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`);
             const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers();
-            core.debug(`Currently ${trackedIssues.size} issues are tracked in Control Issue.`);
+            core.debug(`Currently <${trackedIssues.size}> issues are tracked in Control Issue.`);
             const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]));
             const featureBranches = await repo.getFeatureBranches();
             const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)));
             const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf(action_environment.defaultBranch, trackedFeatureBranches.map((branch) => branch.name));
             const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) => !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)));
+            core.debug(`Feature branches <${branchesAheadOfDefault.join(',')}> are ahead of default <${action_environment.defaultBranch}>. These will not be updated.`);
             const strayTodos = todos.filter((todo) => !todo.issueNumber);
             todohubIssue.data.setStrayTodos(strayTodos, action_environment.commitSha, action_environment.ref);
             for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
@@ -32833,7 +32830,7 @@ async function run() {
             }
         }
         else {
-            core.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): ${action_environment.branchName} Doing nothing...`);
+            core.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): <${action_environment.branchName}> Doing nothing...`);
             return;
         }
         todohubIssue.data.setLastUpdatedCommit(action_environment.commitSha);

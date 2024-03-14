@@ -3,5 +3,5 @@
  */
 import { run } from './main.js'
 
-// TODO do env parsing + error handling here?
+// TODO #80 do env parsing + error handling here?
 await run()

@@ -1,4 +1,4 @@
-import { matchTodo } from '../src/util/todo-match'
+import { matchTodo } from '../src/util/todo-match.js'
 
 describe('Regex unit tests', () => {
   beforeEach(() => {
@@ -117,7 +117,7 @@ describe('Regex unit tests', () => {
       expect(match).toHaveProperty('todoText', '')
     })
 
-    it('single TODO', async () => {
+    it('single TODO with trailing/leading whitespace', async () => {
       const match = matchTodo(' // TODO ')
       expect(match).toBeTruthy()
       expect(match).toHaveProperty('keyword', 'TODO')
