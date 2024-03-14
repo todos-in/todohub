@@ -41,7 +41,7 @@ jobs:
         run: npm run test
 
   todohub:
-    name: self-test
+    name: Todohub
     runs-on: ubuntu-latest
 
     steps:

@@ -1,4 +1,5 @@
 import fs from 'node:fs'
+import { assertError } from 'src/error.js'
 
 export const load = (file: string, additionalEnv?: Record<string, string>) => {
   try {
@@ -12,6 +13,7 @@ export const load = (file: string, additionalEnv?: Record<string, string>) => {
       process.env[key] = value
     }
   } catch (err) {
-    console.warn('Could not set environment variables')
+    assertError(err)
+    console.warn('Could not set environment variables: ' + err.message)
   }
 }
