@@ -43,6 +43,7 @@ export default class Repo {
       assertGithubError(err)
       if (err.status === 404) {
         core.debug('No ".todoignore" file found.')
+        return
       }
       throw err
     }
