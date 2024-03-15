@@ -1,5 +1,6 @@
 {
   "after": "xyz",
+  "test": 123,
   "before": "abc",
   "created": false,
   "deleted": false,

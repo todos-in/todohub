@@ -1,22 +1,12 @@
-import { GitHub } from '@actions/github/lib/utils.js'
+import { Octokit } from 'octokit'
 import { Readable } from 'node:stream'
 import * as tar from 'tar'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { gunzipSync } from 'node:zlib'
-import {TodohubControlIssue} from '../src/elements/control-issue.js'
+import { TodohubControlIssue } from '../../src/elements/control-issue.js'
 
-export interface Environment {
-  context: object,
-  envvars: { [Key: string]: string }
-}
-
-export interface TestCaseConfig {
-  apiResponses: ApiResponses
-  environment: Environment
-}
-
-export interface ApiResponses {
+interface ApiResponses {
   branches: string[]
   controlIssueSearch: { body: string, number: number, state?: 'open' | 'closed' }[]
   branchesAheadBy: {
@@ -36,19 +26,18 @@ const decodeControlIssueData = (encoded: string) => {
   }
 }
 
-class ApiMockError extends Error { }
-
-export const getOctokitMock = (responses: ApiResponses, repoPath: string) => {
-
-
+const createTarGzStream = (repoPath: string) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stream = tar.create({ gzip: true, cwd: path.dirname(repoPath) }, [path.basename(repoPath)]) as any
   stream['_readableState'] = {} // Hack to trick nodeJs Readable.toWeb into accepting tar.create stream
   const tarGzWebStream = Readable.toWeb(stream as Readable)
+  return tarGzWebStream
+}
 
-  const ignoreFileContents = fs.readFileSync(path.join(repoPath, '.todoignore'), 'utf8')
+class ApiMockError extends Error { }
 
-  const spies = {
+export const getOctokitMockFactory = (responses: ApiResponses, repoPath: string) => {
+  const mock = {
     request: jest.fn(async (_req: string, _options: object) => { throw new ApiMockError('Request fn is not mock-implemented yet') }),
     paginate: {
       iterator: (request: () => Promise<{ data: { total_count: number, items: [] } }>) => {
@@ -60,8 +49,10 @@ export const getOctokitMock = (responses: ApiResponses, repoPath: string) => {
     },
     rest: {
       repos: {
-        getContent: jest.fn(async (_options) => ({ data: ignoreFileContents })),
-        downloadTarballArchive: jest.fn(async (_options) => ({ data: tarGzWebStream })),
+        getContent: jest.fn(async (_options) => ({
+          data: fs.readFileSync(path.join(repoPath, '.todoignore'), 'utf8'),
+        })),
+        downloadTarballArchive: jest.fn(async (_options) => ({ data: createTarGzStream(repoPath) })),
         listBranches: jest.fn(async (_options: object) => {
           return {
             data: {
@@ -99,11 +90,10 @@ export const getOctokitMock = (responses: ApiResponses, repoPath: string) => {
     graphql: jest.fn(async (_query, _vars) => ({})),
   }
 
-  return {
-    spies,
-    implementation: (_token: string, _options?: object) => {
-      return spies as unknown as InstanceType<typeof GitHub>
-    },
+  const getOctokit = (_token: string, _options?: object) => {
+    return mock as unknown as Octokit
   }
-}
+  getOctokit['spies'] = mock
 
+  return getOctokit
+}

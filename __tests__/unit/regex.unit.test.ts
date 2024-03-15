@@ -1,4 +1,4 @@
-import { matchTodo } from '../src/util/todo-match.js'
+import { matchTodo } from '../../src/util/todo-match.js'
 
 describe('Regex unit tests', () => {
   beforeEach(() => {
