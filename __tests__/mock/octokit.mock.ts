@@ -5,6 +5,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { TodohubControlIssue } from '../../src/elements/control-issue.js'
+import { RequestError, } from '@octokit/request-error'
 
 interface ApiResponses {
   branches: string[]
@@ -34,6 +35,10 @@ const createTarGzStream = (repoPath: string) => {
   return tarGzWebStream
 }
 
+const createMockGithubError = (message: string, status: number) => {
+  return new RequestError(`Mocked Api Error: ${message}`, status, {headers: {}, request: {method: 'GET', url: '', headers: {}}})
+}
+
 class ApiMockError extends Error { }
 
 export const getOctokitMockFactory = (responses: ApiResponses, repoPath: string) => {
@@ -49,9 +54,14 @@ export const getOctokitMockFactory = (responses: ApiResponses, repoPath: string)
     },
     rest: {
       repos: {
-        getContent: jest.fn(async (_options) => ({
-          data: fs.readFileSync(path.join(repoPath, '.todoignore'), 'utf8'),
-        })),
+        getContent: jest.fn(async (_options) => {
+          try {
+            const data = fs.readFileSync(path.join(repoPath, '.todoignore'), 'utf8')
+            return {data}
+          } catch (err) {
+            throw createMockGithubError('Couldnt read .todoignore.', 404)
+          }
+        }),
         downloadTarballArchive: jest.fn(async (_options) => ({ data: createTarGzStream(repoPath) })),
         listBranches: jest.fn(async (_options: object) => {
           return {

@@ -1,5 +1,3 @@
-### Test case 1: Basic test
-
 * Push to default branch
 * No existing todohub control issue found (needs to be initiated)
 * repo contains
