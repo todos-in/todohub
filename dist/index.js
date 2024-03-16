@@ -35102,7 +35102,7 @@ class GithubService {
 }
 
 ;// CONCATENATED MODULE: ./src/util/todo-match.ts
-
+ // TODO #93 needs DI resolution
 // TODO #76 refine regex (make simpler?)
 const regexCache = {};
 /**
@@ -35210,6 +35210,7 @@ const TOKENS = {
     config: token('config'),
     pushContextGetter: token('pushContextGetter'),
     findTodoStreamFactory: token('Factory<FindTodoStream>'),
+    todohubControlIssueFactory: token('AsyncFactory<TodohubControlIssue>'),
 };
 const container = new Container();
 container.bind(TOKENS.runner).toInstance(Runner).inSingletonScope();

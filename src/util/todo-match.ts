@@ -1,4 +1,4 @@
-import * as core from '@actions/core'
+import * as core from '@actions/core' // TODO #93 needs DI resolution
 
 // TODO #76 refine regex (make simpler?)
 
