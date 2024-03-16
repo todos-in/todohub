@@ -9,7 +9,7 @@
 [![Self](https://github.com/todos-in/todohub/actions/workflows/todohub.yml/badge.svg)](https://github.com/todos-in/todohub/actions/workflows/todohub.yml)
 [![Tests](https://github.com/todos-in/todohub/actions/workflows/test.yml/badge.svg)](https://github.com/todos-in/todohub/actions/workflows/test.yml)
 [![Check dist](https://github.com/todos-in/todohub/actions/workflows/check-dist.yml/badge.svg)](https://github.com/todos-in/todohub/actions/workflows/check-dist.yml)
-[![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
+[![Coverage](./badges/coverage.svg)](./coverage)
 
 ---
 
