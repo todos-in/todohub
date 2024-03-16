@@ -83,10 +83,10 @@ export class TodohubControlIssue {
   async write() {
     if (this.existingIssueNumber) {
       const updated = await this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose())
-      return updated.data.id
+      return updated.data.number
     }
     const created = await this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub'])
-    return created.data.id
+    return created.data.number
   }
 
   async reopenIssueWithOpenTodos(issueNr: number) {

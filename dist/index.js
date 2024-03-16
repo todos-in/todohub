@@ -34352,7 +34352,6 @@ class TodohubData {
     STRAY_TODO_KEY = 0;
     // TODO #70 use Map() when parsing? - number keys are allowed..
     // TODO #70 order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
-    // TODO #69 set private and only interact with data via methods
     // TODO #69 refactor this class + namings
     decodedData;
     constructor(tag) {
@@ -34590,10 +34589,10 @@ class TodohubControlIssue {
     async write() {
         if (this.existingIssueNumber) {
             const updated = await this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
-            return updated.data.id;
+            return updated.data.number;
         }
         const created = await this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub']);
-        return created.data.id;
+        return created.data.number;
     }
     async reopenIssueWithOpenTodos(issueNr) {
         if (!this.data.isEmpty(issueNr)) {
@@ -34992,7 +34991,6 @@ class GithubService {
                 }
                 this.logger.debug(`Extracting Todos from file <${fileName}>...`);
                 const splitLineStream = new SplitLineStream();
-                // TODO #69 refactor: meta data should prob be added in post processing not in find stream
                 const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr);
                 splitLineStream.on('end', () => findTodosStream.end());
                 // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
@@ -35263,17 +35261,17 @@ runner.run()
     core.summary.addEOL()
         .addRaw(`
 >[!NOTE]
-> Tracked Todohub Control Issue: #${runInfo.todohubIssueId}`, true)
-        .addRaw(`
->[!NOTE]
-> Total updated TODOs in this run: ${runInfo.totalTodosUpdated}`, true)
-        .addRaw(`
->[!NOTE]
-> Issues updated: ${runInfo.totalTodosUpdated}`, true)
-        .addRaw(`
+> Tracked Todohub Control Issue: #${runInfo.todohubIssueId}
+> Total updated TODOs in this run: ${runInfo.totalTodosUpdated}
+> Issues updated: ${runInfo.succesfullyUpdatedIssues.length}
+> Skipped TODOs in this run: ${runInfo.skippedUnchangedIssues.length}
+`, true);
+    if (runInfo.failedToUpdate.length) {
+        core.summary.addRaw(`
 >[!WARNING]
-> Issues failed to update: ${runInfo.failedToUpdate.length}`, true)
-        .addSeparator()
+> Issues failed to update: ${runInfo.failedToUpdate.length}`, true);
+    }
+    core.summary.addSeparator()
         .addHeading('✅ Updated Issues', 4)
         .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `#${issueNr}`))
         .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)

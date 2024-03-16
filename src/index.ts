@@ -22,17 +22,19 @@ runner.run()
       .addEOL()
       .addRaw(`
 >[!NOTE]
-> Tracked Todohub Control Issue: #${runInfo.todohubIssueId}`, true)
-      .addRaw(`
->[!NOTE]
-> Total updated TODOs in this run: ${runInfo.totalTodosUpdated}`, true)
-      .addRaw(`
->[!NOTE]
-> Issues updated: ${runInfo.totalTodosUpdated}`, true)
-      .addRaw(`
+> Tracked Todohub Control Issue: #${runInfo.todohubIssueId}
+> Total updated TODOs in this run: ${runInfo.totalTodosUpdated}
+> Issues updated: ${runInfo.succesfullyUpdatedIssues.length}
+> Skipped TODOs in this run: ${runInfo.skippedUnchangedIssues.length}
+`, true)
+
+    if (runInfo.failedToUpdate.length) {
+      core.summary.addRaw(`
 >[!WARNING]
 > Issues failed to update: ${runInfo.failedToUpdate.length}`, true)
-      .addSeparator()
+    }
+      
+    core.summary.addSeparator()
       .addHeading('✅ Updated Issues', 4)
       .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `#${issueNr}`))
       .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
