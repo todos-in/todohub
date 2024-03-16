@@ -1,9 +1,8 @@
 # Todohub: Manages the TODOs you won't
 
 * Helps establishing good TODO practices (tag them with an issue number!)
-* Add tagged TODOs into their respective issues and tracks them. Make they wont be forgotten
+* Adds tagged TODOs into their respective issues and makes sure they won't be forgotten
 * Helps manage untagged TODOs that are left in your code
-* Adds TODOs to 
 
 ---
 
@@ -21,6 +20,8 @@
 name: Todohub Workflow
 on:
   push:
+  pull_request:
+
 permissions:
   contents: read
   issues: write
@@ -32,12 +33,12 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Test Local Action
+      - name: Test Remote Action
         id: test-action
-        uses: ./
+        uses: todos-in/todohub@main
 ```
 
-## Testing & Development
+## Development & Testing
 1. :hammer_and_wrench: Installing
 
    ```bash
@@ -53,14 +54,7 @@ jobs:
 1. :white_check_mark: Testing
 
    ```bash
-   $ npm test
-
-   PASS  ./index.test.js
-     ✓ throws invalid number (3ms)
-     ✓ wait 500 ms (504ms)
-     ✓ test runs (95ms)
-
-   ...
+   $ npm run test
    ```
 
 
