@@ -73,7 +73,6 @@ export default class GithubService {
   private async extractTodosFromTarGz(
     tarBallStream: stream.Readable,
     issueNr?: number,
-    todoMetadata?: { [key: string]: string },
     ignore?: Ignore,
   ): Promise<ITodo[]> {
     // TODO #69 move logic
@@ -120,7 +119,7 @@ export default class GithubService {
 
         const splitLineStream = new SplitLineStream()
         // TODO #69 refactor: meta data should prob be added in post processing not in find stream
-        const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr, todoMetadata)
+        const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr)
         
         splitLineStream.on('end', () => findTodosStream.end())
         // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
@@ -143,13 +142,11 @@ export default class GithubService {
    * Searches for all "TODOs" occurrences in a certain git ref
    * @param ref ref of the git state to be searched, defaults to the head of default branch if unset
    * @param issueNr if set, it will only seach occurences that reference this issueNr, such as "TOD‎O #18 do this", otherwise it will search all "TODOs", whether they refernce any issue or none
-   * @param todoMetadata optional key-value pairs that are appended to all found "TODOs" ocurrences
    * @returns TodoState
    */
   async getTodosFromGitRef(
     ref?: string,
     issueNr?: number,
-    todoMetadata?: Record<string, string>,
   ) {
     // TODO #62 parallelize
     const tarStream = await this.getTarballStream(ref)
@@ -157,7 +154,6 @@ export default class GithubService {
     const todos = await this.extractTodosFromTarGz(
       tarStream,
       issueNr,
-      todoMetadata,
       ignore,
     )
     return todos

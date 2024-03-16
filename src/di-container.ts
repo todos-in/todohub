@@ -11,7 +11,7 @@ import GithubService from './service/github.js'
 import { FindTodoStream } from './util/find-todo-stream.js'
 import { ITodo } from './interfaces/todo.js'
 
-export type FindTodoStreamFactoryArgs = [todos: ITodo[], filename: string, issueNr?: number, todoMetadata?: { [key: string]: string }]
+export type FindTodoStreamFactoryArgs = [todos: ITodo[], filename: string, issueNr?: number]
 
 export const TOKENS = {
   logger: token<Logger>('logger'),
@@ -36,7 +36,7 @@ container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext)
 container.bind(TOKENS.octokitGetter).toConstant(ActionOctokitGetter)
 
 container.bind(TOKENS.findTodoStreamFactory).toFactory(FindTodoStream,
-  (instance, todos, filename, issueNr?, todoMetadata?) => instance.init(todos, filename, issueNr, todoMetadata))
+  (instance, todos, filename, issueNr?) => instance.init(todos, filename, issueNr))
 
 injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService)
 injected(GithubService, TOKENS.octokitGetter, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory)

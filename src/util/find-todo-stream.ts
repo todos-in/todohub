@@ -10,7 +10,6 @@ export class FindTodoStream extends Writable {
   private currentLineNr = 0
   private todos?: ITodo[]
   private issueNr?: number
-  private todoMetadata?: { [key: string]: string }
   private environment: Environment
 
   constructor(private envService: EnvironmentService, private logger: Logger) {
@@ -18,11 +17,10 @@ export class FindTodoStream extends Writable {
     this.environment = envService.getEnv()
   }
 
-  init(todos: ITodo[], filename: string, issueNr?: number, todoMetadata?: { [key: string]: string }) {
+  init(todos: ITodo[], filename: string, issueNr?: number) {
     this.todos = todos
     this.filename = filename
     this.issueNr = issueNr
-    this.todoMetadata = todoMetadata
   }
 
   _write(line: string, _encoding: string, next: () => void) {
@@ -38,7 +36,7 @@ export class FindTodoStream extends Writable {
     if (!matchedTodo) {
       return next()
     }
-    const todoWithMetadata = Object.assign(matchedTodo, {fileName: this.filename, lineNumber: this.currentLineNr}, this.todoMetadata || {})
+    const todoWithMetadata = Object.assign(matchedTodo, {fileName: this.filename, lineNumber: this.currentLineNr})
     this.todos.push(todoWithMetadata)
     next()
   }

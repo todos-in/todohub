@@ -53,14 +53,16 @@ export class Runner {
       // TODO #62 parallelize stuff (+ add workers)
 
       this.logger.debug(`Searching state <${this.env.commitSha}> for Todos with issue number <${this.env.featureBranchNumber}>...`)
-      const todos = await this.repo.getTodosFromGitRef(this.env.commitSha, this.env.featureBranchNumber, { foundInCommit: this.env.commitSha })
+      let todos = await this.repo.getTodosFromGitRef(this.env.commitSha, this.env.featureBranchNumber)
+      todos = todos.map(todo => Object.assign(todo, { foundInCommit: this.env.commitSha }))
 
       await this.updateIssue(this.env.featureBranchNumber, todos, todohubIssue, this.env.commitSha, this.env.ref)
     } else if (this.env.isDefaultBranch) {
       this.logger.info(`Push Event into default branch <${this.env.defaultBranch}>`)
 
       this.logger.debug(`Searching state< ${this.env.commitSha}> for all Todos`)
-      const todos = await this.repo.getTodosFromGitRef(this.env.commitSha, undefined, { foundInCommit: this.env.commitSha })
+      let todos = await this.repo.getTodosFromGitRef(this.env.commitSha)
+      todos = todos.map((todo) => Object.assign(todo, { foundInCommit: this.env.commitSha }))
 
       const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0))
       this.logger.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`)
