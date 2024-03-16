@@ -15,7 +15,9 @@ runner.run()
   .then((runInfo) => {
     // TODO #61 prettify summary and add useful information, add links, etc
     core.summary
-      .addQuote(`Total updated TODOs in this run: **${runInfo.totalTodosUpdated}**`)
+      .addQuote(`Total updated TODOs in this run: ${runInfo.totalTodosUpdated},
+        Total Issues updated: ${runInfo.succesfullyUpdatedIssues.length},
+        Total failed to update: ${runInfo.failedToUpdate.length}`)
       .addHeading('✅ Updated Issues', 4)
       .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
       .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
