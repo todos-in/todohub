@@ -59,6 +59,6 @@ jobs:
       #   id: test-action
       #   uses: todos-in/todohub@main
 
-      # - name: Print Output
-      #   id: output
-      #   run: echo "${{ steps.test-action.outputs.new-issue }}"
+      - name: Test Print Output
+        id: print-output
+        run: 'echo "Control Issue Id: ${{steps.run-todohub-action.outputs.TODOHUB_CONTROL_ISSUE_ID}}, Updated Issues: ${{steps.run-todohub-action.outputs.UPDATED_ISSUES}}, Skipped Issues: ${{steps.run-todohub-action.outputs.SKIPPED_UNCHANGED_ISSUES}}, Failed Issues: ${{steps.run-todohub-action.outputs.ISSUES_FAILED_TO_UPDATE}}"'

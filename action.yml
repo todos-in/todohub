@@ -18,9 +18,14 @@ inputs:
     required: false
 
 outputs:
-  new-issue:
-    description: 'URL of created issue'
-
+  UPDATED_ISSUES:
+    description: 'Comma separated list of issue numbers that were update updated during the run.'
+  SKIPPED_UNCHANGED_ISSUES:
+    description: 'Comma separated list of issue numbers that were not updated because they were already tracked and their state has not changed.'
+  ISSUES_FAILED_TO_UPDATE:
+    description: 'Comma separated list of issue numbers that failed to updated. Reasons include: permanently deleted issues, PRs that cannot be reopened, because branch was deleted.'
+  TODOHUB_CONTROL_ISSUE_ID:
+    description: issue number of todoshubs control center
 runs:
   using: node20
   main: dist/index.js

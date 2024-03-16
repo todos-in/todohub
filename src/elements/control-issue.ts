@@ -70,7 +70,7 @@ export class TodohubControlIssue {
     if (strayTodos && strayTodos.todoState.length) {
       this.midTag += '\n### Todos without Issue Reference:'
       for (const strayTodo of strayTodos.todoState) {
-        const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`
+        const codeLink = `[link](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`
         this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`
       }
     }
@@ -82,9 +82,11 @@ export class TodohubControlIssue {
 
   async write() {
     if (this.existingIssueNumber) {
-      return this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose())
+      const updated = await this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose())
+      return updated.data.id
     }
-    return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub'])
+    const created = await this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub'])
+    return created.data.id
   }
 
   async reopenIssueWithOpenTodos(issueNr: number) {

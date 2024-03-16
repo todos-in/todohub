@@ -34480,7 +34480,7 @@ class TodohubData {
         const trackedIssue = this.getTrackedIssue(issueNr);
         let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos';
         for (const todo of trackedIssue.todoState) {
-            const link = `[click](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`;
+            const link = `[link](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`;
             composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
         }
         composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${escapeMd(trackedIssue.trackedBranch)}\`</sub>`;
@@ -34580,7 +34580,7 @@ class TodohubControlIssue {
         if (strayTodos && strayTodos.todoState.length) {
             this.midTag += '\n### Todos without Issue Reference:';
             for (const strayTodo of strayTodos.todoState) {
-                const codeLink = `[click](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
+                const codeLink = `[link](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
                 this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`;
             }
         }
@@ -34589,9 +34589,11 @@ class TodohubControlIssue {
     }
     async write() {
         if (this.existingIssueNumber) {
-            return this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
+            const updated = await this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
+            return updated.data.id;
         }
-        return this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub']);
+        const created = await this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub']);
+        return created.data.id;
     }
     async reopenIssueWithOpenTodos(issueNr) {
         if (!this.data.isEmpty(issueNr)) {
@@ -34688,6 +34690,7 @@ class Runner {
         skippedUnchangedIssues: [],
         failedToUpdate: [],
         totalTodosUpdated: 0,
+        todohubIssueId: undefined,
     };
     env;
     constructor(logger, environment, repo) {
@@ -34745,9 +34748,9 @@ class Runner {
         }
         todohubIssue.data.setLastUpdatedCommit(this.env.commitSha);
         this.logger.debug('Writing Todohub Control issue...');
-        await todohubIssue.write();
+        const todohubIssueId = await todohubIssue.write();
+        this.runInfo.todohubIssueId = todohubIssueId;
         return this.runInfo;
-        // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
     }
     async updateIssue(issueNr, todos, todohubIssue, commitSha, ref) {
         this.logger.startGroup(`Processing Issue <${issueNr}>`);
@@ -35253,16 +35256,30 @@ injected(FindTodoStream, TOKENS.environmentService, TOKENS.logger);
 const runner = container.get(TOKENS.runner);
 runner.run()
     .then((runInfo) => {
-    // TODO #61 prettify summary and add useful information, add links, etc
-    core.summary.addQuote(`Total updated TODOs in this run: ${runInfo.totalTodosUpdated},
-        Total Issues updated: ${runInfo.succesfullyUpdatedIssues.length},
-        Total failed to update: ${runInfo.failedToUpdate.length}`)
+    core.setOutput('UPDATED_ISSUES', runInfo.succesfullyUpdatedIssues.join(','));
+    core.setOutput('SKIPPED_UNCHANGED_ISSUES', runInfo.skippedUnchangedIssues.join(','));
+    core.setOutput('ISSUES_FAILED_TO_UPDATE', runInfo.failedToUpdate.join(','));
+    core.setOutput('TODOHUB_CONTROL_ISSUE_ID', runInfo.todohubIssueId);
+    core.summary.addEOL()
+        .addRaw(`
+>[!NOTE]
+> Tracked Todohub Control Issue: #${runInfo.todohubIssueId}`, true)
+        .addRaw(`
+>[!NOTE]
+> Total updated TODOs in this run: ${runInfo.totalTodosUpdated}`, true)
+        .addRaw(`
+>[!NOTE]
+> Issues updated: ${runInfo.totalTodosUpdated}`, true)
+        .addRaw(`
+>[!WARNING]
+> Issues failed to update: ${runInfo.failedToUpdate.length}`, true)
+        .addSeparator()
         .addHeading('✅ Updated Issues', 4)
-        .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+        .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `#${issueNr}`))
         .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
-        .addList(runInfo.skippedUnchangedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+        .addList(runInfo.skippedUnchangedIssues.map(issueNr => `#${issueNr}`))
         .addHeading('⚠️ Failed to update:', 4)
-        .addList(runInfo.failedToUpdate.map(issueNr => `Issue Nr: ${issueNr}`))
+        .addList(runInfo.failedToUpdate.map(issueNr => `#${issueNr}`))
         .write();
 })
     .catch((error) => {

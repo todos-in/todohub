@@ -10,6 +10,7 @@ interface RunInfo {
   skippedUnchangedIssues: number[],
   failedToUpdate: number[],
   totalTodosUpdated: number,
+  todohubIssueId?: number,
 }
 
 export class Runner {
@@ -19,6 +20,7 @@ export class Runner {
     skippedUnchangedIssues: [],
     failedToUpdate: [],
     totalTodosUpdated: 0,
+    todohubIssueId: undefined,
   }
 
   private env: Environment
@@ -94,10 +96,10 @@ export class Runner {
 
     todohubIssue.data.setLastUpdatedCommit(this.env.commitSha)
     this.logger.debug('Writing Todohub Control issue...')
-    await todohubIssue.write()
+    const todohubIssueId = await todohubIssue.write()
+    this.runInfo.todohubIssueId = todohubIssueId
 
     return this.runInfo
-    // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
   }
 
   private async updateIssue(issueNr: number, todos: ITodo[], todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {

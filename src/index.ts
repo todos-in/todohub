@@ -13,17 +13,32 @@ import * as core from '@actions/core'
 const runner = container.get(TOKENS.runner)
 runner.run()
   .then((runInfo) => {
-    // TODO #61 prettify summary and add useful information, add links, etc
+    core.setOutput('UPDATED_ISSUES', runInfo.succesfullyUpdatedIssues.join(','))
+    core.setOutput('SKIPPED_UNCHANGED_ISSUES', runInfo.skippedUnchangedIssues.join(','))
+    core.setOutput('ISSUES_FAILED_TO_UPDATE', runInfo.failedToUpdate.join(','))
+    core.setOutput('TODOHUB_CONTROL_ISSUE_ID', runInfo.todohubIssueId)
+
     core.summary
-      .addQuote(`Total updated TODOs in this run: ${runInfo.totalTodosUpdated},
-        Total Issues updated: ${runInfo.succesfullyUpdatedIssues.length},
-        Total failed to update: ${runInfo.failedToUpdate.length}`)
+      .addEOL()
+      .addRaw(`
+>[!NOTE]
+> Tracked Todohub Control Issue: #${runInfo.todohubIssueId}`, true)
+      .addRaw(`
+>[!NOTE]
+> Total updated TODOs in this run: ${runInfo.totalTodosUpdated}`, true)
+      .addRaw(`
+>[!NOTE]
+> Issues updated: ${runInfo.totalTodosUpdated}`, true)
+      .addRaw(`
+>[!WARNING]
+> Issues failed to update: ${runInfo.failedToUpdate.length}`, true)
+      .addSeparator()
       .addHeading('✅ Updated Issues', 4)
-      .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+      .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `#${issueNr}`))
       .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
-      .addList(runInfo.skippedUnchangedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+      .addList(runInfo.skippedUnchangedIssues.map(issueNr => `#${issueNr}`))
       .addHeading('⚠️ Failed to update:', 4)
-      .addList(runInfo.failedToUpdate.map(issueNr => `Issue Nr: ${issueNr}`))
+      .addList(runInfo.failedToUpdate.map(issueNr => `#${issueNr}`))
       .write()
   })
   .catch((error) => {
