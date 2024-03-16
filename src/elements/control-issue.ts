@@ -97,7 +97,7 @@ export class TodohubControlIssue {
           undefined,
           'open',
         )
-      } catch (err: unknown) {
+      } catch (err) {
         assertGithubError(err)
         if (err.status === 410) {
           core.warning(`Error (re)opening issue <${issueNr}>. Issue does not exist.`)

@@ -2,6 +2,7 @@
 //  * The entrypoint for the action.
 //  */
 
+import { RequestError } from '@octokit/request-error'
 import { TOKENS, container } from './di-container.js'
 import { TodohubError } from './error/error.js'
 import * as core from '@actions/core'
@@ -25,6 +26,11 @@ runner.run()
       core.error('Error: ' + error.log())
       core.debug('Error debug info: ' + error.debugLog())
       core.setFailed(error.message)
+    } else if (error instanceof RequestError) {
+      core.error(`${error.message} - ${error.status}`)
+      core.error(`Github request failed: ${error.request.method} ${error.request.url}`)
+      core.debug('Error debug info: ' + error.stack)
+      core.setFailed(error.message)
     } else if (error instanceof Error) {
       core.error(error.message)
       core.debug('Error debug info: ' + error.stack)
@@ -33,5 +39,4 @@ runner.run()
       core.setFailed('Failed.')
       core.error('Non-error object was thrown: ' + JSON.stringify(error))
     }
-
   })
