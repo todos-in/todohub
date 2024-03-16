@@ -17,7 +17,14 @@ export class FindTodoStream extends Writable {
     this.environment = envService.getEnv()
   }
 
-  init(todos: ITodo[], filename: string, issueNr?: number) {
+  /**
+   * Meant to be called by Dependency Injection Container. Brandi cannot inject into constructor directly. 
+   * Needs to be called before instance is useful, if not DI is mosconfigured
+   * @param todos 
+   * @param filename 
+   * @param issueNr 
+   */
+  initDi(todos: ITodo[], filename: string, issueNr?: number) {
     this.todos = todos
     this.filename = filename
     this.issueNr = issueNr
@@ -25,7 +32,7 @@ export class FindTodoStream extends Writable {
 
   _write(line: string, _encoding: string, next: () => void) {
     if (!this.filename || !this.todos) {
-      throw new Error('FindTodoStream has not been init()-ed yet. Class should only be initialized by Dependency Injection Container which handles initalization.')
+      throw new Error('FindTodoStream has not been initDi()-ed yet. Class should only be initialized by Dependency Injection Container which handles initalization.')
     }
     this.currentLineNr++
     if (line.length > this.environment.maxLineLength) {

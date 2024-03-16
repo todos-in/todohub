@@ -1,8 +1,10 @@
 import Repo from '../service/github.js' // TODO #93 Needs its own resolution
-import TodohubData from './control-issue-data.js' // TODO #93 Needs its own resolution
+import TodohubData from './control-issue-data.js'
 import * as core from '@actions/core' // TODO #93 Needs its own resolution
 import { ControlIssueParsingError, assertGithubError } from '../error/error.js'
 import { escapeMd } from '../util/escape-markdown.js'
+
+// TODO #93 make this a factory
 
 export class TodohubControlIssue {
   private preTag?: string

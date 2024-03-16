@@ -21,12 +21,12 @@ const mockedApiResponses = {
 }
 const getOctokitMock = getOctokitMockFactory(mockedApiResponses, path.join(__dirname, 'repo'))
 
-describe('action', () => {
+describe('action: integration test 1: default-branch push', () => {
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
-  it('case 1', async () => {
+  it('default-branch', async () => {
     container.bind(TOKENS.octokitGetter).toConstant(getOctokitMock)
     container.bind(TOKENS.config).toConstant(configMock)
     container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)
@@ -44,5 +44,5 @@ describe('action', () => {
 
     const todohubControlIssueBody = await getOctokitMock.spies.rest.issues.create.mock.results[0]?.value
     expect(todohubControlIssueBody._decoded).toEqual(expectedIssueData)
-  }, 1000000)
+  }, 2000)
 })

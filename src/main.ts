@@ -5,10 +5,6 @@ import { Logger } from './interfaces/logger.js'
 import { EnvironmentService } from './service/environment.js'
 import GithubService from './service/github.js'
 
-// import { TOKENS, container } from './util/brandi-tokens.js'
-
-// const logger = container.get(TOKENS.logger)
-
 interface RunInfo {
   succesfullyUpdatedIssues: number[]
   skippedIssues: number[],
@@ -39,6 +35,10 @@ export class Runner {
     // TODO #68 check what happens for deleted branches?
 
     this.logger.info(`Pushing commit: <${this.env.commitSha}>, ref: <${this.env.ref}>`)
+    if (!this.env.isFeatureBranch && !this.env.isDefaultBranch) {
+      this.logger.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): <${this.env.branchName}>. Doing nothing...`)
+      return this.runInfo
+    }
 
     this.logger.debug('Getting existing Todohub Control Issue...')
     const todohubIssue = await TodohubControlIssue.get(this.repo)
@@ -86,9 +86,6 @@ export class Runner {
       for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
         await this.updateIssue(issueNr, todos, todohubIssue, this.env.commitSha, this.env.ref)
       }
-    } else {
-      this.logger.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): <${this.env.branchName}> Doing nothing...`)
-      return this.runInfo
     }
 
     todohubIssue.data.setLastUpdatedCommit(this.env.commitSha)
@@ -99,7 +96,7 @@ export class Runner {
     // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
   }
 
-  async updateIssue(issueNr: number, todos: ITodo[], todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
+  private async updateIssue(issueNr: number, todos: ITodo[], todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
     this.logger.startGroup(`Processing Issue <${issueNr}>`)
     const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
     this.logger.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`)

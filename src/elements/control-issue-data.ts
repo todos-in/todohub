@@ -14,6 +14,8 @@ export default class TodohubData {
   // TODO #70 use Map() when parsing? - number keys are allowed..
   // TODO #70 order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
   // TODO #69 set private and only interact with data via methods
+  // TODO #69 refactor this class + namings
+
   private decodedData: ControlIssueData
 
   constructor(tag?: string) {

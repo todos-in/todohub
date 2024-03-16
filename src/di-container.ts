@@ -36,7 +36,7 @@ container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext)
 container.bind(TOKENS.octokitGetter).toConstant(ActionOctokitGetter)
 
 container.bind(TOKENS.findTodoStreamFactory).toFactory(FindTodoStream,
-  (instance, todos, filename, issueNr?) => instance.init(todos, filename, issueNr))
+  (instance, todos, filename, issueNr?) => instance.initDi(todos, filename, issueNr))
 
 injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService)
 injected(GithubService, TOKENS.octokitGetter, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory)
