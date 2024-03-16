@@ -5,11 +5,6 @@ import {container, TOKENS} from '../src/di-container.js'
 import { makeConfigMock, makeMockPushContextGetter } from './mock/environment.mock.js'
 import { PersonalAccessTokenOctokitGetter } from '../src/service/octokit.js'
 
-const pushContextMock = makeMockPushContextGetter(
-  path.join(__dirname, '.prod.env.json'),
-  path.join(__dirname, 'payload.feature-branch-push.json'),
-)
-const configMock = makeConfigMock(path.join(__dirname, '.prod.env.json'))
 
 describe.skip('For tests against real github instance.', () => {
   beforeEach(() => {
@@ -17,6 +12,12 @@ describe.skip('For tests against real github instance.', () => {
   })
 
   it('production test', async () => {
+    const pushContextMock = makeMockPushContextGetter(
+      path.join(__dirname, '.prod.env.json'),
+      path.join(__dirname, 'payload.feature-branch-push.json'),
+    )
+    const configMock = makeConfigMock(path.join(__dirname, '.prod.env.json'))
+    
     container.bind(TOKENS.config).toConstant(configMock)
     container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)
     container.bind(TOKENS.octokitGetter).toConstant(PersonalAccessTokenOctokitGetter)

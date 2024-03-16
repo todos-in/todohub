@@ -12,8 +12,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  test-typescript:
-    name: TypeScript Tests
+  tests:
+    name: Tests
     runs-on: ubuntu-latest
 
     steps:
