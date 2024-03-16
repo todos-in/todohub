@@ -4,7 +4,7 @@ author: 'Your name or organization here'
 
 # Add your action's branding here. This will appear on the GitHub Marketplace.
 branding:
-  icon: 'heart'
+  icon: 'check-square'
   color: 'red'
 
 inputs:

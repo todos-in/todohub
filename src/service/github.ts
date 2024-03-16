@@ -118,7 +118,6 @@ export default class GithubService {
         this.logger.debug(`Extracting Todos from file <${fileName}>...`)
 
         const splitLineStream = new SplitLineStream()
-        // TODO #69 refactor: meta data should prob be added in post processing not in find stream
         const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr)
         
         splitLineStream.on('end', () => findTodosStream.end())
