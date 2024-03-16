@@ -101,6 +101,8 @@ export class TodohubControlIssue {
         assertGithubError(err)
         if (err.status === 410) {
           core.warning(`Error (re)opening issue <${issueNr}>. Issue does not exist.`)
+        } else if (err.status === 422) {
+          core.warning(`Error (re)opening issue <${issueNr}>. Possibly a pull request, which cannot be reopened due to the respective branch being deleted.`)
         } else {
           throw err
         }
