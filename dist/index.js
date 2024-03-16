@@ -35210,7 +35210,6 @@ const TOKENS = {
     config: token('config'),
     pushContextGetter: token('pushContextGetter'),
     findTodoStreamFactory: token('Factory<FindTodoStream>'),
-    todohubControlIssueFactory: token('AsyncFactory<TodohubControlIssue>'),
 };
 const container = new Container();
 container.bind(TOKENS.runner).toInstance(Runner).inSingletonScope();
