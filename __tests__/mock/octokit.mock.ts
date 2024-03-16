@@ -1,11 +1,11 @@
-import { Octokit } from 'octokit'
-import { Readable } from 'node:stream'
-import * as tar from 'tar'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { gunzipSync } from 'node:zlib'
+import { Readable } from 'node:stream'
+import { Octokit } from 'octokit'
+import { RequestError } from '@octokit/request-error'
+import * as tar from 'tar'
 import { TodohubControlIssue } from '../../src/elements/control-issue.js'
-import { RequestError, } from '@octokit/request-error'
 
 interface ApiResponses {
   branches: string[]
