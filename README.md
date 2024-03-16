@@ -1,9 +1,18 @@
-# Create a GitHub Action Using TypeScript
+# Todohub: Manages the TODOs you won't
+
+* Helps establishing good TODO practices (tag them with an issue number!)
+* Add tagged TODOs into their respective issues and tracks them. Make they wont be forgotten
+* Helps manage untagged TODOs that are left in your code
+* Adds TODOs to 
+
+---
 
 [![Self](https://github.com/todos-in/todohub/actions/workflows/todohub.yml/badge.svg)](https://github.com/todos-in/todohub/actions/workflows/todohub.yml)
 [![Tests](https://github.com/todos-in/todohub/actions/workflows/test.yml/badge.svg)](https://github.com/todos-in/todohub/actions/workflows/test.yml)
 [![Check dist](https://github.com/todos-in/todohub/actions/workflows/check-dist.yml/badge.svg)](https://github.com/todos-in/todohub/actions/workflows/check-dist.yml)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
+
+---
 
 ## Usage
 
