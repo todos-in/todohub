@@ -34597,7 +34597,7 @@ class TodohubControlIssue {
         if (!this.data.isEmpty(issueNr)) {
             core.debug(`Opening issue <${issueNr}>...`);
             try {
-                await this.repo.updateIssue(issueNr, undefined, undefined, 'open');
+                return await this.repo.updateIssue(issueNr, undefined, undefined, 'open');
             }
             catch (err) {
                 assertGithubError(err);
@@ -34619,8 +34619,7 @@ class TodohubControlIssue {
         if (existingCommentId) {
             core.debug(`Updating comment on issue <${issueNr}-${existingCommentId}>...`);
             try {
-                await this.repo.updateComment(existingCommentId, composedComment);
-                return;
+                return await this.repo.updateComment(existingCommentId, composedComment);
             }
             catch (err) {
                 assertGithubError(err);
@@ -34637,6 +34636,7 @@ class TodohubControlIssue {
             core.debug(`Adding new comment to issue ${issueNr}...`);
             const created = await this.repo.createComment(issueNr, composedComment);
             this.data.setCommentId(issueNr, created.data.id);
+            return created;
         }
         catch (err) {
             assertGithubError(err);
@@ -34685,7 +34685,9 @@ class Runner {
     repo;
     runInfo = {
         succesfullyUpdatedIssues: [],
-        skippedIssues: [],
+        skippedUnchangedIssues: [],
+        failedToUpdate: [],
+        totalTodosUpdated: 0,
     };
     env;
     constructor(logger, environment, repo) {
@@ -34754,13 +34756,19 @@ class Runner {
         const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos);
         todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref);
         if (updateNecessary) {
-            await todohubIssue.writeComment(issueNr);
-            await todohubIssue.reopenIssueWithOpenTodos(issueNr);
-            this.runInfo.succesfullyUpdatedIssues.push(issueNr);
+            const comment = await todohubIssue.writeComment(issueNr);
+            if (comment) {
+                await todohubIssue.reopenIssueWithOpenTodos(issueNr);
+                this.runInfo.succesfullyUpdatedIssues.push(issueNr);
+                this.runInfo.totalTodosUpdated += issueTodos.length;
+            }
+            else {
+                this.runInfo.failedToUpdate.push(issueNr);
+            }
         }
         else {
             this.logger.info(`No changes in todo state for issue <${issueNr}> - skip updating.`);
-            this.runInfo.skippedIssues.push(issueNr);
+            this.runInfo.skippedUnchangedIssues.push(issueNr);
         }
         this.logger.endGroup();
     }
@@ -35245,11 +35253,14 @@ injected(FindTodoStream, TOKENS.environmentService, TOKENS.logger);
 const runner = container.get(TOKENS.runner);
 runner.run()
     .then((runInfo) => {
-    // TODO #61 prettify summary and add useful information
-    core.summary.addHeading('Updated Issues')
+    // TODO #61 prettify summary and add useful information, add links, etc
+    core.summary.addQuote(`Total updated TODOs in this run: **${runInfo.totalTodosUpdated}**`)
+        .addHeading('✅ Updated Issues', 4)
         .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
-        .addHeading('Skipped Issues')
-        .addList(runInfo.skippedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+        .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
+        .addList(runInfo.skippedUnchangedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+        .addHeading('⚠️ Failed to update:', 4)
+        .addList(runInfo.failedToUpdate.map(issueNr => `Issue Nr: ${issueNr}`))
         .write();
 })
     .catch((error) => {

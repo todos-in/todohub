@@ -13,12 +13,15 @@ import * as core from '@actions/core'
 const runner = container.get(TOKENS.runner)
 runner.run()
   .then((runInfo) => {
-    // TODO #61 prettify summary and add useful information
+    // TODO #61 prettify summary and add useful information, add links, etc
     core.summary
-      .addHeading('Updated Issues')
+      .addQuote(`Total updated TODOs in this run: **${runInfo.totalTodosUpdated}**`)
+      .addHeading('✅ Updated Issues', 4)
       .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
-      .addHeading('Skipped Issues')
-      .addList(runInfo.skippedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+      .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
+      .addList(runInfo.skippedUnchangedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+      .addHeading('⚠️ Failed to update:', 4)
+      .addList(runInfo.failedToUpdate.map(issueNr => `Issue Nr: ${issueNr}`))
       .write()
   })
   .catch((error) => {

@@ -91,7 +91,7 @@ export class TodohubControlIssue {
     if (!this.data.isEmpty(issueNr)) {
       core.debug(`Opening issue <${issueNr}>...`)
       try {
-        await this.repo.updateIssue(
+        return await this.repo.updateIssue(
           issueNr,
           undefined,
           undefined,
@@ -117,8 +117,7 @@ export class TodohubControlIssue {
     if (existingCommentId) {
       core.debug(`Updating comment on issue <${issueNr}-${existingCommentId}>...`)
       try {
-        await this.repo.updateComment(existingCommentId, composedComment)
-        return
+        return await this.repo.updateComment(existingCommentId, composedComment)
       } catch (err) {
         assertGithubError(err)
         if (err.status === 404) {
@@ -133,6 +132,7 @@ export class TodohubControlIssue {
       core.debug(`Adding new comment to issue ${issueNr}...`)
       const created = await this.repo.createComment(issueNr, composedComment)
       this.data.setCommentId(issueNr, created.data.id)
+      return created
     } catch (err) {
       assertGithubError(err)
       if (err.status === 404 || err.status === 410) {

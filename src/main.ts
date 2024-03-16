@@ -7,14 +7,18 @@ import GithubService from './service/github.js'
 
 interface RunInfo {
   succesfullyUpdatedIssues: number[]
-  skippedIssues: number[],
+  skippedUnchangedIssues: number[],
+  failedToUpdate: number[],
+  totalTodosUpdated: number,
 }
 
 export class Runner {
 
   private runInfo: RunInfo = {
     succesfullyUpdatedIssues: [],
-    skippedIssues: [],
+    skippedUnchangedIssues: [],
+    failedToUpdate: [],
+    totalTodosUpdated: 0,
   }
 
   private env: Environment
@@ -106,12 +110,17 @@ export class Runner {
     todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref)
 
     if (updateNecessary) {
-      await todohubIssue.writeComment(issueNr)
-      await todohubIssue.reopenIssueWithOpenTodos(issueNr)
-      this.runInfo.succesfullyUpdatedIssues.push(issueNr)
+      const comment = await todohubIssue.writeComment(issueNr)
+      if (comment) {
+        await todohubIssue.reopenIssueWithOpenTodos(issueNr)
+        this.runInfo.succesfullyUpdatedIssues.push(issueNr)
+        this.runInfo.totalTodosUpdated += issueTodos.length 
+      } else {
+        this.runInfo.failedToUpdate.push(issueNr)
+      }
     } else {
       this.logger.info(`No changes in todo state for issue <${issueNr}> - skip updating.`)
-      this.runInfo.skippedIssues.push(issueNr)
+      this.runInfo.skippedUnchangedIssues.push(issueNr)
     }
     this.logger.endGroup()
   }
