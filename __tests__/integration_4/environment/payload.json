@@ -1,0 +1,37 @@
+{
+  "after": "xyz",
+  "test": 123,
+  "before": "abc",
+  "created": false,
+  "deleted": false,
+  "forced": false,
+  "head_commit": {
+    "author": {
+      "email": "email@users.noreply.github.com",
+      "name": "name",
+      "username": "username"
+    },
+    "committer": {
+      "email": "email@users.noreply.github.com",
+      "name": "name",
+      "username": "username"
+    }
+  },
+  "ref": "refs/heads/main",
+  "repository": {
+    "default_branch": "main",
+    "full_name": "todos-in/todohub",
+    "master_branch": "main",
+    "name": "todohub",
+    "open_issues": 36,
+    "pushed_at": 1708985583,
+    "size": 1142
+  },
+  "sender": {
+    "id": 1234,
+    "login": "todos-in",
+    "node_id": "ABCDEFG",
+    "site_admin": false,
+    "type": "User"
+  }
+}

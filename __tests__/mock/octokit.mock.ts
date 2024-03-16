@@ -81,7 +81,7 @@ export const getOctokitMockFactory = (responses: ApiResponses, repoPath: string)
         }),
       },
       issues: {
-        update: jest.fn(async (_options) => ({ data: { id: 42 } })),
+        update: jest.fn(async (_options) => ({ data: { id: 42 }, _decoded: decodeControlIssueData(_options.body) })),
         create: jest.fn(async (_options) => ({ data: { id: 42 }, _decoded: decodeControlIssueData(_options.body) })),
         createComment: jest.fn(async (_options) => ({ data: { id: 42 } })),
         updateComment: jest.fn(async (_options) => ({ data: { id: 42 } })),
