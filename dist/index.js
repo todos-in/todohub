@@ -34601,8 +34601,8 @@ class TodohubControlIssue {
             }
             catch (err) {
                 assertGithubError(err);
-                if (err.status === 410) {
-                    core.warning(`Error (re)opening issue <${issueNr}>. Issue does not exist.`);
+                if (err.status === 410 || err.status === 404) {
+                    core.warning(`Error (re)opening issue <${issueNr}>. Issue does not exist or was permanently deleted.`);
                 }
                 else if (err.status === 422) {
                     core.warning(`Error (re)opening issue <${issueNr}>. Possibly a pull request, which cannot be reopened due to the respective branch being deleted.`);
