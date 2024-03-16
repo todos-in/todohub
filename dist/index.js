@@ -33772,6 +33772,8 @@ var __webpack_exports__ = {};
 // This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
 (() => {
 
+// EXTERNAL MODULE: ./node_modules/@octokit/request-error/dist-node/index.js
+var dist_node = __nccwpck_require__(537);
 ;// CONCATENATED MODULE: ./node_modules/brandi/lib/brandi.mjs
 // src/registries/callableRegistry.ts
 var callableRegistry = new WeakMap();
@@ -34238,8 +34240,6 @@ const external_node_zlib_namespaceObject = __WEBPACK_EXTERNAL_createRequire(impo
 ;// CONCATENATED MODULE: external "node:assert"
 const external_node_assert_namespaceObject = __WEBPACK_EXTERNAL_createRequire(import.meta.url)("node:assert");
 var external_node_assert_default = /*#__PURE__*/__nccwpck_require__.n(external_node_assert_namespaceObject);
-// EXTERNAL MODULE: ./node_modules/@octokit/request-error/dist-node/index.js
-var dist_node = __nccwpck_require__(537);
 ;// CONCATENATED MODULE: ./src/error/error.ts
 
 
@@ -35236,6 +35236,7 @@ injected(FindTodoStream, TOKENS.environmentService, TOKENS.logger);
 
 
 
+
 // TODO #93 this runner should have the environment/context parser
 // TODO #93 create Runnter for testing which returns, timings, setFailed and one for action, later for App
 const runner = container.get(TOKENS.runner);
@@ -35252,6 +35253,12 @@ runner.run()
     if (error instanceof TodohubError) {
         core.error('Error: ' + error.log());
         core.debug('Error debug info: ' + error.debugLog());
+        core.setFailed(error.message);
+    }
+    else if (error instanceof dist_node.RequestError) {
+        core.error(`${error.message} - ${error.status}`);
+        core.error(`Github request failed: ${error.request.method} ${error.request.url}`);
+        core.debug('Error debug info: ' + error.stack);
         core.setFailed(error.message);
     }
     else if (error instanceof Error) {
