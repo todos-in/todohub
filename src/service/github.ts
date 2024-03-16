@@ -119,7 +119,7 @@ export default class GithubService {
 
         const splitLineStream = new SplitLineStream()
         const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr)
-        
+
         splitLineStream.on('end', () => findTodosStream.end())
         // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
 
@@ -204,18 +204,15 @@ export default class GithubService {
     })
   }
 
-  async findTodohubControlIssue() {
+  async findTodohubControlIssues() {
     const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
       per_page: 1,
       q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo}`,
     })
     if (todohubIssues.data.total_count > 1) {
-      this.logger.warning(`More than one candidate for Todohub Control Issue found (matching 'todohub_ctrl_issue_data') - choosing first.
-      Check and consider closing stale Todohub Control issues.`)
+      this.logger.warning('More than one candidate for Todohub Control Issue found (matching "todohub_ctrl_issue_data") - Check and consider closing stale Todohub Control issues.')
     }
-    if (todohubIssues.data.total_count === 1) {
-      return todohubIssues.data.items[0]
-    }
+    return todohubIssues.data.items
   }
 
   async updateComment(commentId: number, body: string) {

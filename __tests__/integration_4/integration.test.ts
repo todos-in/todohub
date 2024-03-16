@@ -12,15 +12,24 @@ const pushContextMock = makeMockPushContextGetter(
 )
 const configMock = makeConfigMock(path.join(__dirname, 'environment', 'envvar.json'))
 
+const realControlIssue = {
+  body: `Here would be some text before the data tag
+<!--todohub_ctrl_issue_data="H4sIAAAAAAAAE42QsQrCMBCGXyWca0EqTh3VRRAd1EkczuZKg00iyRVbS9/daxURJ5dw+ch//0c6YK/9npEpQtZBOhwfBNmpg4D3jXEyw2G32qlJqrg0UWEVCHWrqDGRSSvjVO4dB18pE2NNkIx7DtSwRP+NXKm9+6DfZQIqqd7W9kIBsjSB8d3XvTAVbdEOdsMogcLXTq/d0ltrhuamfUB/TiAfwb7ENxO9gPmV9CKgy0uhgYo4LcUwTi0aB68MOV6Lz3zW92KDkY83LV+jlz/7+idmH5vBSwEAAA=="-->
+Here would be some rendered stuff
+<!--todohub_ctrl_issue_end-->
+Here could be some text after the tag`,
+  number: 100,
+}
+
+const corruptedControlIssue = {
+  body: 'todohub_ctrl_issue_data something',
+  number: 101,
+}
+
 const mockedApiResponses = {
   branches: ['main'],
   // TODO #57 use function to create body
-  controlIssueSearch: [{ body: `Here would be some text before the data tag
-  <!--todohub_ctrl_issue_data="H4sIAAAAAAAAE42QsQrCMBCGXyWca0EqTh3VRRAd1EkczuZKg00iyRVbS9/daxURJ5dw+ch//0c6YK/9npEpQtZBOhwfBNmpg4D3jXEyw2G32qlJqrg0UWEVCHWrqDGRSSvjVO4dB18pE2NNkIx7DtSwRP+NXKm9+6DfZQIqqd7W9kIBsjSB8d3XvTAVbdEOdsMogcLXTq/d0ltrhuamfUB/TiAfwb7ENxO9gPmV9CKgy0uhgYo4LcUwTi0aB68MOV6Lz3zW92KDkY83LV+jlz/7+idmH5vBSwEAAA=="-->
-  Here would be some rendered stuff
-  <!--todohub_ctrl_issue_end-->
-  Here could be some text after the tag`,
-  number: 100 }],
+  controlIssueSearch: [corruptedControlIssue, realControlIssue],
   branchesAheadBy: {},
 }
 const getOctokitMock = getOctokitMockFactory(mockedApiResponses, path.join(__dirname, 'repo'))
@@ -41,7 +50,8 @@ describe('action: integration test 4: main branch push with existing control iss
     await runner.run()
 
     expect(testLogger.error).toHaveBeenCalledTimes(0)
-    expect(testLogger.warning).toHaveBeenCalledTimes(0)
+    // We expect one warning because one of the control issue candidates returned by the search endpoint is corrupted and cannot be parsed
+    expect(testLogger.warning).toHaveBeenCalledTimes(1)
     // One to 'reopen' issue 1 with comment 42, once to update the control issue
     expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 1 }))
     expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 100 }))

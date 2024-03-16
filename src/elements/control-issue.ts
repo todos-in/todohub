@@ -17,7 +17,12 @@ export class TodohubControlIssue {
   private baseRepoUrl: string
 
   private constructor(repo: Repo, existingIssue?: {
-    body: string;
+    parsedBody: {
+      data: string,
+      preTag: string,
+      midTag: string,
+      postTag: string,
+    };
     number: number;
     isClosed: boolean;
   }) {
@@ -26,11 +31,10 @@ export class TodohubControlIssue {
     if (existingIssue) {
       this.existingIssueNumber = existingIssue.number
       this.existingIsClosed = existingIssue.isClosed
-      const components = TodohubControlIssue.parseContent(existingIssue.body)
-      this.data = new TodohubData(components.data)
-      this.preTag = components.preTag
-      this.midTag = components.midTag
-      this.postTag = components.postTag
+      this.data = new TodohubData(existingIssue.parsedBody.data)
+      this.preTag = existingIssue.parsedBody.preTag
+      this.midTag = existingIssue.parsedBody.midTag
+      this.postTag = existingIssue.parsedBody.postTag
     } else {
       this.data = new TodohubData()
     }
@@ -148,6 +152,7 @@ export class TodohubControlIssue {
   }
 
   static parseContent(issueBody: string) {
+    // TODO also do data decoding here?
     const regex =
       /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/
     const parsed = issueBody.match(regex)
@@ -170,14 +175,18 @@ export class TodohubControlIssue {
   }
 
   static async get(repo: Repo) {
-    const issue = await repo.findTodohubControlIssue()
-    // TODO #59 handle error if parsing fails and keep searching?
-    if (issue) {
-      return new TodohubControlIssue(repo, {
-        body: issue.body || '',
-        number: issue.number,
-        isClosed: issue.state === 'closed',
-      })
+    const issues = await repo.findTodohubControlIssues()
+    for (const issueCandidate of issues) {
+      try {
+        const parsedBody = TodohubControlIssue.parseContent(issueCandidate.body || '')
+        return new TodohubControlIssue(repo, {
+          parsedBody,
+          number: issueCandidate.number,
+          isClosed: issueCandidate.state === 'closed',
+        })
+      } catch (err) {
+        core.debug(`Issue <${issueCandidate.number}> looks like a TodohubControlIssue Candidate, but failed to parse.`)
+      }
     }
     return new TodohubControlIssue(repo)
   }
