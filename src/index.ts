@@ -18,6 +18,7 @@ runner.run()
       .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
       .addHeading('Skipped Issues')
       .addList(runInfo.skippedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+      .write()
   })
   .catch((error) => {
     if (error instanceof TodohubError) {

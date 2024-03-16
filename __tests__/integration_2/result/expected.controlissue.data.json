@@ -1,0 +1,30 @@
+{
+  "todoStates": {
+    "2": {
+      "todoState": [
+        {
+          "rawLine": "TODO 2 this should be included",
+          "todoText": "this should be included",
+          "keyword": "TODO",
+          "lineNumber": 2,
+          "issueNumber": 2,
+          "fileName": "file_with_todos",
+          "foundInCommit": "xyz"
+        },
+        {
+          "rawLine": "todo #2 and this too",
+          "todoText": "and this too",
+          "keyword": "todo",
+          "lineNumber": 6,
+          "issueNumber": 2,
+          "fileName": "file_with_todos",
+          "foundInCommit": "xyz"
+        }
+      ],
+      "commitSha": "xyz",
+      "trackedBranch": "refs/heads/2-feat-branch",
+      "commentId": 42
+    }
+  },
+  "lastUpdatedCommitSha": "xyz"
+}

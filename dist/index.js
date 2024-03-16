@@ -34353,6 +34353,7 @@ class TodohubData {
     // TODO #70 use Map() when parsing? - number keys are allowed..
     // TODO #70 order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
     // TODO #69 set private and only interact with data via methods
+    // TODO #69 refactor this class + namings
     decodedData;
     constructor(tag) {
         if (tag) {
@@ -34517,10 +34518,11 @@ class TodohubData {
 }
 
 ;// CONCATENATED MODULE: ./src/elements/control-issue.ts
- // TODO #93 Needs its own resolution
+
  // TODO #93 Needs its own resolution
 
 
+// TODO #93 make this a factory
 class TodohubControlIssue {
     preTag;
     midTag;
@@ -35163,14 +35165,21 @@ class FindTodoStream extends external_node_stream_.Writable {
         this.logger = logger;
         this.environment = envService.getEnv();
     }
-    init(todos, filename, issueNr) {
+    /**
+     * Meant to be called by Dependency Injection Container. Brandi cannot inject into constructor directly.
+     * Needs to be called before instance is useful, if not DI is mosconfigured
+     * @param todos
+     * @param filename
+     * @param issueNr
+     */
+    initDi(todos, filename, issueNr) {
         this.todos = todos;
         this.filename = filename;
         this.issueNr = issueNr;
     }
     _write(line, _encoding, next) {
         if (!this.filename || !this.todos) {
-            throw new Error('FindTodoStream has not been init()-ed yet. Class should only be initialized by Dependency Injection Container which handles initalization.');
+            throw new Error('FindTodoStream has not been initDi()-ed yet. Class should only be initialized by Dependency Injection Container which handles initalization.');
         }
         this.currentLineNr++;
         if (line.length > this.environment.maxLineLength) {
@@ -35214,7 +35223,7 @@ container.bind(TOKENS.logger).toInstance(ActionLogger).inSingletonScope();
 container.bind(TOKENS.config).toInstance(ActionConfig).inSingletonScope();
 container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext);
 container.bind(TOKENS.octokitGetter).toConstant(ActionOctokitGetter);
-container.bind(TOKENS.findTodoStreamFactory).toFactory(FindTodoStream, (instance, todos, filename, issueNr) => instance.init(todos, filename, issueNr));
+container.bind(TOKENS.findTodoStreamFactory).toFactory(FindTodoStream, (instance, todos, filename, issueNr) => instance.initDi(todos, filename, issueNr));
 injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService);
 injected(GithubService, TOKENS.octokitGetter, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory);
 injected(EnvironmentService, TOKENS.pushContextGetter, TOKENS.config);
@@ -35236,7 +35245,8 @@ runner.run()
     core.summary.addHeading('Updated Issues')
         .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
         .addHeading('Skipped Issues')
-        .addList(runInfo.skippedIssues.map(issueNr => `Issue Nr: ${issueNr}`));
+        .addList(runInfo.skippedIssues.map(issueNr => `Issue Nr: ${issueNr}`))
+        .write();
 })
     .catch((error) => {
     if (error instanceof TodohubError) {
