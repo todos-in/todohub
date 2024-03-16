@@ -1,5 +1,5 @@
 dist
-__tests__/regex.test.ts
+__tests__/unit/regex.unit.test.ts
 __tests__/**/repo/**
 badges
 coverage
