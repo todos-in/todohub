@@ -34521,11 +34521,10 @@ class TodohubControlIssue {
         if (existingIssue) {
             this.existingIssueNumber = existingIssue.number;
             this.existingIsClosed = existingIssue.isClosed;
-            const components = TodohubControlIssue.parseContent(existingIssue.body);
-            this.data = new TodohubData(components.data);
-            this.preTag = components.preTag;
-            this.midTag = components.midTag;
-            this.postTag = components.postTag;
+            this.data = new TodohubData(existingIssue.parsedBody.data);
+            this.preTag = existingIssue.parsedBody.preTag;
+            this.midTag = existingIssue.parsedBody.midTag;
+            this.postTag = existingIssue.parsedBody.postTag;
         }
         else {
             this.data = new TodohubData();
@@ -34636,6 +34635,7 @@ class TodohubControlIssue {
         }
     }
     static parseContent(issueBody) {
+        // TODO also do data decoding here?
         const regex = /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/;
         const parsed = issueBody.match(regex);
         if (!parsed ||
@@ -34649,14 +34649,19 @@ class TodohubControlIssue {
         return parsed.groups;
     }
     static async get(repo) {
-        const issue = await repo.findTodohubControlIssue();
-        // TODO #59 handle error if parsing fails and keep searching?
-        if (issue) {
-            return new TodohubControlIssue(repo, {
-                body: issue.body || '',
-                number: issue.number,
-                isClosed: issue.state === 'closed',
-            });
+        const issues = await repo.findTodohubControlIssues();
+        for (const issueCandidate of issues) {
+            try {
+                const parsedBody = TodohubControlIssue.parseContent(issueCandidate.body || '');
+                return new TodohubControlIssue(repo, {
+                    parsedBody,
+                    number: issueCandidate.number,
+                    isClosed: issueCandidate.state === 'closed',
+                });
+            }
+            catch (err) {
+                core.debug(`Issue <${issueCandidate.number}> looks like a TodohubControlIssue Candidate, but failed to parse.`);
+            }
         }
         return new TodohubControlIssue(repo);
     }
@@ -35041,18 +35046,15 @@ class GithubService {
             head,
         });
     }
-    async findTodohubControlIssue() {
+    async findTodohubControlIssues() {
         const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
             per_page: 1,
             q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo}`,
         });
         if (todohubIssues.data.total_count > 1) {
-            this.logger.warning(`More than one candidate for Todohub Control Issue found (matching 'todohub_ctrl_issue_data') - choosing first.
-      Check and consider closing stale Todohub Control issues.`);
+            this.logger.warning('More than one candidate for Todohub Control Issue found (matching "todohub_ctrl_issue_data") - Check and consider closing stale Todohub Control issues.');
         }
-        if (todohubIssues.data.total_count === 1) {
-            return todohubIssues.data.items[0];
-        }
+        return todohubIssues.data.items;
     }
     async updateComment(commentId, body) {
         return this.octokit.rest.issues.updateComment({
