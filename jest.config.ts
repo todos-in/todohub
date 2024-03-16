@@ -39,6 +39,13 @@ const config: Config = {
   collectCoverageFrom: [
     './src/**',
   ],
+  // These are either mocked or not tested test environment, so it does not make sense do collect coverage on these
+  coveragePathIgnorePatterns: [
+    './src/index.ts',
+    './src/service/logger.ts',
+    './src/service/octokit.ts',
+    './src/service/config.ts',
+  ],
 }
 
 

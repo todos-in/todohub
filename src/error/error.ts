@@ -38,12 +38,6 @@ export class TodohubError extends Error {
   }
 }
 
-export class ApiError extends TodohubError {
-  constructor(message: string, debugInfo?: object) {
-    super(message, 'api-error', debugInfo)
-  }
-}
-
 export class EnvironmentLoadError extends TodohubError {
   constructor(debugInformation: { place: string, key: string }) {
     super(`Failed to load from environment: ${debugInformation.key}`, 'env-load', debugInformation)
@@ -66,18 +60,6 @@ export class ControlIssueParsingError extends TodohubError {
 
 export class ControlIssueDataDecodingError extends TodohubError {
   constructor(message: string) { super(message, 'control-issue-decode') }
-}
-
-export function assertsTodohubError(error: unknown): asserts error is TodohubError {
-  assert(error instanceof TodohubError)
-}
-
-export function assertError(error: unknown): asserts error is Error {
-  try {
-    assert(error instanceof Error)
-  } catch (assertError) {
-    throw error
-  }
 }
 
 export function assertGithubError(error: unknown): asserts error is RequestError {

@@ -34276,11 +34276,6 @@ class TodohubError extends Error {
         });
     }
 }
-class ApiError extends (/* unused pure expression or super */ null && (TodohubError)) {
-    constructor(message, debugInfo) {
-        super(message, 'api-error', debugInfo);
-    }
-}
 class EnvironmentLoadError extends TodohubError {
     constructor(debugInformation) {
         super(`Failed to load from environment: ${debugInformation.key}`, 'env-load', debugInformation);
@@ -34299,17 +34294,6 @@ class ControlIssueParsingError extends TodohubError {
 }
 class ControlIssueDataDecodingError extends TodohubError {
     constructor(message) { super(message, 'control-issue-decode'); }
-}
-function assertsTodohubError(error) {
-    assert(error instanceof TodohubError);
-}
-function assertError(error) {
-    try {
-        assert(error instanceof Error);
-    }
-    catch (assertError) {
-        throw error;
-    }
 }
 function assertGithubError(error) {
     try {
