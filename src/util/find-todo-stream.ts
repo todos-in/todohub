@@ -1,18 +1,24 @@
 import { Writable } from 'node:stream'
 import { matchTodo } from './todo-match.js'
-import * as core from '@actions/core'
-import env from './action-environment.js'
-import { ITodo } from '../types/todo.js'
+import { ITodo } from '../interfaces/todo.js'
+import { EnvironmentService } from '../service/environment.js'
+import { Logger } from 'interfaces/logger.js'
+import { Environment } from '../interfaces/environment.js'
 
 export class FindTodoStream extends Writable {
-  private filename: string
+  private filename?: string
   private currentLineNr = 0
-  private todos: ITodo[]
+  private todos?: ITodo[]
   private issueNr?: number
   private todoMetadata?: { [key: string]: string }
+  private environment: Environment
 
-  constructor(todos: ITodo[], filename: string, issueNr?: number, todoMetadata?: { [key: string]: string }) {
+  constructor(private envService: EnvironmentService, private logger: Logger) {
     super({ objectMode: true })
+    this.environment = envService.getEnv()
+  }
+
+  init(todos: ITodo[], filename: string, issueNr?: number, todoMetadata?: { [key: string]: string }) {
     this.todos = todos
     this.filename = filename
     this.issueNr = issueNr
@@ -20,10 +26,12 @@ export class FindTodoStream extends Writable {
   }
 
   _write(line: string, _encoding: string, next: () => void) {
+    if (!this.filename || !this.todos) {
+      throw new Error('FindTodoStream has not been init()-ed yet. Class should only be initialized by Dependency Injection Container which handles initalization.')
+    }
     this.currentLineNr++
-    if (line.length > env.maxLineLength) {
-      core.debug(`Skipping line in <${this.filename}> because it exceeds max length of <${env.maxLineLength}> characters.
-        If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`)
+    if (line.length > this.environment.maxLineLength) {
+      this.logger.debug(`Skipping line in <${this.filename}> because it exceeds max length of <${this.environment.maxLineLength}> characters. If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`)
       return next()
     }
     const matchedTodo = matchTodo(line, this.issueNr?.toString())

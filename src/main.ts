@@ -1,116 +1,119 @@
-import * as core from '@actions/core'
-import Repo from './github-repo.js'
 import { TodohubControlIssue } from './elements/control-issue.js'
-import env from './util/action-environment.js'
-import { TodohubError } from './error.js'
-import { ITodo } from './types/todo.js'
+import { ITodo } from './interfaces/todo.js'
+import { Environment } from './interfaces/environment.js'
+import { Logger } from './interfaces/logger.js'
+import { EnvironmentService } from './service/environment.js'
+import GithubService from './service/github.js'
 
-class RunInfo  {
-  succesfullyUpdatedIssues: number[] = []
-  skippedIssues: number[] = []
+// import { TOKENS, container } from './util/brandi-tokens.js'
+
+// const logger = container.get(TOKENS.logger)
+
+interface RunInfo {
+  succesfullyUpdatedIssues: number[]
+  skippedIssues: number[],
 }
 
-const runInfo = new RunInfo()
+export class Runner {
 
-async function updateIssue(issueNr: number, todos: ITodo[], todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
-  core.startGroup(`Processing Issue <${issueNr}>`)
-  const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
-  core.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`)
-
-  const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos)
-
-  todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref)
-
-  if (updateNecessary) {
-    await todohubIssue.writeComment(issueNr)
-    await todohubIssue.reopenIssueWithOpenTodos(issueNr)
-    runInfo.succesfullyUpdatedIssues.push(issueNr)  
-  } else {
-    core.info(`No changes in todo state for issue <${issueNr}> - skip updating.`)
-    runInfo.skippedIssues.push(issueNr)  
+  private runInfo: RunInfo = {
+    succesfullyUpdatedIssues: [],
+    skippedIssues: [],
   }
-  core.endGroup()
-}
 
-// TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
-/**
- * The main function for the action.
- * @returns {Promise<void>} Resolves when the action is complete.
- */
-export async function run(): Promise<void> {
-  // TODO #68 check what happens for deleted branches?
+  private env: Environment
 
-  core.info(`Pushing commit: <${env.commitSha}>, ref: <${env.ref}>`)
+  constructor(
+    private logger: Logger,
+    private environment: EnvironmentService,
+    private repo: GithubService,
+  ) {
+    this.env = this.environment.getEnv()
+  }
+  // TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
+  /**
+   * The main function for the action.
+   * @returns {Promise<void>} Resolves when the action is complete.
+   */
+  async run(): Promise<RunInfo> {
+    // TODO #68 check what happens for deleted branches?
 
-  try {
-    const repo = new Repo(env.githubToken, env.repoOwner, env.repo)
-    core.debug('Getting existing Todohub Control Issue...')
-    const todohubIssue = await TodohubControlIssue.get(repo)
-    core.debug(todohubIssue.exists() ? 
+    this.logger.info(`Pushing commit: <${this.env.commitSha}>, ref: <${this.env.ref}>`)
+
+    this.logger.debug('Getting existing Todohub Control Issue...')
+    const todohubIssue = await TodohubControlIssue.get(this.repo)
+    this.logger.debug(todohubIssue.exists() ?
       `Found existing Todohub Control Issue: <${todohubIssue.existingIssueNumber}>.` :
       'No existing Todohub Control Issue. Needs to be initiated.')
 
-    if (env.isFeatureBranch && env.featureBranchNumber) {
-      core.info(`Push Event into feature branch <${env.branchName}> related to issue <${env.featureBranchNumber}>...`)
+    if (this.env.isFeatureBranch && this.env.featureBranchNumber) {
+      this.logger.info(`Push Event into feature branch <${this.env.branchName}> related to issue <${this.env.featureBranchNumber}>...`)
 
       // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
       // TODO #62 parallelize stuff (+ add workers)
 
-      core.debug(`Searching state <${env.commitSha}> for Todos with issue number <${env.featureBranchNumber}>...`)
-      const todos = await repo.getTodosFromGitRef(env.commitSha, env.featureBranchNumber, { foundInCommit: env.commitSha })
+      this.logger.debug(`Searching state <${this.env.commitSha}> for Todos with issue number <${this.env.featureBranchNumber}>...`)
+      const todos = await this.repo.getTodosFromGitRef(this.env.commitSha, this.env.featureBranchNumber, { foundInCommit: this.env.commitSha })
 
-      await updateIssue(env.featureBranchNumber, todos, todohubIssue, env.commitSha, env.ref)
-    } else if (env.isDefaultBranch) {
-      core.info(`Push Event into default branch <${env.defaultBranch}>`)
+      await this.updateIssue(this.env.featureBranchNumber, todos, todohubIssue, this.env.commitSha, this.env.ref)
+    } else if (this.env.isDefaultBranch) {
+      this.logger.info(`Push Event into default branch <${this.env.defaultBranch}>`)
 
-      core.debug(`Searching state< ${env.commitSha}> for all Todos`)
-      const todos = await repo.getTodosFromGitRef(env.commitSha, undefined, {foundInCommit: env.commitSha})
+      this.logger.debug(`Searching state< ${this.env.commitSha}> for all Todos`)
+      const todos = await this.repo.getTodosFromGitRef(this.env.commitSha, undefined, { foundInCommit: this.env.commitSha })
 
       const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0))
-      core.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`)
+      this.logger.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`)
 
       const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers()
-      core.debug(`Currently <${trackedIssues.size}> issues are tracked in Control Issue.`)
+      this.logger.debug(`Currently <${trackedIssues.size}> issues are tracked in Control Issue.`)
 
       const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]))
 
-      const featureBranches = await repo.getFeatureBranches()
+      const featureBranches = await this.repo.getFeatureBranches()
       const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
-      const branchesAheadOfDefault = await repo.getFeatureBranchesAheadOf(env.defaultBranch, trackedFeatureBranches.map((branch) => branch.name))
+      const branchesAheadOfDefault = await this.repo.getFeatureBranchesAheadOf(this.env.defaultBranch, trackedFeatureBranches.map((branch) => branch.name))
 
       const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
         !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
-      core.debug(`Feature branches <${branchesAheadOfDefault.join(',')}> are ahead of default <${env.defaultBranch}>. These will not be updated.`)
+      this.logger.debug(`Feature branches <${branchesAheadOfDefault.join(',')}> are ahead of default <${this.env.defaultBranch}>. These will not be updated.`)
 
       const strayTodos = todos.filter((todo) => !todo.issueNumber)
-      todohubIssue.data.setStrayTodos(strayTodos, env.commitSha, env.ref)
+      todohubIssue.data.setStrayTodos(strayTodos, this.env.commitSha, this.env.ref)
 
       for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
-        await updateIssue(issueNr, todos, todohubIssue, env.commitSha, env.ref)
+        await this.updateIssue(issueNr, todos, todohubIssue, this.env.commitSha, this.env.ref)
       }
     } else {
-      core.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): <${env.branchName}> Doing nothing...`)
-      return
+      this.logger.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): <${this.env.branchName}> Doing nothing...`)
+      return this.runInfo
     }
 
-    todohubIssue.data.setLastUpdatedCommit(env.commitSha)
-    core.debug('Writing Todohub Control issue...')
+    todohubIssue.data.setLastUpdatedCommit(this.env.commitSha)
+    this.logger.debug('Writing Todohub Control issue...')
     await todohubIssue.write()
 
+    return this.runInfo
     // TODO #61 set output: all changes in workflow changed_issues, tracked_issues, reopened_issues, skipped_files
+  }
 
-  } catch (error) {
-    if (error instanceof TodohubError) {
-      core.error('Error: ' + error.log())
-      core.debug('Error debug info: ' + error.debugLog())
-      core.setFailed(error.message)
-    } else if (error instanceof Error) {
-      core.error(error.message)
-      core.debug('Error debug info: ' + error.stack)
-      core.setFailed(error.message)
+  async updateIssue(issueNr: number, todos: ITodo[], todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
+    this.logger.startGroup(`Processing Issue <${issueNr}>`)
+    const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
+    this.logger.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`)
+
+    const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos)
+
+    todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref)
+
+    if (updateNecessary) {
+      await todohubIssue.writeComment(issueNr)
+      await todohubIssue.reopenIssueWithOpenTodos(issueNr)
+      this.runInfo.succesfullyUpdatedIssues.push(issueNr)
     } else {
-      core.setFailed('Failed.')
-      core.error('Non-error object was thrown: ' + JSON.stringify(error))
+      this.logger.info(`No changes in todo state for issue <${issueNr}> - skip updating.`)
+      this.runInfo.skippedIssues.push(issueNr)
     }
+    this.logger.endGroup()
   }
 }

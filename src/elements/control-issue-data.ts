@@ -1,6 +1,6 @@
 import { gunzipSync, gzipSync } from 'node:zlib'
-import { ControlIssueDataDecodingError, IssueNotInStateError } from '../error.js'
-import { ITodo, TrackedIssue } from '../types/todo.js'
+import { ControlIssueDataDecodingError, IssueNotInStateError } from '../error/error.js'
+import { ITodo, TrackedIssue } from '../interfaces/todo.js'
 import { escapeMd } from '../util/escape-markdown.js'
 
 interface ControlIssueData {

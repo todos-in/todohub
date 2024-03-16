@@ -1,5 +1,5 @@
 import { PushEvent } from '@octokit/webhooks-types'
-import { Config, PushContextGetter, PushContext } from '../../src/util/environment.js'
+import { Config, PushContextGetter, PushContext } from '../../src/interfaces/config.js'
 import * as fs from 'node:fs'
 
 export const makeConfigMock: (envVarPath: string) => Config = (envVarPath) => {

@@ -2,29 +2,34 @@ import { createGunzip } from 'node:zlib'
 import * as path from 'node:path'
 import { ReadableStream } from 'node:stream/web'
 import stream from 'node:stream'
-import * as github from '@actions/github'
-import { GitHub } from '@actions/github/lib/utils.js'
 import * as tar from 'tar-stream'
 import { ignoreWrapper, Ignore } from 'ignore-wrapper'
-import { SplitLineStream } from './util/line-stream.js'
-import { FindTodoStream } from './util/find-todo-stream.js'
-import * as core from '@actions/core'
-import { assertGithubError } from './error.js'
-import { ITodo } from './types/todo.js'
+import { SplitLineStream } from '../util/line-stream.js'
+import { assertGithubError } from '../error/error.js'
+import { Octokit } from 'octokit'
+import { OctokitGetter } from '../interfaces/octokit.js'
+import { Logger } from '../interfaces/logger.js'
+import { EnvironmentService } from './environment.js'
+import { FindTodoStream } from '../util/find-todo-stream.js'
+import { FindTodoStreamFactoryArgs } from '../di-container.js'
+import { ITodo } from '../interfaces/todo.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
-export default class Repo {
-  githubToken: string
-  octokit: InstanceType<typeof GitHub>
-  owner: string
+export default class GithubService {
+  octokit: Octokit
   repo: string
+  owner: string
 
-  constructor(githubToken: string, owner: string, repo: string) {
-    this.githubToken = githubToken
-    this.octokit = github.getOctokit(githubToken, { userAgent: 'todohub/v1' })
-    this.owner = owner
-    this.repo = repo
+  constructor(
+    private octokitGetter: OctokitGetter,
+    private envService: EnvironmentService,
+    private logger: Logger,
+    private findTodoStreamFactory: (...args: FindTodoStreamFactoryArgs) => FindTodoStream) {
+    const env = envService.getEnv()
+    this.owner = env.repoOwner
+    this.repo = env.repo
+    this.octokit = octokitGetter(env.githubToken, { userAgent: 'todohub/v1' })
   }
 
   private async getTodoIgnoreFile(ref?: string) {
@@ -42,13 +47,13 @@ export default class Repo {
     } catch (err) {
       assertGithubError(err)
       if (err.status === 404) {
-        core.debug('No ".todoignore" file found.')
+        this.logger.debug('No ".todoignore" file found.')
         return
       }
       throw err
     }
     const contents = todoIgnoreFileRaw.data.toString()
-    core.debug(`".todoignore" file found. Parsing contents: <${contents.substring(0, 200)}>...`)
+    this.logger.debug(`".todoignore" file found. Parsing contents: <${contents.substring(0, 200)}>...`)
     return ignoreWrapper().add(contents)
   }
 
@@ -91,7 +96,7 @@ export default class Repo {
       extractStream.on('error', (err: Error) => reject(err))
 
       extractStream.on('finish', () => {
-        core.info('Todos extraction completed successfully.')
+        this.logger.info('Todos extraction completed successfully.')
         return resolve(todos)
       })
 
@@ -106,22 +111,23 @@ export default class Repo {
         const fileName = path.join(...filePathParts)
 
         if (ignore?.ignores(fileName)) {
-          core.info(`Skipping <${fileName}> due to '.todoignore' rule...`)
+          this.logger.info(`Skipping <${fileName}> due to '.todoignore' rule...`)
           stream.resume()
           return next()
         }
 
-        core.debug(`Extracting Todos from file <${fileName}>...`)
+        this.logger.debug(`Extracting Todos from file <${fileName}>...`)
 
         const splitLineStream = new SplitLineStream()
         // TODO #69 refactor: meta data should prob be added in post processing not in find stream
-        const findTodosStream = new FindTodoStream(todos, fileName, issueNr, todoMetadata)
+        const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr, todoMetadata)
+        
         splitLineStream.on('end', () => findTodosStream.end())
         // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
 
         stream.pipe(splitLineStream).pipe(findTodosStream)
         stream.on('error', () => {
-          core.warning(`Error extracting Todos from file: <${fileName}>`)
+          this.logger.warning(`Error extracting Todos from file: <${fileName}>`)
           splitLineStream.end()
           next()
         })
@@ -204,13 +210,12 @@ export default class Repo {
   }
 
   async findTodohubControlIssue() {
-    // TODO #79 author:me - could this fail if app is changed etc? label:todohub -> Should we allow removing the label?
     const todohubIssues = await this.octokit.rest.search.issuesAndPullRequests({
       per_page: 1,
-      q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo} author:@me`,
+      q: `todohub_ctrl_issue_data label:todohub is:issue in:body repo:${this.owner}/${this.repo}`,
     })
     if (todohubIssues.data.total_count > 1) {
-      core.warning(`More than one candidate for Todohub Control Issue found (matching 'todohub_ctrl_issue_data') - choosing first.
+      this.logger.warning(`More than one candidate for Todohub Control Issue found (matching 'todohub_ctrl_issue_data') - choosing first.
       Check and consider closing stale Todohub Control issues.`)
     }
     if (todohubIssues.data.total_count === 1) {

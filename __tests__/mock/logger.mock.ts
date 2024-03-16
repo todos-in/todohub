@@ -1,4 +1,4 @@
-import { Logger } from '../../src/util/logger.js'
+import { Logger } from '../../src/interfaces/logger.js'
 
 export const debugLogger: Logger = {
   debug: jest.fn().mockImplementation((log: string) => console.debug(log)),

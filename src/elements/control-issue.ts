@@ -1,7 +1,7 @@
-import Repo from '../github-repo.js'
-import TodohubData from './control-issue-data.js'
-import * as core from '@actions/core'
-import { ControlIssueParsingError, assertGithubError } from '../error.js'
+import Repo from '../service/github.js' // TODO #93 Needs its own resolution
+import TodohubData from './control-issue-data.js' // TODO #93 Needs its own resolution
+import * as core from '@actions/core' // TODO #93 Needs its own resolution
+import { ControlIssueParsingError, assertGithubError } from '../error/error.js'
 import { escapeMd } from '../util/escape-markdown.js'
 
 export class TodohubControlIssue {
@@ -72,7 +72,7 @@ export class TodohubControlIssue {
         this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`
       }
     }
-    
+
     this.midTag += `\n\n<sub>**Last updated:** ${this.data.getLastUpdatedCommit()}</sub>`
 
     return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`

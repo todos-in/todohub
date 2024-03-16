@@ -32,21 +32,10 @@ describe('action', () => {
     container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)
     container.bind(TOKENS.logger).toConstant(debugLogger)
 
-    // TODO create specialized runner for testing
     const runner = container.get(TOKENS.runner)
 
     await runner.run()
 
-    // expect(runMock).toHaveReturned()
-
-    // TODO implement
-    // expect(result.isSuccess).toBe(true)
-    // expect(result.error).toBeUndefined()
-    // expect(result.durationMs).toBeLessThan(10)
-    // expect(result.commands.errors).toHaveLength(0)
-    // expect(result.commands.warnings).toHaveLength(0)
-
-    // expect(getOctoKitMock).toHaveBeenCalledWith('token', { userAgent: 'todohub/v1' })
     expect(debugLogger.error).toHaveBeenCalledTimes(0)
     expect(debugLogger.warning).toHaveBeenCalledTimes(0)
     expect(getOctokitMock.spies.rest.issues.create).toHaveBeenCalledWith(expect.objectContaining({ title: 'Todohub Control Center' }))
@@ -55,5 +44,5 @@ describe('action', () => {
 
     const todohubControlIssueBody = await getOctokitMock.spies.rest.issues.create.mock.results[0]?.value
     expect(todohubControlIssueBody._decoded).toEqual(expectedIssueData)
-  })
+  }, 1000000)
 })

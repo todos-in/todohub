@@ -3,7 +3,7 @@
 import path from 'node:path'
 import {container, TOKENS} from '../src/di-container.js'
 import { makeConfigMock, makeMockPushContextGetter } from './mock/environment.mock.js'
-import { PersonalAccessTokenOctokitGetter } from '../src/util/octokit.js'
+import { PersonalAccessTokenOctokitGetter } from '../src/service/octokit.js'
 
 const pushContextMock = makeMockPushContextGetter(
   path.join(__dirname, '.prod.env.json'),
