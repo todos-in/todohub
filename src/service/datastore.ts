@@ -59,25 +59,25 @@ export class TodohubControlIssueDataStore implements DataStore {
   }
 
   private compose(data: TodohubControlIssueData) {
-    const todos = Object.entries(data.getIssuesTodoStates())
-    let newMidTag = todos.length ? '\n### Tracked Issues:' : ''
+    const todoStates = Object.entries(data.getIssuesTodoStates())
+    let newMidTag = todoStates.length ? '\n### Tracked Issues:' : ''
 
     const footnotes: string[] = []
-    for (const [issueNr, trackedIssue] of todos) {
-      if (!trackedIssue.todos.length) {
+    for (const [issueNr, todoState] of todoStates) {
+      if (!todoState.todos.length) {
         continue
       }
       let link = ''
-      if (trackedIssue.commentId) {
-        link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`
-      } else if (trackedIssue.deadIssue) {
+      if (todoState.commentId) {
+        link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${todoState.commentId || ''})`
+      } else if (todoState.deadIssue) {
         footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`)
         const currentFootnoteIndex = footnotes.length
         link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`
       } else {
         link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`
       }
-      newMidTag += `\n* ${link}: *${trackedIssue.todos.length}* open TODOs`
+      newMidTag += `\n* ${link}: *${todoState.todos.length}* open TODOs`
     }
 
     for (const [index, value] of footnotes.entries()) {
@@ -95,6 +95,7 @@ export class TodohubControlIssueDataStore implements DataStore {
 
     newMidTag += `\n\n<sub>**Last updated:** ${data.getLastUpdatedCommit()}</sub>`
 
+    this.logger.debug('Encoding: data for control issue: ' + JSON.stringify(data))
     return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${data.encode()}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`
   }
 

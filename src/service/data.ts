@@ -120,7 +120,6 @@ export class TodohubControlIssueData extends RepoTodoStates implements IRepoTodo
     // TODO #59 check decoded JSON schema conforms to ControlIssueData
     const decoded = JSON.parse(unzipped.toString('utf-8')) as IRepoTodoStatesDataFormat
 
-    // Enforces keys format to be positive integers
     return new TodohubControlIssueData(decoded.todoStates, decoded.lastUpdatedCommitSha, existingIssueNr)
   }
 
@@ -136,6 +135,7 @@ export class TodohubControlIssueData extends RepoTodoStates implements IRepoTodo
       throw new ControlIssueDataDecodingError('Expected todoStates to be an object.')
     }
     for (const [key, value] of Object.entries(decoded.todoStates)) {
+      // Enforces keys format to be positive integers
       if (!/^[0-9]+$/.test(key)) {
         throw new ControlIssueDataDecodingError('Expected todoStates keys to be in integer format.')
       }

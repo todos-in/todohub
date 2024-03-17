@@ -111,14 +111,15 @@ export class Runner {
 
   private async updateIssue(issueNr: number, todos: ITodo[], todohubStates: IRepoTodoStates, commitSha: string, ref: string) {
     this.logger.startGroup(`Processing Issue <${issueNr}>`)
+
     const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
     this.logger.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`)
 
-    const updateNecessary = !todohubStates.todoStateEquals(issueNr, issueTodos)
+    const commentUpdateNecessary = !todohubStates.todoStateEquals(issueNr, issueTodos)
 
     const todoState = todohubStates.setIssueTodoState(issueNr, {todos: issueTodos, commitSha, trackedBranch: ref})
 
-    if (updateNecessary) {
+    if (commentUpdateNecessary) {
       const githubComment = this.commentFactory.make(issueNr, todoState)
       const writtenComment = await githubComment.write()
       if (writtenComment) {

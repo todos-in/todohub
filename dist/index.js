@@ -34405,7 +34405,6 @@ class TodohubControlIssueData extends RepoTodoStates {
         const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
         // TODO #59 check decoded JSON schema conforms to ControlIssueData
         const decoded = JSON.parse(unzipped.toString('utf-8'));
-        // Enforces keys format to be positive integers
         return new TodohubControlIssueData(decoded.todoStates, decoded.lastUpdatedCommitSha, existingIssueNr);
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34420,6 +34419,7 @@ class TodohubControlIssueData extends RepoTodoStates {
             throw new ControlIssueDataDecodingError('Expected todoStates to be an object.');
         }
         for (const [key, value] of Object.entries(decoded.todoStates)) {
+            // Enforces keys format to be positive integers
             if (!/^[0-9]+$/.test(key)) {
                 throw new ControlIssueDataDecodingError('Expected todoStates keys to be in integer format.');
             }
@@ -34521,9 +34521,9 @@ class Runner {
         this.logger.startGroup(`Processing Issue <${issueNr}>`);
         const issueTodos = todos.filter(todo => todo.issueNumber === issueNr);
         this.logger.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`);
-        const updateNecessary = !todohubStates.todoStateEquals(issueNr, issueTodos);
+        const commentUpdateNecessary = !todohubStates.todoStateEquals(issueNr, issueTodos);
         const todoState = todohubStates.setIssueTodoState(issueNr, { todos: issueTodos, commitSha, trackedBranch: ref });
-        if (updateNecessary) {
+        if (commentUpdateNecessary) {
             const githubComment = this.commentFactory.make(issueNr, todoState);
             const writtenComment = await githubComment.write();
             if (writtenComment) {
@@ -35049,18 +35049,18 @@ class TodohubControlIssueDataStore {
         return TodohubControlIssueData.fromScratch();
     }
     compose(data) {
-        const todos = Object.entries(data.getIssuesTodoStates());
-        let newMidTag = todos.length ? '\n### Tracked Issues:' : '';
+        const todoStates = Object.entries(data.getIssuesTodoStates());
+        let newMidTag = todoStates.length ? '\n### Tracked Issues:' : '';
         const footnotes = [];
-        for (const [issueNr, trackedIssue] of todos) {
-            if (!trackedIssue.todos.length) {
+        for (const [issueNr, todoState] of todoStates) {
+            if (!todoState.todos.length) {
                 continue;
             }
             let link = '';
-            if (trackedIssue.commentId) {
-                link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`;
+            if (todoState.commentId) {
+                link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${todoState.commentId || ''})`;
             }
-            else if (trackedIssue.deadIssue) {
+            else if (todoState.deadIssue) {
                 footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`);
                 const currentFootnoteIndex = footnotes.length;
                 link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`;
@@ -35068,7 +35068,7 @@ class TodohubControlIssueDataStore {
             else {
                 link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`;
             }
-            newMidTag += `\n* ${link}: *${trackedIssue.todos.length}* open TODOs`;
+            newMidTag += `\n* ${link}: *${todoState.todos.length}* open TODOs`;
         }
         for (const [index, value] of footnotes.entries()) {
             newMidTag += `\n[^${index + 1}]: ${value}`;
@@ -35082,6 +35082,7 @@ class TodohubControlIssueDataStore {
             }
         }
         newMidTag += `\n\n<sub>**Last updated:** ${data.getLastUpdatedCommit()}</sub>`;
+        this.logger.debug('Encoding: data for control issue: ' + JSON.stringify(data));
         return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${data.encode()}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`;
     }
     parseBodyParts(issueBody) {
