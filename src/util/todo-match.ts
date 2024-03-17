@@ -1,7 +1,6 @@
 import * as core from '@actions/core' // TODO #93 needs DI resolution
 
 // TODO #76 refine regex (make simpler?)
-
 const regexCache: Record<string, RegExp> = {}
 /**
  * If issueNumber is set: matches all Todos (with any issue refernce or none), e.g. (TOD‎O dothis, TOD‎O #18 dothis, TOD‎O 5 dothis, etc)
