@@ -1,7 +1,7 @@
 {
   "todoStates": {
     "2": {
-      "todoState": [
+      "todos": [
         {
           "rawLine": "TODO #2 this todo should be included, no ignorefile",
           "todoText": "this todo should be included, no ignorefile",

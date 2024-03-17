@@ -1,7 +1,7 @@
 {
   "todoStates": {
     "0": {
-      "todoState": [
+      "todos": [
         {
           "rawLine": "TODO this is a stray-todo it should reference an issue number!",
           "todoText": "this is a stray-todo it should reference an issue number!",
@@ -15,7 +15,7 @@
       "trackedBranch": "refs/heads/main"
     },
     "1": {
-      "todoState": [
+      "todos": [
         {
           "rawLine": "TODO #1 first this needs to be done",
           "todoText": "first this needs to be done",
@@ -31,7 +31,7 @@
       "commentId": 42
     },
     "3": {
-      "todoState": [
+      "todos": [
         {
           "rawLine": "TODO (3) third this needs to be done",
           "todoText": "third this needs to be done",

@@ -12,7 +12,7 @@ import { Logger } from '../interfaces/logger.js'
 import { EnvironmentService } from './environment.js'
 import { FindTodoStream } from '../util/find-todo-stream.js'
 import { FindTodoStreamFactoryArgs } from '../di-container.js'
-import { ITodo } from '../interfaces/todo.js'
+import { ITodo } from '../interfaces/data.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
@@ -20,6 +20,7 @@ export default class GithubService {
   octokit: Octokit
   repo: string
   owner: string
+  baseUrl: string
 
   constructor(
     private octokitGetter: OctokitGetter,
@@ -30,6 +31,7 @@ export default class GithubService {
     this.owner = env.repoOwner
     this.repo = env.repo
     this.octokit = octokitGetter(env.githubToken, { userAgent: 'todohub/v1' })
+    this.baseUrl = `https://github.com/${this.owner}/${this.repo}`
   }
 
   private async getTodoIgnoreFile(ref?: string) {

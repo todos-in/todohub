@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream'
 import { matchTodo } from './todo-match.js'
-import { ITodo } from '../interfaces/todo.js'
+import { ITodo } from '../interfaces/data.js'
 import { EnvironmentService } from '../service/environment.js'
 import { Logger } from 'interfaces/logger.js'
 import { Environment } from '../interfaces/environment.js'

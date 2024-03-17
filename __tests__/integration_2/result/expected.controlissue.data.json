@@ -1,7 +1,7 @@
 {
   "todoStates": {
     "2": {
-      "todoState": [
+      "todos": [
         {
           "rawLine": "TODO 2 this should be included",
           "todoText": "this should be included",

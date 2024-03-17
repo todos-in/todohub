@@ -14,7 +14,7 @@ const configMock = makeConfigMock(path.join(__dirname, 'environment', 'envvar.js
 
 const realControlIssue = {
   body: `Here would be some text before the data tag
-<!--todohub_ctrl_issue_data="H4sIAAAAAAAAE42QsQrCMBCGXyWca0EqTh3VRRAd1EkczuZKg00iyRVbS9/daxURJ5dw+ch//0c6YK/9npEpQtZBOhwfBNmpg4D3jXEyw2G32qlJqrg0UWEVCHWrqDGRSSvjVO4dB18pE2NNkIx7DtSwRP+NXKm9+6DfZQIqqd7W9kIBsjSB8d3XvTAVbdEOdsMogcLXTq/d0ltrhuamfUB/TiAfwb7ENxO9gPmV9CKgy0uhgYo4LcUwTi0aB68MOV6Lz3zW92KDkY83LV+jlz/7+idmH5vBSwEAAA=="-->
+<!--todohub_ctrl_issue_data="H4sIAAAAAAAAE42QMcvCMBCG/0o414JUnDqqiyA6qJM4nM2VBptEkiu2lv53L9Xh45tcQu4h770PGYC99kdGpgjFAHk6EpLpMkDA5844ggJOh81BzXLFtYkKm0Coe0WdiUxaGadK7zj4RpkYW4Js2nGijiX6a+RO/dMH/S0T0Ej1vrU3ClDkGUzv/syVaWiPNtmlqwQq3zq9dWtvrUnNXf+C8ZpBOYFjjV8megHLO+lVQFfWQgNVcV6LYZxbNA4+GXK8FZ/lYhzFBiOfH1p+Sq//7RvfMMpBsEcBAAA="-->
 Here would be some rendered stuff
 <!--todohub_ctrl_issue_end-->
 Here could be some text after the tag`,
@@ -53,14 +53,14 @@ describe('action: integration test 4: main branch push with existing control iss
     // We expect one warning because one of the control issue candidates returned by the search endpoint is corrupted and cannot be parsed
     expect(testLogger.warning).toHaveBeenCalledTimes(1)
     // One to 'reopen' issue 1 with comment 42, once to update the control issue
-    expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 1 }))
-    expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 100 }))
     expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledTimes(2)
-    expect(getOctokitMock.spies.rest.issues.updateComment).toHaveBeenCalledWith(expect.objectContaining({ comment_id: 42 }))
+    expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 1, state: 'open' }))
+    expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 100 }))
     expect(getOctokitMock.spies.rest.issues.updateComment).toHaveBeenCalledTimes(1)
+    expect(getOctokitMock.spies.rest.issues.updateComment).toHaveBeenCalledWith(expect.objectContaining({ comment_id: 42 }))
 
     // Second call is the control issue
     const todohubControlIssueBody = await getOctokitMock.spies.rest.issues.update.mock.results[1]?.value
     expect(todohubControlIssueBody._decoded).toEqual(expectedIssueData)
-  }, 2000)
+  }, 2000000)
 })

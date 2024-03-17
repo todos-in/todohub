@@ -34284,7 +34284,7 @@ class EnvironmentLoadError extends TodohubError {
 class EnvironmentParsingError extends TodohubError {
     constructor(message) { super(message, 'env-parse'); }
 }
-class IssueNotInStateError extends TodohubError {
+class IssueNotInStateError extends (/* unused pure expression or super */ null && (TodohubError)) {
     constructor(issueNr) {
         super(`Issue number ${issueNr} not found in Todohub control issues state.`, 'issue-not-in-state', { issueNr: issueNr });
     }
@@ -34304,366 +34304,137 @@ function assertGithubError(error) {
     }
 }
 
-;// CONCATENATED MODULE: ./src/util/escape-markdown.ts
-const replacers = [
-    { regex: /\*/g, replace: '\\*' },
-    // After applying common markdown stylings, github applies extra logic for issue/people mentions, which cant be easily escaped
-    // as a workaround we add an invisible extra character behind # and @
-    // https://stackoverflow.com/questions/20532546/escape-pound-or-number-sign-in-github-issue-tracker
-    { regex: /#/g, replace: '\\#&#x2060;' },
-    { regex: /@/g, replace: '\\@&#x2060;' },
-    { regex: /\(/g, replace: '\\(' },
-    { regex: /\)/g, replace: '\\)' },
-    { regex: /\[/g, replace: '\\[' },
-    { regex: /\]/g, replace: '\\]' },
-    { regex: /</g, replace: '&lt;' },
-    { regex: />/g, replace: '&gt;' },
-    { regex: /_/g, replace: '\\_' },
-    { regex: /`/g, replace: '\\`' },
-];
-const escapeMd = (markdown) => {
-    for (const replacer of replacers) {
-        markdown = markdown.replace(replacer.regex, replacer.replace);
-    }
-    return markdown;
-};
-
-;// CONCATENATED MODULE: ./src/elements/control-issue-data.ts
+;// CONCATENATED MODULE: ./src/service/data.ts
 
 
-
-class TodohubData {
-    STRAY_TODO_KEY = 0;
-    // TODO #70 use Map() when parsing? - number keys are allowed..
-    // TODO #70 order of todos and properties within todo objects can change whether comment needs to be updated even if logical equal
-    // TODO #69 refactor this class + namings
-    decodedData;
-    constructor(tag) {
-        if (tag) {
-            this.decodedData = this.decode(tag);
-        }
-        else {
-            this.decodedData = {
-                todoStates: {},
-            };
-        }
-    }
-    setTrackedIssue(issueNr, trackedIssue) {
-        this.decodedData.todoStates[issueNr] = trackedIssue;
-    }
-    setTodoStateOnly(issueNr, todoState) {
-        const trackedIssue = this.getTrackedIssue(issueNr);
-        trackedIssue.todoState = todoState;
-    }
-    getTrackedIssue(issueNr) {
-        const trackedIssue = this.decodedData.todoStates[issueNr];
-        if (!trackedIssue) {
-            throw new IssueNotInStateError(issueNr);
-        }
-        return trackedIssue;
-    }
-    getTrackedIssuesNumbers() {
-        const issueNrs = new Set(Object.keys(this.decodedData.todoStates).map((key) => Number.parseInt(key)));
-        issueNrs.delete(this.STRAY_TODO_KEY);
-        return issueNrs;
-    }
-    getIssueTodos() {
-        const cloned = Object.assign({}, this.decodedData.todoStates);
-        delete cloned[this.STRAY_TODO_KEY];
-        return cloned;
-    }
-    getStrayTodos() {
-        return this.decodedData.todoStates[this.STRAY_TODO_KEY];
-    }
-    setStrayTodos(todoState = [], commitSha, trackedBranch) {
-        this.setTodoState(this.STRAY_TODO_KEY, todoState, commitSha, trackedBranch);
-    }
-    clearEmptyTrackedIssue(issueNr) {
-        if (this.isEmpty(issueNr)) {
-            this.clearTrackedIssue(issueNr);
-        }
-    }
-    clearTrackedIssue(issueNr) {
-        delete this.decodedData.todoStates[issueNr];
-    }
-    todoOrder(todoA, todoB) {
+// eslint-disable-next-line @typescript-eslint/no-extraneous-class
+class TodoHelper {
+    static compare(todoA, todoB) {
         return ((todoA.issueNumber || 0) - (todoB.issueNumber || 0))
             || todoA.fileName.localeCompare(todoB.fileName)
             || (todoA.lineNumber - todoB.lineNumber)
             || todoA.rawLine.localeCompare(todoB.rawLine);
     }
-    todoEquals(todoA, todoB) {
+    static equals(todoA, todoB) {
         // TODO #65 is this enough to compare?
         return (todoA.fileName === todoB.fileName &&
             todoA.lineNumber === todoB.lineNumber &&
             todoA.rawLine === todoB.rawLine);
     }
-    todoStateEquals(issueNr, todoState = []) {
-        try {
-            const trackedIssue = this.getTrackedIssue(issueNr);
-            if (trackedIssue.todoState.length !== todoState.length) {
-                return false;
-            }
-            const orderedTodoState = todoState.sort(((a, b) => this.todoOrder(a, b)));
-            for (let i = 0; i < trackedIssue.todoState.length; i++) {
-                if (!this.todoEquals(trackedIssue.todoState[i], orderedTodoState[i])) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        catch (err) {
-            return false;
-        }
+}
+const STRAY_TODO_KEY = 0;
+class RepoTodoStates {
+    todoStates;
+    lastUpdatedCommitSha;
+    constructor(todoStates, lastUpdatedCommitSha) {
+        this.todoStates = todoStates;
+        this.lastUpdatedCommitSha = lastUpdatedCommitSha;
     }
-    setTodoState(issueNr, todoState = [], commitSha, trackedBranch) {
-        const trackedIssue = Object.assign(this.decodedData.todoStates[issueNr] || {}, {
-            todoState: todoState,
-            commitSha,
-            trackedBranch,
-        });
-        this.setTrackedIssue(issueNr, trackedIssue);
+    getAllTodoStates() {
+        return this.todoStates;
     }
-    setLastUpdatedCommit(commitSha) {
-        this.decodedData.lastUpdatedCommitSha = commitSha;
+    getTodoState(issueNr) {
+        return this.todoStates[issueNr];
+    }
+    getIssuesTodoStates() {
+        const cloned = Object.assign({}, this.todoStates);
+        delete cloned[STRAY_TODO_KEY];
+        return cloned;
+    }
+    getStrayTodoState() {
+        return this.todoStates[STRAY_TODO_KEY];
     }
     getLastUpdatedCommit() {
-        return this.decodedData.lastUpdatedCommitSha;
+        return this.lastUpdatedCommitSha;
     }
-    isEmpty(issueNr) {
-        try {
-            const trackedIssue = this.getTrackedIssue(issueNr);
-            return trackedIssue.todoState.length === 0;
-        }
-        catch (err) {
-            return true;
-        }
+    getTrackedIssuesNumbers() {
+        const issueNrs = new Set(Object.keys(this.todoStates).map((key) => Number.parseInt(key)));
+        issueNrs.delete(STRAY_TODO_KEY);
+        return issueNrs;
     }
-    setCommentId(issueNr, commentId) {
-        const trackedIssue = this.getTrackedIssue(issueNr);
-        trackedIssue.commentId = commentId;
+    setIssueTodoState(issueNr, todoState) {
+        const newState = Object.assign(this.todoStates[issueNr] || {}, todoState);
+        this.todoStates[issueNr] = newState;
+        this.orderTodoState(issueNr);
+        return newState;
     }
-    setDeadIssue(issueNr) {
-        const trackedIssue = this.getTrackedIssue(issueNr);
-        trackedIssue.deadIssue = true;
+    setStrayTodoState(todoState) {
+        return this.setIssueTodoState(STRAY_TODO_KEY, todoState);
     }
-    deleteExistingCommentId(issueNr) {
-        const trackedIssue = this.getTrackedIssue(issueNr);
-        delete trackedIssue.commentId;
-    }
-    getExistingCommentId(issueNr) {
-        try {
-            return this.getTrackedIssue(issueNr).commentId;
-        }
-        catch (err) {
-            return;
-        }
-    }
-    composeTrackedIssueComment(issueNr, baseRepoUrl) {
-        const trackedIssue = this.getTrackedIssue(issueNr);
-        let composed = trackedIssue.todoState.length ? '#### TODOs:' : 'No Open Todos';
-        for (const todo of trackedIssue.todoState) {
-            const link = `[link](${baseRepoUrl}/blob/${this.getTrackedIssue(issueNr).commitSha}/${todo.fileName}#L${todo.lineNumber})`;
-            composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
-        }
-        composed += `\n\n<sub>**Last set:** ${trackedIssue.commitSha} | **Tracked Branch:** \`${escapeMd(trackedIssue.trackedBranch)}\`</sub>`;
-        return composed;
-    }
-    decode(tag) {
-        const b64Decoded = Buffer.from(tag, 'base64');
-        const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
-        // TODO #59 check decoded JSON schema conforms to ControlIssueData
-        const parsed = JSON.parse(unzipped.toString('utf-8'));
-        // Enforces keys format to be positive integers
-        const nonIntegerKeys = Object.keys(parsed.todoStates).filter((key) => !/^[0-9]+$/.test(key));
-        if (nonIntegerKeys.length) {
-            throw new ControlIssueDataDecodingError(`Found non-integer key during Control issue data decoding: <${nonIntegerKeys.join(',')}>`);
-        }
-        return parsed;
+    setLastUpdatedCommit(sha) {
+        this.lastUpdatedCommitSha = sha;
     }
     orderTodoState(issueNr) {
-        const ordered = this.getTrackedIssue(issueNr).todoState.sort(((a, b) => this.todoOrder(a, b)));
-        this.setTodoStateOnly(issueNr, ordered);
+        const todoState = this.getTodoState(issueNr);
+        if (!todoState) {
+            return;
+        }
+        todoState.todos.sort(((a, b) => TodoHelper.compare(a, b)));
     }
-    orderTodoStates() {
-        for (const issueNr of Object.keys(this.decodedData.todoStates)) {
-            this.orderTodoState(parseInt(issueNr));
+    todoStateEquals(issueNr, todos = []) {
+        const todoState = this.getTodoState(issueNr);
+        if (!todoState || todoState.todos.length !== todos.length) {
+            return false;
+        }
+        const orderedTodoState = todos.sort(((a, b) => TodoHelper.compare(a, b)));
+        for (const [i, todoA] of todoState.todos.entries()) {
+            if (!TodoHelper.equals(todoA, orderedTodoState[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+class TodohubControlIssueData extends RepoTodoStates {
+    todoStates;
+    lastUpdatedCommitSha;
+    _existingControlIssue;
+    constructor(todoStates, lastUpdatedCommitSha, 
+    // Underscored properties exceed the scope of IRepoTodoStates and will be ignored when data is encoded
+    _existingControlIssue) {
+        super(todoStates, lastUpdatedCommitSha);
+        this.todoStates = todoStates;
+        this.lastUpdatedCommitSha = lastUpdatedCommitSha;
+        this._existingControlIssue = _existingControlIssue;
+    }
+    static fromScratch() {
+        return new TodohubControlIssueData({});
+    }
+    static decodeFrom(data, existingIssueNr) {
+        const b64Decoded = Buffer.from(data, 'base64');
+        const unzipped = (0,external_node_zlib_namespaceObject.gunzipSync)(b64Decoded);
+        // TODO #59 check decoded JSON schema conforms to ControlIssueData
+        const decoded = JSON.parse(unzipped.toString('utf-8'));
+        // Enforces keys format to be positive integers
+        return new TodohubControlIssueData(decoded.todoStates, decoded.lastUpdatedCommitSha, existingIssueNr);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static checkParsedFormat(decoded) {
+        if (typeof decoded !== 'object') {
+            throw new ControlIssueDataDecodingError('Expected to parse an object.');
+        }
+        if (decoded.lastUpdatedCommitSha && typeof decoded.lastUpdatedCommitSha !== 'string') {
+            throw new ControlIssueDataDecodingError('Expected lastUpdatedCommitSha to be a string.');
+        }
+        if (!decoded.todoStates || typeof decoded.todoStates !== 'object') {
+            throw new ControlIssueDataDecodingError('Expected todoStates to be an object.');
+        }
+        for (const [key, value] of Object.entries(decoded.todoStates)) {
+            if (!/^[0-9]+$/.test(key)) {
+                throw new ControlIssueDataDecodingError('Expected todoStates keys to be in integer format.');
+            }
+            if (!value || typeof value !== 'object') {
+                throw new ControlIssueDataDecodingError('Expected todoStates values to be an object.');
+            }
+            // TODO #93 finish checking Todostate and Todos
         }
     }
     encode() {
-        // TODO #70 sort by keys and generate hash?
-        this.orderTodoStates();
-        const stringified = JSON.stringify(this.decodedData);
+        // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
+        const stringified = JSON.stringify(this, (key, value) => key.startsWith('_') ? undefined : value);
         const zipped = (0,external_node_zlib_namespaceObject.gzipSync)(Buffer.from(stringified, 'utf-8'));
         const b64Encoded = zipped.toString('base64');
         return b64Encoded;
-    }
-}
-
-;// CONCATENATED MODULE: ./src/elements/control-issue.ts
-
- // TODO #93 Needs its own resolution
-
-
-// TODO #93 make this a factory
-class TodohubControlIssue {
-    preTag;
-    midTag;
-    postTag;
-    data;
-    existingIssueNumber;
-    existingIsClosed;
-    repo;
-    baseRepoUrl;
-    constructor(repo, existingIssue) {
-        this.repo = repo;
-        this.baseRepoUrl = `https://github.com/${this.repo.owner}/${this.repo.repo}`;
-        if (existingIssue) {
-            this.existingIssueNumber = existingIssue.number;
-            this.existingIsClosed = existingIssue.isClosed;
-            this.data = new TodohubData(existingIssue.parsedBody.data);
-            this.preTag = existingIssue.parsedBody.preTag;
-            this.midTag = existingIssue.parsedBody.midTag;
-            this.postTag = existingIssue.parsedBody.postTag;
-        }
-        else {
-            this.data = new TodohubData();
-        }
-    }
-    exists() {
-        return this.existingIssueNumber !== undefined;
-    }
-    compose() {
-        const todos = Object.entries(this.data.getIssueTodos());
-        this.midTag = todos.length ? '\n### Tracked Issues:' : '';
-        const footnotes = [];
-        for (const [issueNr, trackedIssue] of todos) {
-            if (!trackedIssue.todoState.length) {
-                continue;
-            }
-            let link = '';
-            if (trackedIssue.commentId) {
-                link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`;
-            }
-            else if (trackedIssue.deadIssue) {
-                footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`);
-                const currentFootnoteIndex = footnotes.length;
-                link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`;
-            }
-            else {
-                link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`;
-            }
-            this.midTag += `\n* ${link}: *${trackedIssue.todoState.length}* open TODOs`;
-        }
-        for (const [index, value] of footnotes.entries()) {
-            this.midTag += `\n[^${index + 1}]: ${value}`;
-        }
-        const strayTodos = this.data.getStrayTodos();
-        if (strayTodos && strayTodos.todoState.length) {
-            this.midTag += '\n### Todos without Issue Reference:';
-            for (const strayTodo of strayTodos.todoState) {
-                const codeLink = `[link](${this.baseRepoUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
-                this.midTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`;
-            }
-        }
-        this.midTag += `\n\n<sub>**Last updated:** ${this.data.getLastUpdatedCommit()}</sub>`;
-        return `${this.preTag || ''}<!--todohub_ctrl_issue_data="${this.data.encode()}"-->${this.midTag || ''}<!--todohub_ctrl_issue_end-->${this.postTag || ''}`;
-    }
-    async write() {
-        if (this.existingIssueNumber) {
-            const updated = await this.repo.updateIssue(this.existingIssueNumber, undefined, this.compose());
-            return updated.data.number;
-        }
-        const created = await this.repo.createPinnedIssue('Todohub Control Center', this.compose(), ['todohub']);
-        return created.data.number;
-    }
-    async reopenIssueWithOpenTodos(issueNr) {
-        if (!this.data.isEmpty(issueNr)) {
-            core.debug(`Opening issue <${issueNr}>...`);
-            try {
-                return await this.repo.updateIssue(issueNr, undefined, undefined, 'open');
-            }
-            catch (err) {
-                assertGithubError(err);
-                if (err.status === 410 || err.status === 404) {
-                    core.warning(`Error (re)opening issue <${issueNr}>. Issue does not exist or was permanently deleted.`);
-                }
-                else if (err.status === 422) {
-                    core.warning(`Error (re)opening issue <${issueNr}>. Possibly a pull request, which cannot be reopened due to the respective branch being deleted.`);
-                }
-                else {
-                    throw err;
-                }
-            }
-        }
-    }
-    async writeComment(issueNr) {
-        const existingCommentId = this.data.getExistingCommentId(issueNr);
-        const composedComment = this.data.composeTrackedIssueComment(issueNr, this.baseRepoUrl);
-        if (existingCommentId) {
-            core.debug(`Updating comment on issue <${issueNr}-${existingCommentId}>...`);
-            try {
-                return await this.repo.updateComment(existingCommentId, composedComment);
-            }
-            catch (err) {
-                assertGithubError(err);
-                if (err.status === 404) {
-                    core.warning(`Failed to update Issue Comment <${issueNr}-${existingCommentId}>. Trying to create new Comment instead...`);
-                    this.data.deleteExistingCommentId(issueNr);
-                }
-                else {
-                    throw err;
-                }
-            }
-        }
-        try {
-            core.debug(`Adding new comment to issue ${issueNr}...`);
-            const created = await this.repo.createComment(issueNr, composedComment);
-            this.data.setCommentId(issueNr, created.data.id);
-            return created;
-        }
-        catch (err) {
-            assertGithubError(err);
-            if (err.status === 404 || err.status === 410) {
-                core.warning(`Error creating comment: It appears Issue <${issueNr}> does not exist.
-        If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue <${issueNr}> to the new issue.`);
-                this.data.setDeadIssue(issueNr);
-            }
-            else {
-                throw err;
-            }
-        }
-    }
-    static parseContent(issueBody) {
-        // TODO also do data decoding here?
-        const regex = /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/;
-        const parsed = issueBody.match(regex);
-        if (!parsed ||
-            !parsed.groups ||
-            parsed.groups.preTag === undefined ||
-            parsed.groups.data === undefined ||
-            parsed.groups.midTag === undefined ||
-            parsed.groups.postTag === undefined) {
-            throw new ControlIssueParsingError(`Error parsing Todohub Control Issue: <${issueBody}>`);
-        }
-        return parsed.groups;
-    }
-    static async get(repo) {
-        const issues = await repo.findTodohubControlIssues();
-        for (const issueCandidate of issues) {
-            try {
-                const parsedBody = TodohubControlIssue.parseContent(issueCandidate.body || '');
-                return new TodohubControlIssue(repo, {
-                    parsedBody,
-                    number: issueCandidate.number,
-                    isClosed: issueCandidate.state === 'closed',
-                });
-            }
-            catch (err) {
-                core.debug(`Issue <${issueCandidate.number}> looks like a TodohubControlIssue Candidate, but failed to parse.`);
-            }
-        }
-        return new TodohubControlIssue(repo);
     }
 }
 
@@ -34673,6 +34444,8 @@ class Runner {
     logger;
     environment;
     repo;
+    dataStore;
+    commentFactory;
     runInfo = {
         succesfullyUpdatedIssues: [],
         skippedUnchangedIssues: [],
@@ -34681,10 +34454,12 @@ class Runner {
         todohubIssueId: undefined,
     };
     env;
-    constructor(logger, environment, repo) {
+    constructor(logger, environment, repo, dataStore, commentFactory) {
         this.logger = logger;
         this.environment = environment;
         this.repo = repo;
+        this.dataStore = dataStore;
+        this.commentFactory = commentFactory;
         this.env = this.environment.getEnv();
     }
     // TODO #68 concurrency issues if action runs multiple times -> do we need to acquire a lock on issue while other action is running?
@@ -34700,10 +34475,12 @@ class Runner {
             return this.runInfo;
         }
         this.logger.debug('Getting existing Todohub Control Issue...');
-        const todohubIssue = await TodohubControlIssue.get(this.repo);
-        this.logger.debug(todohubIssue.exists() ?
-            `Found existing Todohub Control Issue: <${todohubIssue.existingIssueNumber}>.` :
-            'No existing Todohub Control Issue. Needs to be initiated.');
+        const todohubState = await this.dataStore.get(undefined);
+        if (todohubState instanceof TodohubControlIssueData) {
+            this.logger.debug(todohubState._existingControlIssue ?
+                `Found existing Todohub Control Issue: <${todohubState._existingControlIssue}>.` :
+                'No existing Todohub Control Issue. Needs to be initiated.');
+        }
         if (this.env.isFeatureBranch && this.env.featureBranchNumber) {
             this.logger.info(`Push Event into feature branch <${this.env.branchName}> related to issue <${this.env.featureBranchNumber}>...`);
             // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
@@ -34711,7 +34488,7 @@ class Runner {
             this.logger.debug(`Searching state <${this.env.commitSha}> for Todos with issue number <${this.env.featureBranchNumber}>...`);
             let todos = await this.repo.getTodosFromGitRef(this.env.commitSha, this.env.featureBranchNumber);
             todos = todos.map(todo => Object.assign(todo, { foundInCommit: this.env.commitSha }));
-            await this.updateIssue(this.env.featureBranchNumber, todos, todohubIssue, this.env.commitSha, this.env.ref);
+            await this.updateIssue(this.env.featureBranchNumber, todos, todohubState, this.env.commitSha, this.env.ref);
         }
         else if (this.env.isDefaultBranch) {
             this.logger.info(`Push Event into default branch <${this.env.defaultBranch}>`);
@@ -34720,7 +34497,7 @@ class Runner {
             todos = todos.map((todo) => Object.assign(todo, { foundInCommit: this.env.commitSha }));
             const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0));
             this.logger.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`);
-            const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers();
+            const trackedIssues = todohubState.getTrackedIssuesNumbers();
             this.logger.debug(`Currently <${trackedIssues.size}> issues are tracked in Control Issue.`);
             const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]));
             const featureBranches = await this.repo.getFeatureBranches();
@@ -34729,27 +34506,30 @@ class Runner {
             const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) => !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)));
             this.logger.debug(`Feature branches <${branchesAheadOfDefault.join(',')}> are ahead of default <${this.env.defaultBranch}>. These will not be updated.`);
             const strayTodos = todos.filter((todo) => !todo.issueNumber);
-            todohubIssue.data.setStrayTodos(strayTodos, this.env.commitSha, this.env.ref);
+            todohubState.setStrayTodoState({ todos: strayTodos, commitSha: this.env.commitSha, trackedBranch: this.env.ref });
             for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
-                await this.updateIssue(issueNr, todos, todohubIssue, this.env.commitSha, this.env.ref);
+                await this.updateIssue(issueNr, todos, todohubState, this.env.commitSha, this.env.ref);
             }
         }
-        todohubIssue.data.setLastUpdatedCommit(this.env.commitSha);
+        todohubState.setLastUpdatedCommit(this.env.commitSha);
         this.logger.debug('Writing Todohub Control issue...');
-        const todohubIssueId = await todohubIssue.write();
+        const todohubIssueId = await this.dataStore.write(todohubState);
         this.runInfo.todohubIssueId = todohubIssueId;
         return this.runInfo;
     }
-    async updateIssue(issueNr, todos, todohubIssue, commitSha, ref) {
+    async updateIssue(issueNr, todos, todohubStates, commitSha, ref) {
         this.logger.startGroup(`Processing Issue <${issueNr}>`);
         const issueTodos = todos.filter(todo => todo.issueNumber === issueNr);
         this.logger.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`);
-        const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos);
-        todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref);
+        const updateNecessary = !todohubStates.todoStateEquals(issueNr, issueTodos);
+        const todoState = todohubStates.setIssueTodoState(issueNr, { todos: issueTodos, commitSha, trackedBranch: ref });
         if (updateNecessary) {
-            const comment = await todohubIssue.writeComment(issueNr);
-            if (comment) {
-                await todohubIssue.reopenIssueWithOpenTodos(issueNr);
+            const githubComment = this.commentFactory.make(issueNr, todoState);
+            const writtenComment = await githubComment.write();
+            if (writtenComment) {
+                if (todoState.todos.length) {
+                    await githubComment.reopenIssueWithOpenTodos();
+                }
                 this.runInfo.succesfullyUpdatedIssues.push(issueNr);
                 this.runInfo.totalTodosUpdated += issueTodos.length;
             }
@@ -34900,6 +34680,7 @@ class GithubService {
     octokit;
     repo;
     owner;
+    baseUrl;
     constructor(octokitGetter, envService, logger, findTodoStreamFactory) {
         this.octokitGetter = octokitGetter;
         this.envService = envService;
@@ -34909,6 +34690,7 @@ class GithubService {
         this.owner = env.repoOwner;
         this.repo = env.repo;
         this.octokit = octokitGetter(env.githubToken, { userAgent: 'todohub/v1' });
+        this.baseUrl = `https://github.com/${this.owner}/${this.repo}`;
     }
     async getTodoIgnoreFile(ref) {
         let todoIgnoreFileRaw;
@@ -35194,7 +34976,227 @@ class FindTodoStream extends external_node_stream_.Writable {
     }
 }
 
+;// CONCATENATED MODULE: ./src/util/escape-markdown.ts
+const replacers = [
+    { regex: /\*/g, replace: '\\*' },
+    // After applying common markdown stylings, github applies extra logic for issue/people mentions, which cant be easily escaped
+    // as a workaround we add an invisible extra character behind # and @
+    // https://stackoverflow.com/questions/20532546/escape-pound-or-number-sign-in-github-issue-tracker
+    { regex: /#/g, replace: '\\#&#x2060;' },
+    { regex: /@/g, replace: '\\@&#x2060;' },
+    { regex: /\(/g, replace: '\\(' },
+    { regex: /\)/g, replace: '\\)' },
+    { regex: /\[/g, replace: '\\[' },
+    { regex: /\]/g, replace: '\\]' },
+    { regex: /</g, replace: '&lt;' },
+    { regex: />/g, replace: '&gt;' },
+    { regex: /_/g, replace: '\\_' },
+    { regex: /`/g, replace: '\\`' },
+];
+const escapeMd = (markdown) => {
+    for (const replacer of replacers) {
+        markdown = markdown.replace(replacer.regex, replacer.replace);
+    }
+    return markdown;
+};
+
+;// CONCATENATED MODULE: ./src/service/datastore.ts
+
+
+
+class TodohubControlIssueDataStore {
+    repo;
+    logger;
+    existingIssue;
+    constructor(repo, logger) {
+        this.repo = repo;
+        this.logger = logger;
+    }
+    async write(data, _id) {
+        const composed = this.compose(data);
+        if (this.existingIssue) {
+            const updated = await this.repo.updateIssue(this.existingIssue.number, undefined, composed);
+            return updated.data.number;
+        }
+        const created = await this.repo.createPinnedIssue('Todohub Control Center', composed, ['todohub']);
+        return created.data.number;
+    }
+    async get(_id) {
+        const issues = await this.repo.findTodohubControlIssues();
+        for (const issueCandidate of issues) {
+            let parsedBody;
+            try {
+                parsedBody = this.parseBodyParts(issueCandidate.body || '');
+            }
+            catch (err) {
+                this.logger.debug(`Issue <${issueCandidate.number}> looks like a TodohubControlIssue Candidate, but failed to parse.`);
+                continue;
+            }
+            let decodedData;
+            try {
+                decodedData = TodohubControlIssueData.decodeFrom(parsedBody.data, issueCandidate.number);
+                this.existingIssue = Object.assign(parsedBody, {
+                    number: issueCandidate.number,
+                    isClosed: issueCandidate.state === 'closed',
+                });
+                return decodedData;
+            }
+            catch (err) {
+                this.logger.debug(`Issue <${issueCandidate.number}> looks like a TodohubControlIssue Candidate, data tag failed to be decoded.`);
+                continue;
+            }
+        }
+        return TodohubControlIssueData.fromScratch();
+    }
+    compose(data) {
+        const todos = Object.entries(data.getIssuesTodoStates());
+        let newMidTag = todos.length ? '\n### Tracked Issues:' : '';
+        const footnotes = [];
+        for (const [issueNr, trackedIssue] of todos) {
+            if (!trackedIssue.todos.length) {
+                continue;
+            }
+            let link = '';
+            if (trackedIssue.commentId) {
+                link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${trackedIssue.commentId || ''})`;
+            }
+            else if (trackedIssue.deadIssue) {
+                footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`);
+                const currentFootnoteIndex = footnotes.length;
+                link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`;
+            }
+            else {
+                link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`;
+            }
+            newMidTag += `\n* ${link}: *${trackedIssue.todos.length}* open TODOs`;
+        }
+        for (const [index, value] of footnotes.entries()) {
+            newMidTag += `\n[^${index + 1}]: ${value}`;
+        }
+        const strayTodos = data.getStrayTodoState();
+        if (strayTodos && strayTodos.todos.length) {
+            newMidTag += '\n### Todos without Issue Reference:';
+            for (const strayTodo of strayTodos.todos) {
+                const codeLink = `[link](${this.repo.baseUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
+                newMidTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`;
+            }
+        }
+        newMidTag += `\n\n<sub>**Last updated:** ${data.getLastUpdatedCommit()}</sub>`;
+        return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${data.encode()}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`;
+    }
+    parseBodyParts(issueBody) {
+        const regex = /(?<preTag>[\s\S]*)<!--todohub_ctrl_issue_data="(?<data>[A-Za-z0-9+/=]*)"-->(?<midTag>[\s\S]*)<!--todohub_ctrl_issue_end-->(?<postTag>[\s\S]*)/;
+        const parsed = issueBody.match(regex);
+        if (!parsed ||
+            !parsed.groups ||
+            parsed.groups.preTag === undefined ||
+            parsed.groups.data === undefined ||
+            parsed.groups.midTag === undefined ||
+            parsed.groups.postTag === undefined) {
+            throw new ControlIssueParsingError(`Error parsing Todohub Control Issue: <${issueBody}>`);
+        }
+        return parsed.groups;
+    }
+}
+
+;// CONCATENATED MODULE: ./src/service/comment.ts
+
+
+class GithubCommentFactory {
+    repo;
+    logger;
+    constructor(repo, logger) {
+        this.repo = repo;
+        this.logger = logger;
+    }
+    make(issueNr, data) {
+        return new GithubComment(this.repo, this.logger, issueNr, data);
+    }
+}
+class GithubComment {
+    repo;
+    logger;
+    issueNr;
+    data;
+    constructor(repo, logger, issueNr, data) {
+        this.repo = repo;
+        this.logger = logger;
+        this.issueNr = issueNr;
+        this.data = data;
+    }
+    // TODO #93 rename class? This is not directly related to the comment
+    async reopenIssueWithOpenTodos() {
+        if (this.data.todos.length) {
+            this.logger.debug(`Opening issue <${this.issueNr}>...`);
+            try {
+                return await this.repo.updateIssue(this.issueNr, undefined, undefined, 'open');
+            }
+            catch (err) {
+                assertGithubError(err);
+                if (err.status === 410 || err.status === 404) {
+                    this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Issue does not exist or was permanently deleted.`);
+                }
+                else if (err.status === 422) {
+                    this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Possibly a pull request, which cannot be reopened due to the respective branch being deleted.`);
+                }
+                else {
+                    throw err;
+                }
+            }
+        }
+    }
+    // TODO #93 this mutates data (which is probably what we need, but should be documented and clear or data should be returned)
+    async write() {
+        const existingCommentId = this.data.commentId;
+        const composedComment = this.composeTrackedIssueComment();
+        if (existingCommentId) {
+            this.logger.debug(`Updating comment on issue <${this.issueNr}-${existingCommentId}>...`);
+            try {
+                return await this.repo.updateComment(existingCommentId, composedComment);
+            }
+            catch (err) {
+                assertGithubError(err);
+                if (err.status === 404) {
+                    this.logger.warning(`Failed to update Issue Comment <${this.issueNr}-${existingCommentId}>. Trying to create new Comment instead...`);
+                    this.data.commentId = undefined;
+                }
+                else {
+                    throw err;
+                }
+            }
+        }
+        try {
+            this.logger.debug(`Adding new comment to issue ${this.issueNr}...`);
+            const created = await this.repo.createComment(this.issueNr, composedComment);
+            this.data.commentId = created.data.id;
+            return created;
+        }
+        catch (err) {
+            assertGithubError(err);
+            if (err.status === 404 || err.status === 410) {
+                this.logger.warning(`Error creating comment: It appears Issue <${this.issueNr}> does not exist.
+        If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue <${this.issueNr}> to the new issue.`);
+                this.data.deadIssue = true;
+            }
+            else {
+                throw err;
+            }
+        }
+    }
+    composeTrackedIssueComment() {
+        let composed = this.data.todos.length ? '#### TODOs:' : 'No Open Todos';
+        for (const todo of this.data.todos) {
+            const link = `[link](${this.repo.baseUrl}/blob/${this.data.commitSha}/${todo.fileName}#L${todo.lineNumber})`;
+            composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
+        }
+        composed += `\n\n<sub>**Last set:** ${this.data.commitSha} | **Tracked Branch:** \`${escapeMd(this.data.trackedBranch)}\`</sub>`;
+        return composed;
+    }
+}
+
 ;// CONCATENATED MODULE: ./src/di-container.ts
+
+
 
 
 
@@ -35211,7 +35213,10 @@ const TOKENS = {
     githubService: token('githubService'),
     config: token('config'),
     pushContextGetter: token('pushContextGetter'),
+    // implement own factory class, this is too limited
     findTodoStreamFactory: token('Factory<FindTodoStream>'),
+    dataStore: token('dataStore'),
+    githubCommentFactory: token('githubCommentFactory'),
 };
 const container = new Container();
 container.bind(TOKENS.runner).toInstance(Runner).inSingletonScope();
@@ -35221,10 +35226,14 @@ container.bind(TOKENS.logger).toInstance(ActionLogger).inSingletonScope();
 container.bind(TOKENS.config).toInstance(ActionConfig).inSingletonScope();
 container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext);
 container.bind(TOKENS.octokitGetter).toConstant(ActionOctokitGetter);
+container.bind(TOKENS.dataStore).toInstance(TodohubControlIssueDataStore).inTransientScope();
+container.bind(TOKENS.githubCommentFactory).toInstance(GithubCommentFactory).inSingletonScope();
 container.bind(TOKENS.findTodoStreamFactory).toFactory(FindTodoStream, (instance, todos, filename, issueNr) => instance.initDi(todos, filename, issueNr));
-injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService);
+injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService, TOKENS.dataStore, TOKENS.githubCommentFactory);
 injected(GithubService, TOKENS.octokitGetter, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory);
 injected(EnvironmentService, TOKENS.pushContextGetter, TOKENS.config);
+injected(TodohubControlIssueDataStore, TOKENS.githubService, TOKENS.logger);
+injected(GithubCommentFactory, TOKENS.githubService, TOKENS.logger);
 injected(FindTodoStream, TOKENS.environmentService, TOKENS.logger);
 
 ;// CONCATENATED MODULE: ./src/index.ts

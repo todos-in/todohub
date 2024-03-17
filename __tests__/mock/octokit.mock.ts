@@ -5,7 +5,8 @@ import { Readable } from 'node:stream'
 import { Octokit } from 'octokit'
 import { RequestError } from '@octokit/request-error'
 import * as tar from 'tar'
-import { TodohubControlIssue } from '../../src/elements/control-issue.js'
+import { TOKENS, container } from '../../src/di-container.js'
+import { TodohubControlIssueDataStore } from '../../src/service/datastore.js'
 
 interface ApiResponses {
   branches: string[]
@@ -16,8 +17,9 @@ interface ApiResponses {
 }
 
 const decodeControlIssueData = (encoded: string) => {
+  const dataStore = container.get(TOKENS.dataStore) as TodohubControlIssueDataStore
   try {
-    const issueContent = TodohubControlIssue.parseContent(encoded)
+    const issueContent = dataStore.parseBodyParts(encoded)
     const b64Decoded = Buffer.from(issueContent.data, 'base64')
     const unzipped = gunzipSync(b64Decoded)
     return JSON.parse(unzipped.toString('utf-8'))
@@ -81,6 +83,7 @@ export const getOctokitMockFactory = (responses: ApiResponses, repoPath: string)
         }),
       },
       issues: {
+        // add _decoded: dirty hack to get the decoded data for easier testing
         update: jest.fn(async (_options) => ({ data: { id: 42 }, _decoded: _options.body && _options.body.includes('<!--todohub_ctrl_issue_data') ? decodeControlIssueData(_options.body) : undefined })),
         create: jest.fn(async (_options) => ({ data: { id: 42 }, _decoded: decodeControlIssueData(_options.body) })),
         createComment: jest.fn(async (_options) => ({ data: { id: 42 } })),

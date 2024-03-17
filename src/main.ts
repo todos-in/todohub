@@ -1,9 +1,12 @@
-import { TodohubControlIssue } from './elements/control-issue.js'
-import { ITodo } from './interfaces/todo.js'
+import { ITodo } from './interfaces/data.js'
 import { Environment } from './interfaces/environment.js'
 import { Logger } from './interfaces/logger.js'
 import { EnvironmentService } from './service/environment.js'
 import GithubService from './service/github.js'
+import { DataStore } from './interfaces/datastore.js'
+import { IRepoTodoStates } from './interfaces/data.js'
+import { GithubCommentFactory } from './service/comment.js'
+import { TodohubControlIssueData } from './service/data.js'
 
 interface RunInfo {
   succesfullyUpdatedIssues: number[]
@@ -29,6 +32,8 @@ export class Runner {
     private logger: Logger,
     private environment: EnvironmentService,
     private repo: GithubService,
+    private dataStore: DataStore,
+    private commentFactory: GithubCommentFactory,
   ) {
     this.env = this.environment.getEnv()
   }
@@ -47,10 +52,12 @@ export class Runner {
     }
 
     this.logger.debug('Getting existing Todohub Control Issue...')
-    const todohubIssue = await TodohubControlIssue.get(this.repo)
-    this.logger.debug(todohubIssue.exists() ?
-      `Found existing Todohub Control Issue: <${todohubIssue.existingIssueNumber}>.` :
-      'No existing Todohub Control Issue. Needs to be initiated.')
+    const todohubState = await this.dataStore.get(undefined)
+    if (todohubState instanceof TodohubControlIssueData) {
+      this.logger.debug(todohubState._existingControlIssue ?
+        `Found existing Todohub Control Issue: <${todohubState._existingControlIssue}>.` :
+        'No existing Todohub Control Issue. Needs to be initiated.')  
+    }
 
     if (this.env.isFeatureBranch && this.env.featureBranchNumber) {
       this.logger.info(`Push Event into feature branch <${this.env.branchName}> related to issue <${this.env.featureBranchNumber}>...`)
@@ -62,7 +69,7 @@ export class Runner {
       let todos = await this.repo.getTodosFromGitRef(this.env.commitSha, this.env.featureBranchNumber)
       todos = todos.map(todo => Object.assign(todo, { foundInCommit: this.env.commitSha }))
 
-      await this.updateIssue(this.env.featureBranchNumber, todos, todohubIssue, this.env.commitSha, this.env.ref)
+      await this.updateIssue(this.env.featureBranchNumber, todos, todohubState, this.env.commitSha, this.env.ref)
     } else if (this.env.isDefaultBranch) {
       this.logger.info(`Push Event into default branch <${this.env.defaultBranch}>`)
 
@@ -73,7 +80,7 @@ export class Runner {
       const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0))
       this.logger.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`)
 
-      const trackedIssues = todohubIssue.data.getTrackedIssuesNumbers()
+      const trackedIssues = todohubState.getTrackedIssuesNumbers()
       this.logger.debug(`Currently <${trackedIssues.size}> issues are tracked in Control Issue.`)
 
       const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]))
@@ -87,34 +94,37 @@ export class Runner {
       this.logger.debug(`Feature branches <${branchesAheadOfDefault.join(',')}> are ahead of default <${this.env.defaultBranch}>. These will not be updated.`)
 
       const strayTodos = todos.filter((todo) => !todo.issueNumber)
-      todohubIssue.data.setStrayTodos(strayTodos, this.env.commitSha, this.env.ref)
+      todohubState.setStrayTodoState({todos: strayTodos, commitSha: this.env.commitSha, trackedBranch: this.env.ref})
 
       for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
-        await this.updateIssue(issueNr, todos, todohubIssue, this.env.commitSha, this.env.ref)
+        await this.updateIssue(issueNr, todos, todohubState, this.env.commitSha, this.env.ref)
       }
     }
 
-    todohubIssue.data.setLastUpdatedCommit(this.env.commitSha)
+    todohubState.setLastUpdatedCommit(this.env.commitSha)
     this.logger.debug('Writing Todohub Control issue...')
-    const todohubIssueId = await todohubIssue.write()
+    const todohubIssueId = await this.dataStore.write(todohubState)
     this.runInfo.todohubIssueId = todohubIssueId
 
     return this.runInfo
   }
 
-  private async updateIssue(issueNr: number, todos: ITodo[], todohubIssue: TodohubControlIssue, commitSha: string, ref: string) {
+  private async updateIssue(issueNr: number, todos: ITodo[], todohubStates: IRepoTodoStates, commitSha: string, ref: string) {
     this.logger.startGroup(`Processing Issue <${issueNr}>`)
     const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
     this.logger.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`)
 
-    const updateNecessary = !todohubIssue.data.todoStateEquals(issueNr, issueTodos)
+    const updateNecessary = !todohubStates.todoStateEquals(issueNr, issueTodos)
 
-    todohubIssue.data.setTodoState(issueNr, issueTodos, commitSha, ref)
+    const todoState = todohubStates.setIssueTodoState(issueNr, {todos: issueTodos, commitSha, trackedBranch: ref})
 
     if (updateNecessary) {
-      const comment = await todohubIssue.writeComment(issueNr)
-      if (comment) {
-        await todohubIssue.reopenIssueWithOpenTodos(issueNr)
+      const githubComment = this.commentFactory.make(issueNr, todoState)
+      const writtenComment = await githubComment.write()
+      if (writtenComment) {
+        if (todoState.todos.length) {
+          await githubComment.reopenIssueWithOpenTodos()
+        }
         this.runInfo.succesfullyUpdatedIssues.push(issueNr)
         this.runInfo.totalTodosUpdated += issueTodos.length 
       } else {
