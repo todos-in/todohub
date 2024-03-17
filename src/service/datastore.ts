@@ -95,7 +95,6 @@ export class TodohubControlIssueDataStore implements DataStore {
 
     newMidTag += `\n\n<sub>**Last updated:** ${data.getLastUpdatedCommit()}</sub>`
 
-    this.logger.debug('Encoding: data for control issue: ' + JSON.stringify(data))
     return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${data.encode()}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`
   }
 

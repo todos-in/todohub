@@ -39,7 +39,12 @@ export class FindTodoStream extends Writable {
       this.logger.debug(`Skipping line in <${this.filename}> because it exceeds max length of <${this.environment.maxLineLength}> characters. If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`)
       return next()
     }
-    const matchedTodo = matchTodo(line, this.issueNr?.toString())
+    let matchedTodo
+    try {
+      matchedTodo = matchTodo(line, this.issueNr?.toString())
+    } catch (err) {
+      this.logger.warning((err as Error).message)
+    }
     if (!matchedTodo) {
       return next()
     }

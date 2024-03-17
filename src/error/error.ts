@@ -59,7 +59,11 @@ export class ControlIssueParsingError extends TodohubError {
 }
 
 export class ControlIssueDataDecodingError extends TodohubError {
-  constructor(message: string) { super(message, 'control-issue-decode') }
+  constructor(message: string, cause?: Error) { super(message, 'control-issue-decode', undefined, cause) }
+}
+
+export class RegexError extends TodohubError {
+  constructor(message: string) { super(message, 'todo-regex-match') }
 }
 
 export function assertGithubError(error: unknown): asserts error is RequestError {

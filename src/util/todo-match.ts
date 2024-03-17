@@ -1,4 +1,4 @@
-import * as core from '@actions/core' // TODO #93 needs DI resolution
+import { RegexError } from '../error/error.js'
 
 // TODO #76 refine regex (make simpler?)
 const regexCache: Record<string, RegExp> = {}
@@ -24,8 +24,8 @@ interface TodoRegexMatch {
   todoText: string;
 }
 
-export const matchTodo = (textLine: string, issueNumber?: string): TodoRegexMatch | undefined => {
-  const regex = getRegex(issueNumber)
+export const matchTodo = (textLine: string, onlyIssueNumber?: string): TodoRegexMatch | undefined => {
+  const regex = getRegex(onlyIssueNumber)
   const match = textLine.match(regex)
 
   if (!match) {
@@ -33,22 +33,18 @@ export const matchTodo = (textLine: string, issueNumber?: string): TodoRegexMatc
   }
 
   if (!(match.groups?.keyword)) {
-    core.warning('TodoMatch could not be parsed from code: keyword not found in match: ' + textLine)
-    return
+    throw new RegexError('Could not parse "keyword" from match. This should not happen.')
   }
 
-  const parsedIssueNumber = match.groups.issueNumber && Number.parseInt(match.groups.issueNumber)
-  if (issueNumber) {
-    if (Number.isNaN(parsedIssueNumber)) {
-      core.warning('Regex match parsing issue: issueNumber not an integer.')
-      return
-    }  
-  }
+  const parsedIssueNumber = match.groups.issueNumber !== undefined ? Number.parseInt(match.groups.issueNumber) : NaN
+  if (onlyIssueNumber && Number.isNaN(parsedIssueNumber)) {
+    throw new RegexError('Could not parse "issueNumber" from match: not an integer.')
+  }  
   
   return {
     rawLine: match[0],
     keyword: match.groups.keyword,
-    issueNumber: Number.isNaN(parsedIssueNumber) ? undefined : parsedIssueNumber as number,
+    issueNumber: Number.isNaN(parsedIssueNumber) ? undefined : parsedIssueNumber,
     todoText: match.groups.todoText || '',
   }
 }

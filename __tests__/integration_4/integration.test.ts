@@ -52,7 +52,7 @@ describe('action: integration test 4: main branch push with existing control iss
     expect(testLogger.error).toHaveBeenCalledTimes(0)
     // We expect one warning because one of the control issue candidates returned by the search endpoint is corrupted and cannot be parsed
     expect(testLogger.warning).toHaveBeenCalledTimes(1)
-    // One to 'reopen' issue 1 with comment 42, once to update the control issue
+    // Once to 'reopen' issue 1 with comment 42, once to update the control issue
     expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledTimes(2)
     expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 1, state: 'open' }))
     expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 100 }))

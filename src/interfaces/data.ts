@@ -1,3 +1,5 @@
+import { z } from 'zod'
+
 export interface IRepoTodoStates {
   /** Return all TodoStates of Todos that reference an issue by issueNr (Only excludes stray Todos)*/
   getIssuesTodoStates(): Record<number, TodoState>
@@ -31,7 +33,41 @@ export interface TodoState {
   deadIssue?: boolean;
 }
 
+export interface Encodable {
+  encode(): string
+}
+
 export interface IRepoTodoStatesDataFormat {
   todoStates: Record<number, TodoState>,
   lastUpdatedCommitSha?: string,
 }
+
+// io-ts type runtime - type checking formats
+// TODO #59 can we replace the plain interfaces with the io-ts types?
+
+const zTodo = z.object({
+  fileName: z.string(),
+  lineNumber: z.number().int(),
+  rawLine: z.string(),
+  keyword: z.string(),
+  issueNumber: z.number().int().optional(),
+  todoText: z.string(),
+  foundInCommit: z.string().optional(),
+  doneInCommit: z.string().optional(),
+
+})
+
+const zTodoState = z.object({
+  trackedBranch: z.string(),
+  commentId: z.number().int().optional(),
+  commitSha: z.string(),
+  todos: z.array(zTodo),
+  deadIssue: z.boolean().optional(),
+})
+
+const zIntegerString = z.string().regex(/^[0-9]+$/)
+
+export const zRepoTodoStatesDataFormat = z.object({
+  todoStates: z.record(zIntegerString, zTodoState),
+  lastUpdatedCommitSha: z.string().optional(),
+})

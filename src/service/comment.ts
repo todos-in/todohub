@@ -8,11 +8,11 @@ export class GithubCommentFactory {
   constructor(private repo: GithubService, private logger: Logger) { }
 
   make(issueNr: number, data: TodoState) {
-    return new GithubComment(this.repo, this.logger, issueNr, data)
+    return new GithubIssueComment(this.repo, this.logger, issueNr, data)
   }
 }
 
-class GithubComment {
+class GithubIssueComment {
   constructor(
     private repo: GithubService,
     private logger: Logger,
@@ -20,7 +20,6 @@ class GithubComment {
     private data: TodoState,
   ) { }
 
-  // TODO #93 rename class? This is not directly related to the comment
   async reopenIssueWithOpenTodos() {
     if (this.data.todos.length) {
       this.logger.debug(`Opening issue <${this.issueNr}>...`)
@@ -39,7 +38,12 @@ class GithubComment {
     }
   }
 
-  // TODO #93 this mutates data (which is probably what we need, but should be documented and clear or data should be returned)
+  /**
+   * If a comment already exists, will try to overwrite. Otherwise tries to create a new comment on the issue.
+   * Impportant: Also manuipulates its own data to add commentId, if it was created or set deadIssue if issue was not found
+   * 
+   * @returns Updated or created comment if successful
+   */
   async write() {
     const existingCommentId = this.data.commentId
     const composedComment = this.composeTrackedIssueComment()
