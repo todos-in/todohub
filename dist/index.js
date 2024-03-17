@@ -38259,7 +38259,7 @@ var z = /*#__PURE__*/Object.freeze({
 ;// CONCATENATED MODULE: ./src/interfaces/data.ts
 
 // io-ts type runtime - type checking formats
-// TODO #59 can we replace the plain interfaces with the io-ts types?
+// TODO #59 can we replace the plain interfaces with the zod types?
 const zTodo = z.object({
     fileName: z.string(),
     lineNumber: z.number().int(),
