@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   check-dist:
-    name: Check dist/
+    name: Check Build
     runs-on: ubuntu-latest
 
     steps:
