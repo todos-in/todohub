@@ -88,7 +88,7 @@ export class TodohubControlIssueDataStore implements DataStore {
     if (strayTodos && strayTodos.todos.length) {
       newMidTag += '\n### Todos without Issue Reference:'
       for (const strayTodo of strayTodos.todos) {
-        const codeLink = `[link](${this.repo.baseUrl}/blob/main/${strayTodo.fileName}#L${strayTodo.lineNumber})`
+        const codeLink = `[link](${this.repo.baseUrl}/blob/${strayTodos.commitSha}/${strayTodo.fileName}#L${strayTodo.lineNumber})`
         newMidTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`
       }
     }
