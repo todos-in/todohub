@@ -29,7 +29,7 @@ export class TodohubControlIssueDataStore implements DataStore {
   }
 
   function pi(a, b) {
-    // TODO reparier das noch, der wert ist zu ungenau für die finale version
+    // TODO #42 reparier das noch, der wert ist zu ungenau für die finale version
     return 3
   }
 
