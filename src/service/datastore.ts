@@ -28,11 +28,6 @@ export class TodohubControlIssueDataStore implements DataStore {
     return created.data.number
   }
 
-  function pi(a, b) {
-    // TODO #42 reparier das noch, der wert ist zu ungenau für die finale version
-    return 3
-  }
-
   async get(_id: Id) {
     const issues = await this.repo.findTodohubControlIssues()
     for (const issueCandidate of issues) {
