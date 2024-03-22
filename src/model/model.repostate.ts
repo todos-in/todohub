@@ -1,4 +1,4 @@
-import { STRAY_TODO_KEY, currentVersion } from './constants.js'
+import { STRAY_TODO_KEY, CURRENT_VERSION } from './constants.js'
 import { Todo } from './model.todo.js'
 import { TodoState } from './model.todostate.js'
 import { TRepoTodoStates, TSupportedVersions, TTodoState } from './validation.js'
@@ -18,7 +18,7 @@ export class RepoTodoStates implements TRepoTodoStates {
   }
 
   static fromScratch() {
-    const todoStates = new RepoTodoStates(currentVersion, {})
+    const todoStates = new RepoTodoStates(CURRENT_VERSION, {})
     return todoStates
   }
 
