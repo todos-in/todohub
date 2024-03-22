@@ -1,21 +1,24 @@
 {
+  "version": "1",
   "todoStates": {
     "2": {
-      "todos": [
-        {
-          "rawLine": "TODO #2 this todo should be included, no ignorefile",
-          "todoText": "this todo should be included, no ignorefile",
-          "keyword": "TODO",
-          "lineNumber": 1,
-          "issueNumber": 2,
-          "fileName": "file_should_not_be_ignored",
-          "foundInCommit": "xyz"
-        }
-      ],
-      "commitSha": "xyz",
-      "trackedBranch": "refs/heads/2-feat-branch",
-      "commentId": 42
+      "featureBranch": {
+        "todos": [
+          {
+            "rawLine": "TODO #2 this todo should be included, no ignorefile",
+            "todoText": "this todo should be included, no ignorefile",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 2,
+            "fileName": "file_should_not_be_ignored",
+            "foundInCommit": "xyz"
+          }
+        ],
+        "commitSha": "xyz",
+        "name": "refs/heads/2-feat-branch"
+      },
+      "commentId": 42,
+      "deadIssue": false
     }
-  },
-  "lastUpdatedCommitSha": "xyz"
+  }
 }

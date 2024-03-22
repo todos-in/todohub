@@ -25,17 +25,17 @@ export class EnvironmentService {
     }
 
     const repo = context.repo.repo
-    if (!defaultBranch) {
+    if (!repo) {
       throw new EnvironmentLoadError({ key: 'repo.repo', place: 'context' })
     }
 
     const repoOwner = context.repo.owner
-    if (!defaultBranch) {
+    if (!repoOwner) {
       throw new EnvironmentLoadError({ key: 'repo.owner', place: 'context' })
     }
 
     const ref = context.ref
-    if (!defaultBranch) {
+    if (!ref) {
       throw new EnvironmentLoadError({ key: 'ref', place: 'context' })
     }
 

@@ -14,7 +14,7 @@ const configMock = makeConfigMock(path.join(__dirname, 'environment', 'envvar.js
 
 const realControlIssue = {
   body: `Here would be some text before the data tag
-<!--todohub_ctrl_issue_data="H4sIAAAAAAAAE51SsWrDMBD9FXFdDcGlXTw2XQIlGZJMocPFOmMRSwonmdg1+vee3AylNKXtInRPevfe426C6LXfRowUoJqgzEeGpDpMwHh5MY6ggt3meaPuShVbExR2TKhHRYMJkbQyTtXeRfadMiH0BMXcY0dDFOpvKScaL571VUyATqTXvT0SQ1UWMP/7VDemozXa7C5fhdD43umVW3prTVYexjdIxc0Yt7wU6thHhW60nim/Mp39N5n+yv8x4ON/AmpqIL0WUM/AtsVraPHKWJ9IPzG6uhWUqQmLVkYQFhaNgw8OubgSPw/3KYkbDHF/1rIKevmlX3oH9Q5xaigCAAA="-->
+<!--todohub_ctrl_issue_data="H4sIAAAAAAAAE51RPWvDMBD9K+K6GoJLunhsswRKMjSZSoeLdcYilhROcmLX6L/3FEJpoCltFyHpfdx70gRH4mC8gwpKKKDDELcHjZH0ghrsu/jkrTVR4GF8F0JkrPef4COjq1sBmZowawl1mFk0LhO99i9RjAJUk3jLoq9F05kj8OsEjKdn40icNuvFWt2VKrYmKOxYPEdFgwkSSRmnau8i+06ZEHq6zNnQkBP+VrKn8eRZX4bl1jJ61dsdMVRlAWfel3NjOlqhzenyVgSN751euqu3ScXNGreyFGrXR4VutJ4po0wH/02nv+p/LPjwn4LydZDeUgG13JCLSzGf36eUPgCuNV3pQQIAAA=="-->
 Here would be some rendered stuff
 <!--todohub_ctrl_issue_end-->
 Here could be some text after the tag`,

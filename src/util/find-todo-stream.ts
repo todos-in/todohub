@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream'
 import { matchTodo } from './todo-match.js'
-import { ITodo } from '../interfaces/data.js'
+import { Todo } from '../service/data.js'
 import { EnvironmentService } from '../service/environment.js'
 import { Logger } from 'interfaces/logger.js'
 import { Environment } from '../interfaces/environment.js'
@@ -8,7 +8,7 @@ import { Environment } from '../interfaces/environment.js'
 export class FindTodoStream extends Writable {
   private filename?: string
   private currentLineNr = 0
-  private todos?: ITodo[]
+  private todos?: Todo[]
   private issueNr?: number
   private environment: Environment
 
@@ -24,7 +24,7 @@ export class FindTodoStream extends Writable {
    * @param filename 
    * @param issueNr 
    */
-  initDi(todos: ITodo[], filename: string, issueNr?: number) {
+  initDi(todos: Todo[], filename: string, issueNr?: number) {
     this.todos = todos
     this.filename = filename
     this.issueNr = issueNr
@@ -49,7 +49,7 @@ export class FindTodoStream extends Writable {
       return next()
     }
     const todoWithMetadata = Object.assign(matchedTodo, {fileName: this.filename, lineNumber: this.currentLineNr})
-    this.todos.push(todoWithMetadata)
+    this.todos.push(new Todo(todoWithMetadata))
     next()
   }
 } 

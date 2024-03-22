@@ -1,4 +1,4 @@
-* Push to **main branch**
+* Push to **default branch**
 * **Existing todohub control issue** with id 100
   * contains pre,mid and post tag text
   * contains datatag with one existing todo

@@ -9,12 +9,12 @@ import { Config, PushContextGetter } from './interfaces/config.js'
 import { EnvironmentService } from './service/environment.js'
 import GithubService from './service/github.js'
 import { FindTodoStream } from './util/find-todo-stream.js'
-import { ITodo } from './interfaces/data.js'
+import { Todo } from './service/data.js'
 import { DataStore } from './interfaces/datastore.js'
 import { TodohubControlIssueDataStore } from './service/datastore.js'
 import { GithubCommentFactory } from './service/comment.js'
 
-export type FindTodoStreamFactoryArgs = [todos: ITodo[], filename: string, issueNr?: number]
+export type FindTodoStreamFactoryArgs = [todos: Todo[], filename: string, issueNr?: number]
 
 export const TOKENS = {
   logger: token<Logger>('logger'),

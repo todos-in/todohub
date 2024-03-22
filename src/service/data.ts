@@ -1,56 +1,119 @@
-import { gunzipSync, gzipSync } from 'node:zlib'
-import { IRepoTodoStates, zRepoTodoStatesDataFormat, IRepoTodoStatesDataFormat } from '../interfaces/data.js'
-import { ITodo, TodoState, Encodable } from '../interfaces/data.js'
-import { ControlIssueDataDecodingError } from '../error/error.js'
+import { z } from 'zod'
 
-// eslint-disable-next-line @typescript-eslint/no-extraneous-class
-class TodoHelper {
-  static compare(todoA: ITodo, todoB: ITodo) {
-    return ((todoA.issueNumber || 0) - (todoB.issueNumber || 0))
-      || todoA.fileName.localeCompare(todoB.fileName)
-      || (todoA.lineNumber - todoB.lineNumber)
-      || todoA.rawLine.localeCompare(todoB.rawLine)
-  }
-
-  static equals(todoA: ITodo, todoB: ITodo) {
-    // TODO #65 is this enough to compare?
-    return (
-      todoA.fileName === todoB.fileName &&
-      todoA.lineNumber === todoB.lineNumber &&
-      todoA.rawLine === todoB.rawLine
-    )
-  }
-}
-
+// TODO constants file
 const STRAY_TODO_KEY = 0
+const currentVersion = '1'
 
-export class RepoTodoStates implements IRepoTodoStatesDataFormat {
+const zTodo = z.object({
+  fileName: z.string(),
+  lineNumber: z.number().int(),
+  rawLine: z.string(),
+  keyword: z.string(),
+  issueNumber: z.number().int().optional(),
+  todoText: z.string(),
+  foundInCommit: z.string().optional(),
+  doneInCommit: z.string().optional(),
+})
+export type TTodo = z.infer<typeof zTodo>
+
+const zFeatureBranchState = z.object({
+  name: z.string(),
+  commitSha: z.string(),
+  todos: z.array(zTodo),
+})
+type TFeatureBranchState = z.infer<typeof zFeatureBranchState>
+
+const zDefaultBranchState = z.object({
+  todos: z.array(zTodo),
+})
+type TDefaultBranchState = z.infer<typeof zDefaultBranchState>
+
+const zTodoState = z.object({
+  commentId: z.number().int().optional(),
+  deadIssue: z.boolean().optional(),
+  defaultBranch: zDefaultBranchState.optional(),
+  featureBranch: zFeatureBranchState.optional(),
+})
+export type TTodoState = z.infer<typeof zTodoState>
+
+const zIntegerString = z.string().regex(/^[0-9]+$/)
+const zSupportedVersions = z.enum(['1'], {
+  invalid_type_error: 'Unsupported Data Format Version: This Todohub version supports only versions: ["1"]',
+})
+type TSupportedVersions = z.infer<typeof zSupportedVersions>
+
+const zTodoStates = z.record(zIntegerString, zTodoState)
+
+export const zRepoTodoStates = z.object({
+  version: zSupportedVersions,
+  todoStates: zTodoStates,
+  lastUpdatedDefaultCommit: z.string().optional(),
+  trackedDefaultBranch: z.string().optional(),
+}).transform((obj) => new RepoTodoStates(obj.version, obj.todoStates, obj.lastUpdatedDefaultCommit, obj.trackedDefaultBranch))
+export type TRepoTodoStates = z.infer<typeof zRepoTodoStates>
+
+// Implementations ---
+export class RepoTodoStates implements TRepoTodoStates {
+  private todoStates: Record<number, TodoState> = {}
 
   constructor(
-    public todoStates: Record<number, TodoState>,
-    public lastUpdatedCommitSha?: string,
-  ) { }
+    private version: TSupportedVersions,
+    todoStates: Record<number, TTodoState>,
+    private lastUpdatedDefaultCommit?: string,
+    private trackedDefaultBranch?: string,
+  ) {
+    for (const [issueNr, todoState] of Object.entries(todoStates)) {
+      this.todoStates[Number.parseInt(issueNr)] = new TodoState(todoState.defaultBranch, todoState.featureBranch, todoState.commentId, todoState.deadIssue)
+    }
+  }
 
-  getAllTodoStates() {
-    return this.todoStates
+  static fromScratch() {
+    const todoStates = new RepoTodoStates(currentVersion, {})
+    return todoStates
   }
 
   getTodoState(issueNr: number) {
     return this.todoStates[issueNr]
   }
 
-  getIssuesTodoStates() {
-    const cloned = Object.assign({}, this.todoStates)
-    delete cloned[STRAY_TODO_KEY]
-    return cloned
+  setDefaultTodoState(issueNr: number, todos: Todo[]): Todo[] | undefined {
+    if (!this.getTodoState(issueNr)) {
+      this.todoStates[issueNr] = new TodoState({todos})
+      return this.getTodoState(issueNr)?.defaultBranch?.todos
+    }
+    return this.getTodoState(issueNr)?.setDefaultState(todos)
+  }
+
+  setFeatureTodoState(issueNr: number, todos: Todo[], name: string, commitSha: string): Todo[] | undefined {
+    if (!this.todoStates[issueNr]) {
+      this.todoStates[issueNr] = new TodoState()
+    }
+    return this.getTodoState(issueNr)?.setFeatureState(todos, name, commitSha)
+  }
+
+  setStrayTodoState(todos: Todo[]): Todo[] | undefined {
+    return this.setDefaultTodoState(STRAY_TODO_KEY, todos)
+  }
+
+  setDefaultTrackedBranch(ref: string, commitSha: string) {
+    this.trackedDefaultBranch = ref
+    this.lastUpdatedDefaultCommit = commitSha
+  }
+
+  deleteFeatureTodoState(issueNr: number) {
+    this.getTodoState(issueNr)?.deleteFeatureState()
+  }
+
+  getTodoStatesByIssueNr() {
+    return this.todoStates
   }
 
   getStrayTodoState() {
     return this.todoStates[STRAY_TODO_KEY]
   }
 
-  getLastUpdatedCommit() {
-    return this.lastUpdatedCommitSha
+  getLastUpdatedDefaultCommit() {
+    return this.lastUpdatedDefaultCommit
   }
 
   getTrackedIssuesNumbers() {
@@ -59,39 +122,73 @@ export class RepoTodoStates implements IRepoTodoStatesDataFormat {
     return issueNrs
   }
 
-  setIssueTodoState(issueNr: number, todoState: TodoState) {
-    const newState = Object.assign(this.todoStates[issueNr] || {}, todoState)
-    this.todoStates[issueNr] = newState
-    this.orderTodoState(issueNr)
-    return newState
+  setLastUpdatedDefaultCommit(sha: string) {
+    this.lastUpdatedDefaultCommit = sha
   }
+}
 
-  setStrayTodoState(todoState: TodoState) {
-    return this.setIssueTodoState(STRAY_TODO_KEY, todoState)
-  }
+export class TodoState implements TTodoState {
+  defaultBranch?: DefaultBranchState
+  featureBranch?: FeatureBranchState
 
-  setLastUpdatedCommit(sha: string) {
-    this.lastUpdatedCommitSha = sha
-  }
-
-  private orderTodoState(issueNr: number) {
-    const todoState = this.getTodoState(issueNr)
-    if (!todoState) {
-      return
+  constructor(
+    defaultBranch?: TDefaultBranchState,
+    featureBranch?: TFeatureBranchState,
+    public commentId?: number,
+    public deadIssue?: boolean) {
+    if (defaultBranch) {
+      this.defaultBranch = new DefaultBranchState(defaultBranch.todos)
     }
-
-    todoState.todos.sort(((a, b) => TodoHelper.compare(a, b)))
+    if (featureBranch) {
+      this.featureBranch = new FeatureBranchState(
+        featureBranch.todos,
+        featureBranch.name,
+        featureBranch.commitSha,
+      )
+    }
   }
 
-  todoStateEquals(issueNr: number, todos: ITodo[] = []) {
-    const todoState = this.getTodoState(issueNr)
-    if (!todoState || todoState.todos.length !== todos.length) {
+  tracksFeatureBranch() {
+    return !!this.featureBranch
+  }
+
+  setDefaultState(todos: Todo[]): Todo[] | undefined {
+    const equalTodos = this.defaultBranch?.equalTodos(todos)
+    this.defaultBranch = new DefaultBranchState(todos)
+    return equalTodos ?  undefined : this.defaultBranch.todos
+  } 
+
+  setFeatureState(todos: Todo[], name: string, commitSha: string): Todo[] | undefined {
+    const equalTodos = this.featureBranch?.equalTodos(todos)
+    this.featureBranch = new FeatureBranchState(todos, name, commitSha)
+    return equalTodos ?  undefined : this.featureBranch.todos
+  }
+
+  setComment(id: number | undefined, issueIsDead: boolean) {
+    this.commentId = id
+    this.deadIssue = issueIsDead
+  }
+
+  deleteFeatureState() {
+    delete this.featureBranch
+  }
+}
+
+class DefaultBranchState implements TDefaultBranchState {
+  todos: Todo[]
+  constructor(todos: TTodo[]) {
+    this.todos = todos.map((todo) => new Todo(todo))
+  }
+
+  equalTodos(todos: Todo[]) {
+    if (this.todos.length !== todos.length) {
       return false
     }
 
-    const orderedTodoState = todos.sort(((a, b) => TodoHelper.compare(a, b)))
-    for (const [i, todoA] of todoState.todos.entries()) {
-      if (!TodoHelper.equals(todoA, orderedTodoState[i] as ITodo)) {
+    const orderedTodos = todos.sort(((a, b) => a.compare(b)))
+
+    for (const [i, thisTodo] of this.todos.entries()) {
+      if (!thisTodo.equals(orderedTodos[i] as Todo)) {
         return false
       }
     }
@@ -99,45 +196,49 @@ export class RepoTodoStates implements IRepoTodoStatesDataFormat {
   }
 }
 
-export class TodohubControlIssueData extends RepoTodoStates implements IRepoTodoStates, Encodable {
-
+class FeatureBranchState extends DefaultBranchState implements TFeatureBranchState {
   constructor(
-    todoStates: Record<number, TodoState>,
-    lastUpdatedCommitSha?: string,
-    // Underscored properties exceed the scope of IRepoTodoStates and will be ignored when data is encoded
-    public _existingControlIssue?: number,
+    todos: TTodo[],
+    public name: string,
+    public commitSha: string,
   ) {
-    super(todoStates, lastUpdatedCommitSha)
+    super(todos)
+  }
+}
+
+export class Todo {
+  // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+  fileName: string
+  // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+  lineNumber: number
+  // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+  rawLine: string
+  // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+  keyword: string
+  issueNumber?: number
+  // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+  todoText: string
+  foundInCommit?: string
+  doneInCommit?: string
+
+  constructor(todo: TTodo) {
+    Object.assign(this, todo)
   }
 
-  static fromScratch() {
-    return new TodohubControlIssueData({})
+  compare(otherTodo: TTodo) {
+    return ((this.issueNumber || 0) - (otherTodo.issueNumber || 0))
+      || this.fileName.localeCompare(otherTodo.fileName)
+      || (this.lineNumber - otherTodo.lineNumber)
+      || this.rawLine.localeCompare(otherTodo.rawLine)
   }
 
-  static decodeFrom(data: string, existingIssueNr: number) {
-    const b64Decoded = Buffer.from(data, 'base64')
-    const unzipped = gunzipSync(b64Decoded)
-    const parsed = JSON.parse(unzipped.toString('utf-8'))
-    const decoded = this.checkParsedFormat(parsed)
-
-    return new TodohubControlIssueData(decoded.todoStates, decoded.lastUpdatedCommitSha, existingIssueNr)
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  static checkParsedFormat(parsed: any) {
-    try {
-      return zRepoTodoStatesDataFormat.parse(parsed)
-    } catch (err) {
-      throw new ControlIssueDataDecodingError('Failed to parse data from Ctrl issue.', err instanceof Error ? err : undefined)
-    }
-  }
-
-  encode() {
-    // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
-    const stringified = JSON.stringify(this, (key, value) => key.startsWith('_') ? undefined : value)
-    const zipped = gzipSync(Buffer.from(stringified, 'utf-8'))
-    const b64Encoded = zipped.toString('base64')
-    return b64Encoded
+  equals(otherTodo: TTodo) {
+    // TODO #65 is this enough to compare?
+    return (
+      this.fileName === otherTodo.fileName &&
+      this.lineNumber === otherTodo.lineNumber &&
+      this.rawLine === otherTodo.rawLine
+    )
   }
 
 }
