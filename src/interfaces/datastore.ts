@@ -1,4 +1,4 @@
-import { RepoTodoStates } from '../service/data.js'
+import { RepoTodoStates } from '../model/model.repostate.js'
 
 export type Id = number
 

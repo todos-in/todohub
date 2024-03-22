@@ -1,4 +1,4 @@
-import { TTodo } from './data.js'
+import { TTodo } from '../model/validation.js'
 import { Logger } from '../interfaces/logger.js'
 import GithubService from './github.js'
 import { escapeMd } from '../util/escape-markdown.js'

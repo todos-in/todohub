@@ -3,9 +3,9 @@ import { ControlIssueDataDecodingError, ControlIssueParsingError } from '../erro
 import { DataStore, Id } from '../interfaces/datastore.js'
 import { Logger } from '../interfaces/logger.js'
 import { escapeMd } from '../util/escape-markdown.js'
-import { RepoTodoStates } from './data.js'
+import { RepoTodoStates } from '../model/model.repostate.js'
 import GithubService from './github.js'
-import { zRepoTodoStates } from './data.js'
+import { zRepoTodoStates } from '../model/validation.js'
 
 export class TodohubControlIssueDataStore implements DataStore {
 

@@ -12,7 +12,7 @@ import { Logger } from '../interfaces/logger.js'
 import { EnvironmentService } from './environment.js'
 import { FindTodoStream } from '../util/find-todo-stream.js'
 import { FindTodoStreamFactoryArgs } from '../di-container.js'
-import { Todo } from './data.js'
+import { Todo } from '../model/model.todo.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)

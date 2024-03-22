@@ -1,4 +1,5 @@
-import { RepoTodoStates, TTodo } from './service/data.js'
+import { RepoTodoStates } from './model/model.repostate.js'
+import { TTodo } from './model/validation.js'
 import { Environment } from './interfaces/environment.js'
 import { Logger } from './interfaces/logger.js'
 import { EnvironmentService } from './service/environment.js'
