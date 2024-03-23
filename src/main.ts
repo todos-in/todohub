@@ -57,19 +57,7 @@ export class Runner {
       await this.featureBranchPush(todohubState, this.env.featureBranchNumber, this.env.ref, this.env.branchName, this.env.commitSha)
     } else if (this.env.isDefaultBranch) {
       await this.defaultBranchPush(todohubState, this.env.commitSha, this.env.ref, this.env.defaultBranch)
-    } 
-
-    /* TODO test cases:
-     * [x] no state: push in default
-     * [x] no state: push in feature
-     * [x] existing state with only default: push in default
-     * [ ] existing state with only feature: push in default
-     * [ ] existing state with only default: push in feature
-     * [ ] existing state with only feature: push in same feature
-     * [ ] existing state with only feature: push in other feature
-     * [ ] existing state with both: push in feature
-     * [ ] existing state with both: push in master
-    */
+    }
 
     this.logger.debug('Writing Todohub Control issue...')
     const todohubIssueId = await this.dataStore.write(todohubState)

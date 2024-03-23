@@ -21,6 +21,7 @@ export class TodohubControlIssueDataStore implements DataStore {
   constructor(private repo: GithubService, private logger: Logger) {}
 
   async write(data: RepoTodoStates, _id: Id) {
+    // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
     const composed = this.compose(data)
     if (this.existingIssue) {
       const updated = await this.repo.updateIssue(this.existingIssue.number, undefined, composed)
@@ -80,7 +81,6 @@ export class TodohubControlIssueDataStore implements DataStore {
   }
 
   private encode(data: RepoTodoStates) {
-    // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
     const stringified = JSON.stringify(data, (key, value) => key.startsWith('_') ? undefined : value)
     const zipped = gzipSync(Buffer.from(stringified, 'utf-8'))
     const b64Encoded = zipped.toString('base64')

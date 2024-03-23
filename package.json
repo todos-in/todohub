@@ -24,7 +24,7 @@
     "coverage": "make-coverage-badge --output-path ./badges/coverage.svg",
     "bundle": "ncc build src/index.ts --license licenses.txt",
     "bundle-debug": "tsc -p tsconfig.json",
-    "release": "npm run lint && npm run test && npm run coverage && npm run bundle"
+    "release": "npm ci && npm run lint && npm run test && npm run coverage && npm run bundle"
   },
   "license": "MIT",
   "dependencies": {

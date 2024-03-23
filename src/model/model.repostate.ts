@@ -35,7 +35,7 @@ export class RepoTodoStates implements TRepoTodoStates {
   }
 
   setFeatureTodoState(issueNr: number, todos: Todo[], name: string, commitSha: string): Todo[] | undefined {
-    if (!this.todoStates[issueNr]) {
+    if (!this.getTodoState(issueNr)) {
       this.todoStates[issueNr] = new TodoState()
     }
     return this.getTodoState(issueNr)?.setFeatureState(todos, name, commitSha)

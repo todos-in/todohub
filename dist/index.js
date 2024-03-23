@@ -34278,17 +34278,6 @@ class Runner {
         else if (this.env.isDefaultBranch) {
             await this.defaultBranchPush(todohubState, this.env.commitSha, this.env.ref, this.env.defaultBranch);
         }
-        /* TODO test cases:
-         * [x] no state: push in default
-         * [x] no state: push in feature
-         * [x] existing state with only default: push in default
-         * [ ] existing state with only feature: push in default
-         * [ ] existing state with only default: push in feature
-         * [ ] existing state with only feature: push in same feature
-         * [ ] existing state with only feature: push in other feature
-         * [ ] existing state with both: push in feature
-         * [ ] existing state with both: push in master
-        */
         this.logger.debug('Writing Todohub Control issue...');
         const todohubIssueId = await this.dataStore.write(todohubState);
         this.runInfo.todohubIssueId = todohubIssueId;
@@ -34619,7 +34608,6 @@ class GithubService {
         return external_node_stream_default().Readable.fromWeb(tarballUrl.data);
     }
     async extractTodosFromTarGz(tarBallStream, issueNr, ignore) {
-        // TODO #69 move logic
         const extractStream = tar_stream.extract();
         const unzipStream = (0,external_node_zlib_namespaceObject.createGunzip)();
         const todos = [];
@@ -35030,7 +35018,7 @@ class RepoTodoStates {
         return this.getTodoState(issueNr)?.setDefaultState(todos);
     }
     setFeatureTodoState(issueNr, todos, name, commitSha) {
-        if (!this.todoStates[issueNr]) {
+        if (!this.getTodoState(issueNr)) {
             this.todoStates[issueNr] = new TodoState();
         }
         return this.getTodoState(issueNr)?.setFeatureState(todos, name, commitSha);
@@ -39138,6 +39126,7 @@ class TodohubControlIssueDataStore {
         this.logger = logger;
     }
     async write(data, _id) {
+        // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
         const composed = this.compose(data);
         if (this.existingIssue) {
             const updated = await this.repo.updateIssue(this.existingIssue.number, undefined, composed);
@@ -39191,7 +39180,6 @@ class TodohubControlIssueDataStore {
         return this.checkParsedFormat(parsed);
     }
     encode(data) {
-        // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
         const stringified = JSON.stringify(data, (key, value) => key.startsWith('_') ? undefined : value);
         const zipped = (0,external_node_zlib_namespaceObject.gzipSync)(Buffer.from(stringified, 'utf-8'));
         const b64Encoded = zipped.toString('base64');
@@ -39342,12 +39330,12 @@ class GithubIssueComment {
         }
     }
     composeTrackedIssueComment() {
-        let composed = this.todos.length ? '#### TODOs:' : 'No Open Todos';
+        let composed = this.todos.length ? '#### TODO' : 'No Open Todos';
         for (const todo of this.todos) {
             const link = `[link](${this.repo.baseUrl}/blob/${this.commitSha}/${todo.fileName}#L${todo.lineNumber})`;
             composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
         }
-        composed += `\n\n<sub>**Last set:** ${this.commitSha} | **Tracked Branch:** \`${escapeMd(this.refName)}\`</sub>`;
+        composed += `\n\n<sub>Last set: ${this.commitSha} | Tracked Branch: \`${escapeMd(this.refName)}\`</sub>`;
         return composed;
     }
 }

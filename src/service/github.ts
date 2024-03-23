@@ -76,7 +76,6 @@ export default class GithubService {
     issueNr?: number,
     ignore?: Ignore,
   ): Promise<Todo[]> {
-    // TODO #69 move logic
     const extractStream = tar.extract()
     const unzipStream = createGunzip()
 
