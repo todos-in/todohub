@@ -5,29 +5,26 @@ import { EnvironmentService } from '../service/environment.js'
 import { Logger } from 'interfaces/logger.js'
 import { Environment } from '../interfaces/environment.js'
 
+export class FindTodoStreamFactory {
+  constructor(private envService: EnvironmentService, private logger: Logger) { }
+
+  make(todos: Todo[], filename: string, issueNr?: number) {
+    return new FindTodoStream(this.envService, this.logger, todos, filename, issueNr)
+  }
+}
+
 export class FindTodoStream extends Writable {
-  private filename?: string
   private currentLineNr = 0
-  private todos?: Todo[]
-  private issueNr?: number
   private environment: Environment
 
-  constructor(private envService: EnvironmentService, private logger: Logger) {
+  constructor(
+    private envService: EnvironmentService,
+    private logger: Logger,
+    private todos: Todo[],
+    private filename: string,
+    private issueNr?: number) {
     super({ objectMode: true })
     this.environment = envService.getEnv()
-  }
-
-  /**
-   * Meant to be called by Dependency Injection Container. Brandi cannot inject into constructor directly. 
-   * Needs to be called before instance is useful, if not DI is mosconfigured
-   * @param todos 
-   * @param filename 
-   * @param issueNr 
-   */
-  initDi(todos: Todo[], filename: string, issueNr?: number) {
-    this.todos = todos
-    this.filename = filename
-    this.issueNr = issueNr
   }
 
   _write(line: string, _encoding: string, next: () => void) {
@@ -48,7 +45,7 @@ export class FindTodoStream extends Writable {
     if (!matchedTodo) {
       return next()
     }
-    const todoWithMetadata = Object.assign(matchedTodo, {fileName: this.filename, lineNumber: this.currentLineNr})
+    const todoWithMetadata = Object.assign(matchedTodo, { fileName: this.filename, lineNumber: this.currentLineNr })
     this.todos.push(new Todo(todoWithMetadata))
     next()
   }

@@ -63,7 +63,6 @@ export class TodohubControlIssueDataStore implements DataStore {
     return RepoTodoStates.fromScratch()
   }
 
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   checkParsedFormat(parsed: any): RepoTodoStates {
     try {

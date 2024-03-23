@@ -34652,7 +34652,7 @@ class GithubService {
                 }
                 this.logger.debug(`Extracting Todos from file <${fileName}>...`);
                 const splitLineStream = new SplitLineStream();
-                const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr);
+                const findTodosStream = this.findTodoStreamFactory.make(todos, fileName, issueNr);
                 splitLineStream.on('end', () => findTodosStream.end());
                 // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
                 stream.pipe(splitLineStream).pipe(findTodosStream);
@@ -34814,6 +34814,255 @@ const matchTodo = (textLine, onlyIssueNumber) => {
         todoText: match.groups.todoText || '',
     };
 };
+
+;// CONCATENATED MODULE: ./src/model/model.todo.ts
+class Todo {
+    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+    fileName;
+    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+    lineNumber;
+    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+    rawLine;
+    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+    keyword;
+    issueNumber;
+    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
+    todoText;
+    foundInCommit;
+    doneInCommit;
+    constructor(todo) {
+        Object.assign(this, todo);
+    }
+    compare(otherTodo) {
+        return ((this.issueNumber || 0) - (otherTodo.issueNumber || 0))
+            || this.fileName.localeCompare(otherTodo.fileName)
+            || (this.lineNumber - otherTodo.lineNumber)
+            || this.rawLine.localeCompare(otherTodo.rawLine);
+    }
+    equals(otherTodo) {
+        // TODO #65 is this enough to compare?
+        return (this.fileName === otherTodo.fileName &&
+            this.lineNumber === otherTodo.lineNumber &&
+            this.rawLine === otherTodo.rawLine);
+    }
+}
+
+;// CONCATENATED MODULE: ./src/util/find-todo-stream.ts
+
+
+
+class FindTodoStreamFactory {
+    envService;
+    logger;
+    constructor(envService, logger) {
+        this.envService = envService;
+        this.logger = logger;
+    }
+    make(todos, filename, issueNr) {
+        return new FindTodoStream(this.envService, this.logger, todos, filename, issueNr);
+    }
+}
+class FindTodoStream extends external_node_stream_.Writable {
+    envService;
+    logger;
+    todos;
+    filename;
+    issueNr;
+    currentLineNr = 0;
+    environment;
+    constructor(envService, logger, todos, filename, issueNr) {
+        super({ objectMode: true });
+        this.envService = envService;
+        this.logger = logger;
+        this.todos = todos;
+        this.filename = filename;
+        this.issueNr = issueNr;
+        this.environment = envService.getEnv();
+    }
+    _write(line, _encoding, next) {
+        if (!this.filename || !this.todos) {
+            throw new Error('FindTodoStream has not been initDi()-ed yet. Class should only be initialized by Dependency Injection Container which handles initalization.');
+        }
+        this.currentLineNr++;
+        if (line.length > this.environment.maxLineLength) {
+            this.logger.debug(`Skipping line in <${this.filename}> because it exceeds max length of <${this.environment.maxLineLength}> characters. If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`);
+            return next();
+        }
+        let matchedTodo;
+        try {
+            matchedTodo = matchTodo(line, this.issueNr?.toString());
+        }
+        catch (err) {
+            this.logger.warning(err.message);
+        }
+        if (!matchedTodo) {
+            return next();
+        }
+        const todoWithMetadata = Object.assign(matchedTodo, { fileName: this.filename, lineNumber: this.currentLineNr });
+        this.todos.push(new Todo(todoWithMetadata));
+        next();
+    }
+}
+
+;// CONCATENATED MODULE: ./src/util/escape-markdown.ts
+const replacers = [
+    { regex: /\*/g, replace: '\\*' },
+    // After applying common markdown stylings, github applies extra logic for issue/people mentions, which cant be easily escaped
+    // as a workaround we add an invisible extra character behind # and @
+    // https://stackoverflow.com/questions/20532546/escape-pound-or-number-sign-in-github-issue-tracker
+    { regex: /#/g, replace: '\\#&#x2060;' },
+    { regex: /@/g, replace: '\\@&#x2060;' },
+    { regex: /\(/g, replace: '\\(' },
+    { regex: /\)/g, replace: '\\)' },
+    { regex: /\[/g, replace: '\\[' },
+    { regex: /\]/g, replace: '\\]' },
+    { regex: /</g, replace: '&lt;' },
+    { regex: />/g, replace: '&gt;' },
+    { regex: /_/g, replace: '\\_' },
+    { regex: /`/g, replace: '\\`' },
+];
+const escapeMd = (markdown) => {
+    for (const replacer of replacers) {
+        markdown = markdown.replace(replacer.regex, replacer.replace);
+    }
+    return markdown;
+};
+
+;// CONCATENATED MODULE: ./src/model/constants.ts
+const STRAY_TODO_KEY = 0;
+const CURRENT_VERSION = '1';
+const SUPPORTED_VERSIONS = ['1'];
+
+;// CONCATENATED MODULE: ./src/model/model.todostate.ts
+
+class TodoState {
+    commentId;
+    deadIssue;
+    defaultBranch;
+    featureBranch;
+    constructor(defaultBranch, featureBranch, commentId, deadIssue) {
+        this.commentId = commentId;
+        this.deadIssue = deadIssue;
+        if (defaultBranch) {
+            this.defaultBranch = new DefaultBranchState(defaultBranch.todos);
+        }
+        if (featureBranch) {
+            this.featureBranch = new FeatureBranchState(featureBranch.todos, featureBranch.name, featureBranch.commitSha);
+        }
+    }
+    tracksFeatureBranch() {
+        return !!this.featureBranch;
+    }
+    setDefaultState(todos) {
+        const equalTodos = this.defaultBranch?.equalTodos(todos);
+        this.defaultBranch = new DefaultBranchState(todos);
+        return equalTodos ? undefined : this.defaultBranch.todos;
+    }
+    setFeatureState(todos, name, commitSha) {
+        const equalTodos = this.featureBranch?.equalTodos(todos);
+        this.featureBranch = new FeatureBranchState(todos, name, commitSha);
+        return equalTodos ? undefined : this.featureBranch.todos;
+    }
+    setComment(id, issueIsDead) {
+        this.commentId = id;
+        this.deadIssue = issueIsDead;
+    }
+    deleteFeatureState() {
+        delete this.featureBranch;
+    }
+}
+class DefaultBranchState {
+    todos;
+    constructor(todos) {
+        this.todos = todos.map((todo) => new Todo(todo));
+    }
+    equalTodos(todos) {
+        if (this.todos.length !== todos.length) {
+            return false;
+        }
+        const orderedTodos = todos.sort(((a, b) => a.compare(b)));
+        for (const [i, thisTodo] of this.todos.entries()) {
+            if (!thisTodo.equals(orderedTodos[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+class FeatureBranchState extends DefaultBranchState {
+    name;
+    commitSha;
+    constructor(todos, name, commitSha) {
+        super(todos);
+        this.name = name;
+        this.commitSha = commitSha;
+    }
+}
+
+;// CONCATENATED MODULE: ./src/model/model.repostate.ts
+
+
+class RepoTodoStates {
+    version;
+    lastUpdatedDefaultCommit;
+    trackedDefaultBranch;
+    todoStates = {};
+    constructor(version, todoStates, lastUpdatedDefaultCommit, trackedDefaultBranch) {
+        this.version = version;
+        this.lastUpdatedDefaultCommit = lastUpdatedDefaultCommit;
+        this.trackedDefaultBranch = trackedDefaultBranch;
+        for (const [issueNr, todoState] of Object.entries(todoStates)) {
+            this.todoStates[Number.parseInt(issueNr)] = new TodoState(todoState.defaultBranch, todoState.featureBranch, todoState.commentId, todoState.deadIssue);
+        }
+    }
+    static fromScratch() {
+        const todoStates = new RepoTodoStates(CURRENT_VERSION, {});
+        return todoStates;
+    }
+    getTodoState(issueNr) {
+        return this.todoStates[issueNr];
+    }
+    setDefaultTodoState(issueNr, todos) {
+        if (!this.getTodoState(issueNr)) {
+            this.todoStates[issueNr] = new TodoState({ todos });
+            return this.getTodoState(issueNr)?.defaultBranch?.todos;
+        }
+        return this.getTodoState(issueNr)?.setDefaultState(todos);
+    }
+    setFeatureTodoState(issueNr, todos, name, commitSha) {
+        if (!this.todoStates[issueNr]) {
+            this.todoStates[issueNr] = new TodoState();
+        }
+        return this.getTodoState(issueNr)?.setFeatureState(todos, name, commitSha);
+    }
+    setStrayTodoState(todos) {
+        return this.setDefaultTodoState(STRAY_TODO_KEY, todos);
+    }
+    setDefaultTrackedBranch(ref, commitSha) {
+        this.trackedDefaultBranch = ref;
+        this.lastUpdatedDefaultCommit = commitSha;
+    }
+    deleteFeatureTodoState(issueNr) {
+        this.getTodoState(issueNr)?.deleteFeatureState();
+    }
+    getTodoStatesByIssueNr() {
+        return this.todoStates;
+    }
+    getStrayTodoState() {
+        return this.todoStates[STRAY_TODO_KEY];
+    }
+    getLastUpdatedDefaultCommit() {
+        return this.lastUpdatedDefaultCommit;
+    }
+    getTrackedIssuesNumbers() {
+        const issueNrs = new Set(Object.keys(this.todoStates).map((key) => Number.parseInt(key)));
+        issueNrs.delete(STRAY_TODO_KEY);
+        return issueNrs;
+    }
+    setLastUpdatedDefaultCommit(sha) {
+        this.lastUpdatedDefaultCommit = sha;
+    }
+}
 
 ;// CONCATENATED MODULE: ./node_modules/zod/lib/index.mjs
 var util;
@@ -38834,11 +39083,10 @@ var z = /*#__PURE__*/Object.freeze({
 
 
 
-;// CONCATENATED MODULE: ./src/service/data.ts
+;// CONCATENATED MODULE: ./src/model/validation.ts
 
-// TODO constants file
-const STRAY_TODO_KEY = 0;
-const currentVersion = '1';
+
+
 const zTodo = z.object({
     fileName: z.string(),
     lineNumber: z.number().int(),
@@ -38864,7 +39112,7 @@ const zTodoState = z.object({
     featureBranch: zFeatureBranchState.optional(),
 });
 const zIntegerString = z.string().regex(/^[0-9]+$/);
-const zSupportedVersions = z["enum"](['1'], {
+const zSupportedVersions = z["enum"](SUPPORTED_VERSIONS, {
     invalid_type_error: 'Unsupported Data Format Version: This Todohub version supports only versions: ["1"]',
 });
 const zTodoStates = z.record(zIntegerString, zTodoState);
@@ -38874,246 +39122,6 @@ const zRepoTodoStates = z.object({
     lastUpdatedDefaultCommit: z.string().optional(),
     trackedDefaultBranch: z.string().optional(),
 }).transform((obj) => new RepoTodoStates(obj.version, obj.todoStates, obj.lastUpdatedDefaultCommit, obj.trackedDefaultBranch));
-// Implementations ---
-class RepoTodoStates {
-    version;
-    lastUpdatedDefaultCommit;
-    trackedDefaultBranch;
-    todoStates = {};
-    constructor(version, todoStates, lastUpdatedDefaultCommit, trackedDefaultBranch) {
-        this.version = version;
-        this.lastUpdatedDefaultCommit = lastUpdatedDefaultCommit;
-        this.trackedDefaultBranch = trackedDefaultBranch;
-        for (const [issueNr, todoState] of Object.entries(todoStates)) {
-            this.todoStates[Number.parseInt(issueNr)] = new TodoState(todoState.defaultBranch, todoState.featureBranch, todoState.commentId, todoState.deadIssue);
-        }
-    }
-    static fromScratch() {
-        const todoStates = new RepoTodoStates(currentVersion, {});
-        return todoStates;
-    }
-    getTodoState(issueNr) {
-        return this.todoStates[issueNr];
-    }
-    setDefaultTodoState(issueNr, todos) {
-        if (!this.getTodoState(issueNr)) {
-            this.todoStates[issueNr] = new TodoState({ todos });
-            return this.getTodoState(issueNr)?.defaultBranch?.todos;
-        }
-        return this.getTodoState(issueNr)?.setDefaultState(todos);
-    }
-    setFeatureTodoState(issueNr, todos, name, commitSha) {
-        if (!this.todoStates[issueNr]) {
-            this.todoStates[issueNr] = new TodoState();
-        }
-        return this.getTodoState(issueNr)?.setFeatureState(todos, name, commitSha);
-    }
-    setStrayTodoState(todos) {
-        return this.setDefaultTodoState(STRAY_TODO_KEY, todos);
-    }
-    setDefaultTrackedBranch(ref, commitSha) {
-        this.trackedDefaultBranch = ref;
-        this.lastUpdatedDefaultCommit = commitSha;
-    }
-    deleteFeatureTodoState(issueNr) {
-        this.getTodoState(issueNr)?.deleteFeatureState();
-    }
-    getTodoStatesByIssueNr() {
-        return this.todoStates;
-    }
-    getStrayTodoState() {
-        return this.todoStates[STRAY_TODO_KEY];
-    }
-    getLastUpdatedDefaultCommit() {
-        return this.lastUpdatedDefaultCommit;
-    }
-    getTrackedIssuesNumbers() {
-        const issueNrs = new Set(Object.keys(this.todoStates).map((key) => Number.parseInt(key)));
-        issueNrs.delete(STRAY_TODO_KEY);
-        return issueNrs;
-    }
-    setLastUpdatedDefaultCommit(sha) {
-        this.lastUpdatedDefaultCommit = sha;
-    }
-}
-class TodoState {
-    commentId;
-    deadIssue;
-    defaultBranch;
-    featureBranch;
-    constructor(defaultBranch, featureBranch, commentId, deadIssue) {
-        this.commentId = commentId;
-        this.deadIssue = deadIssue;
-        if (defaultBranch) {
-            this.defaultBranch = new DefaultBranchState(defaultBranch.todos);
-        }
-        if (featureBranch) {
-            this.featureBranch = new FeatureBranchState(featureBranch.todos, featureBranch.name, featureBranch.commitSha);
-        }
-    }
-    tracksFeatureBranch() {
-        return !!this.featureBranch;
-    }
-    setDefaultState(todos) {
-        const equalTodos = this.defaultBranch?.equalTodos(todos);
-        this.defaultBranch = new DefaultBranchState(todos);
-        return equalTodos ? undefined : this.defaultBranch.todos;
-    }
-    setFeatureState(todos, name, commitSha) {
-        const equalTodos = this.featureBranch?.equalTodos(todos);
-        this.featureBranch = new FeatureBranchState(todos, name, commitSha);
-        return equalTodos ? undefined : this.featureBranch.todos;
-    }
-    setComment(id, issueIsDead) {
-        this.commentId = id;
-        this.deadIssue = issueIsDead;
-    }
-    deleteFeatureState() {
-        delete this.featureBranch;
-    }
-}
-class DefaultBranchState {
-    todos;
-    constructor(todos) {
-        this.todos = todos.map((todo) => new Todo(todo));
-    }
-    equalTodos(todos) {
-        if (this.todos.length !== todos.length) {
-            return false;
-        }
-        const orderedTodos = todos.sort(((a, b) => a.compare(b)));
-        for (const [i, thisTodo] of this.todos.entries()) {
-            if (!thisTodo.equals(orderedTodos[i])) {
-                return false;
-            }
-        }
-        return true;
-    }
-}
-class FeatureBranchState extends DefaultBranchState {
-    name;
-    commitSha;
-    constructor(todos, name, commitSha) {
-        super(todos);
-        this.name = name;
-        this.commitSha = commitSha;
-    }
-}
-class Todo {
-    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
-    fileName;
-    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
-    lineNumber;
-    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
-    rawLine;
-    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
-    keyword;
-    issueNumber;
-    // @ts-expect-error This IS typesafe, but typescript cannot infer type of Object.assign constructor correctly
-    todoText;
-    foundInCommit;
-    doneInCommit;
-    constructor(todo) {
-        Object.assign(this, todo);
-    }
-    compare(otherTodo) {
-        return ((this.issueNumber || 0) - (otherTodo.issueNumber || 0))
-            || this.fileName.localeCompare(otherTodo.fileName)
-            || (this.lineNumber - otherTodo.lineNumber)
-            || this.rawLine.localeCompare(otherTodo.rawLine);
-    }
-    equals(otherTodo) {
-        // TODO #65 is this enough to compare?
-        return (this.fileName === otherTodo.fileName &&
-            this.lineNumber === otherTodo.lineNumber &&
-            this.rawLine === otherTodo.rawLine);
-    }
-}
-
-;// CONCATENATED MODULE: ./src/util/find-todo-stream.ts
-
-
-
-// export class FindTodoStreamFactory {
-//   constructor(private envService: EnvironmentService, private logger: Logger) {}
-//   make(todos: Todo[], filename: string, issueNr?: number) {
-//     return new FindTodoStream(this.envService, this.logger todos, filename, issueNr)
-//   }
-// }
-class FindTodoStream extends external_node_stream_.Writable {
-    envService;
-    logger;
-    filename;
-    currentLineNr = 0;
-    todos;
-    issueNr;
-    environment;
-    constructor(envService, logger) {
-        super({ objectMode: true });
-        this.envService = envService;
-        this.logger = logger;
-        this.environment = envService.getEnv();
-    }
-    /**
-     * Meant to be called by Dependency Injection Container. Brandi cannot inject into constructor directly.
-     * Needs to be called before instance is useful, if not DI is mosconfigured
-     * @param todos
-     * @param filename
-     * @param issueNr
-     */
-    initDi(todos, filename, issueNr) {
-        this.todos = todos;
-        this.filename = filename;
-        this.issueNr = issueNr;
-    }
-    _write(line, _encoding, next) {
-        if (!this.filename || !this.todos) {
-            throw new Error('FindTodoStream has not been initDi()-ed yet. Class should only be initialized by Dependency Injection Container which handles initalization.');
-        }
-        this.currentLineNr++;
-        if (line.length > this.environment.maxLineLength) {
-            this.logger.debug(`Skipping line in <${this.filename}> because it exceeds max length of <${this.environment.maxLineLength}> characters. If this is a generated file, consider adding it to .todoignore. Or increase MAX_LINE_LENGTH input.`);
-            return next();
-        }
-        let matchedTodo;
-        try {
-            matchedTodo = matchTodo(line, this.issueNr?.toString());
-        }
-        catch (err) {
-            this.logger.warning(err.message);
-        }
-        if (!matchedTodo) {
-            return next();
-        }
-        const todoWithMetadata = Object.assign(matchedTodo, { fileName: this.filename, lineNumber: this.currentLineNr });
-        this.todos.push(new Todo(todoWithMetadata));
-        next();
-    }
-}
-
-;// CONCATENATED MODULE: ./src/util/escape-markdown.ts
-const replacers = [
-    { regex: /\*/g, replace: '\\*' },
-    // After applying common markdown stylings, github applies extra logic for issue/people mentions, which cant be easily escaped
-    // as a workaround we add an invisible extra character behind # and @
-    // https://stackoverflow.com/questions/20532546/escape-pound-or-number-sign-in-github-issue-tracker
-    { regex: /#/g, replace: '\\#&#x2060;' },
-    { regex: /@/g, replace: '\\@&#x2060;' },
-    { regex: /\(/g, replace: '\\(' },
-    { regex: /\)/g, replace: '\\)' },
-    { regex: /\[/g, replace: '\\[' },
-    { regex: /\]/g, replace: '\\]' },
-    { regex: /</g, replace: '&lt;' },
-    { regex: />/g, replace: '&gt;' },
-    { regex: /_/g, replace: '\\_' },
-    { regex: /`/g, replace: '\\`' },
-];
-const escapeMd = (markdown) => {
-    for (const replacer of replacers) {
-        markdown = markdown.replace(replacer.regex, replacer.replace);
-    }
-    return markdown;
-};
 
 ;// CONCATENATED MODULE: ./src/service/datastore.ts
 
@@ -39363,8 +39371,7 @@ const TOKENS = {
     githubService: token('githubService'),
     config: token('config'),
     pushContextGetter: token('pushContextGetter'),
-    // implement own factory class, this is too limited
-    findTodoStreamFactory: token('Factory<FindTodoStream>'),
+    findTodoStreamFactory: token('findTodoStreamFactory'),
     dataStore: token('dataStore'),
     githubCommentFactory: token('githubCommentFactory'),
 };
@@ -39378,13 +39385,13 @@ container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext);
 container.bind(TOKENS.octokitGetter).toConstant(ActionOctokitGetter);
 container.bind(TOKENS.dataStore).toInstance(TodohubControlIssueDataStore).inTransientScope();
 container.bind(TOKENS.githubCommentFactory).toInstance(GithubCommentFactory).inSingletonScope();
-container.bind(TOKENS.findTodoStreamFactory).toFactory(FindTodoStream, (instance, todos, filename, issueNr) => instance.initDi(todos, filename, issueNr));
+container.bind(TOKENS.findTodoStreamFactory).toInstance(FindTodoStreamFactory).inSingletonScope();
 injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService, TOKENS.dataStore, TOKENS.githubCommentFactory);
 injected(GithubService, TOKENS.octokitGetter, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory);
 injected(EnvironmentService, TOKENS.pushContextGetter, TOKENS.config);
 injected(TodohubControlIssueDataStore, TOKENS.githubService, TOKENS.logger);
 injected(GithubCommentFactory, TOKENS.githubService, TOKENS.logger);
-injected(FindTodoStream, TOKENS.environmentService, TOKENS.logger);
+injected(FindTodoStreamFactory, TOKENS.environmentService, TOKENS.logger);
 
 ;// CONCATENATED MODULE: ./src/index.ts
 // /**
@@ -39419,7 +39426,7 @@ runner.run()
     core.summary.addSeparator()
         .addHeading('✅ Updated Issues', 4)
         .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `#${issueNr}`))
-        .addTable([[{ data: '#️#️⃣ Issue', header: true }, { data: '✅ Success', header: true }, { data: '🧘‍♀️ Skipped', header: true }, { data: '✅ Todos updated', header: true }, { data: '🔗 Link', header: true }]])
+        .addEOL()
         .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
         .addEOL()
         .addList(runInfo.skippedUnchangedIssues.map(issueNr => `#${issueNr}`))

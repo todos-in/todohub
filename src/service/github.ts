@@ -10,8 +10,7 @@ import { Octokit } from 'octokit'
 import { OctokitGetter } from '../interfaces/octokit.js'
 import { Logger } from '../interfaces/logger.js'
 import { EnvironmentService } from './environment.js'
-import { FindTodoStream } from '../util/find-todo-stream.js'
-import { FindTodoStreamFactoryArgs } from '../di-container.js'
+import { FindTodoStreamFactory } from '../util/find-todo-stream.js'
 import { Todo } from '../model/model.todo.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
@@ -26,7 +25,7 @@ export default class GithubService {
     private octokitGetter: OctokitGetter,
     private envService: EnvironmentService,
     private logger: Logger,
-    private findTodoStreamFactory: (...args: FindTodoStreamFactoryArgs) => FindTodoStream) {
+    private findTodoStreamFactory: FindTodoStreamFactory) {
     const env = envService.getEnv()
     this.owner = env.repoOwner
     this.repo = env.repo
@@ -120,7 +119,7 @@ export default class GithubService {
         this.logger.debug(`Extracting Todos from file <${fileName}>...`)
 
         const splitLineStream = new SplitLineStream()
-        const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr)
+        const findTodosStream = this.findTodoStreamFactory.make(todos, fileName, issueNr)
 
         splitLineStream.on('end', () => findTodosStream.end())
         // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
