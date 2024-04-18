@@ -33,7 +33,7 @@
     "@octokit/webhooks-types": "^7.4.0",
     "brandi": "^5.0.0",
     "ignore-wrapper": "file:ignore-wrapper",
-    "octokit": "^3.1.2",
+    "octokit": "^3.2.0",
     "tar-stream": "^3.1.7",
     "zod": "^3.22.4"
   },
