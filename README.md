@@ -38,6 +38,35 @@ jobs:
         uses: todos-in/todohub@main
 ```
 
+## Eslint Plugin
+
+This Project contains an eslint plugin help you manage local TODOs in your codebase. To use it, install:
+```
+npm i --save-dev eslint-plugin-todohub
+```
+and add `eslint-plugin-todohub` to your eslint plugins section, e. g. 
+```
+//.eslintrc.yml
+...
+plugins:
+   - eslint-plugin-todohub
+...
+```
+
+The plugin features two rules:
+1. `todohub/no-todos-without-issue-ref`: Hints towards All Todos in codebase which do not have an issue number reference (such as `TODO #1`). Keeps track of potentially lost Todos. (Recommended to turn on, and set to `error`)
+1.  `todohub/current-feature-branch-issues`: Checks if you are in a feature branch currently and hints towards all open TODOs referencing the current feature branch. Useful to keep track of what you are currently working on. (Recommended to set to `warn`)
+
+```
+//.eslintrc.yml
+rules:
+  {
+    'todohub/no-todos-without-issue-ref': 'error',
+    'todohub/current-feature-branch-issues': 'warn',
+   ...
+  }
+```
+
 ## Development & Testing
 1. :hammer_and_wrench: Installing
 
