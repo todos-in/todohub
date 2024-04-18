@@ -1,4 +1,4 @@
-import { Container, Factory, injected, token } from 'brandi'
+import { Container, injected, token } from 'brandi'
 import { Logger } from './interfaces/logger.js'
 import { ActionLogger } from './service/logger.js'
 import { ActionOctokitGetter } from './service/octokit.js'
@@ -8,13 +8,10 @@ import { ActionConfig, getActionPushContext } from './service/config.js'
 import { Config, PushContextGetter } from './interfaces/config.js'
 import { EnvironmentService } from './service/environment.js'
 import GithubService from './service/github.js'
-import { FindTodoStream } from './util/find-todo-stream.js'
-import { ITodo } from './interfaces/data.js'
+import { FindTodoStreamFactory } from './util/find-todo-stream.js'
 import { DataStore } from './interfaces/datastore.js'
 import { TodohubControlIssueDataStore } from './service/datastore.js'
 import { GithubCommentFactory } from './service/comment.js'
-
-export type FindTodoStreamFactoryArgs = [todos: ITodo[], filename: string, issueNr?: number]
 
 export const TOKENS = {
   logger: token<Logger>('logger'),
@@ -24,8 +21,7 @@ export const TOKENS = {
   githubService: token<GithubService>('githubService'),
   config: token<Config>('config'),
   pushContextGetter: token<PushContextGetter>('pushContextGetter'),
-  // implement own factory class, this is too limited
-  findTodoStreamFactory: token<Factory<FindTodoStream, FindTodoStreamFactoryArgs>>('Factory<FindTodoStream>'),
+  findTodoStreamFactory: token<FindTodoStreamFactory>('findTodoStreamFactory'),
   dataStore: token<DataStore>('dataStore'),
   githubCommentFactory: token<GithubCommentFactory>('githubCommentFactory'),
 }
@@ -43,8 +39,7 @@ container.bind(TOKENS.octokitGetter).toConstant(ActionOctokitGetter)
 container.bind(TOKENS.dataStore).toInstance(TodohubControlIssueDataStore).inTransientScope()
 container.bind(TOKENS.githubCommentFactory).toInstance(GithubCommentFactory).inSingletonScope()
 
-container.bind(TOKENS.findTodoStreamFactory).toFactory(FindTodoStream,
-  (instance, todos, filename, issueNr?) => instance.initDi(todos, filename, issueNr))
+container.bind(TOKENS.findTodoStreamFactory).toInstance(FindTodoStreamFactory).inSingletonScope()
 
 injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService, TOKENS.dataStore, TOKENS.githubCommentFactory)
 injected(GithubService, TOKENS.octokitGetter, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory)
@@ -52,4 +47,4 @@ injected(EnvironmentService, TOKENS.pushContextGetter, TOKENS.config)
 injected(TodohubControlIssueDataStore, TOKENS.githubService, TOKENS.logger)
 injected(GithubCommentFactory, TOKENS.githubService, TOKENS.logger)
 
-injected(FindTodoStream, TOKENS.environmentService, TOKENS.logger)
+injected(FindTodoStreamFactory, TOKENS.environmentService, TOKENS.logger)

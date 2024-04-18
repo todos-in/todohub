@@ -1,12 +1,11 @@
-import { ITodo } from './interfaces/data.js'
+import { RepoTodoStates } from './model/model.repostate.js'
+import { TTodo } from './model/validation.js'
 import { Environment } from './interfaces/environment.js'
 import { Logger } from './interfaces/logger.js'
 import { EnvironmentService } from './service/environment.js'
 import GithubService from './service/github.js'
 import { DataStore } from './interfaces/datastore.js'
-import { IRepoTodoStates } from './interfaces/data.js'
 import { GithubCommentFactory } from './service/comment.js'
-import { TodohubControlIssueData } from './service/data.js'
 
 interface RunInfo {
   succesfullyUpdatedIssues: number[]
@@ -53,55 +52,13 @@ export class Runner {
 
     this.logger.debug('Getting existing Todohub Control Issue...')
     const todohubState = await this.dataStore.get(undefined)
-    if (todohubState instanceof TodohubControlIssueData) {
-      this.logger.debug(todohubState._existingControlIssue ?
-        `Found existing Todohub Control Issue: <${todohubState._existingControlIssue}>.` :
-        'No existing Todohub Control Issue. Needs to be initiated.')  
-    }
-
+    
     if (this.env.isFeatureBranch && this.env.featureBranchNumber) {
-      this.logger.info(`Push Event into feature branch <${this.env.branchName}> related to issue <${this.env.featureBranchNumber}>...`)
-
-      // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
-      // TODO #62 parallelize stuff (+ add workers)
-
-      this.logger.debug(`Searching state <${this.env.commitSha}> for Todos with issue number <${this.env.featureBranchNumber}>...`)
-      let todos = await this.repo.getTodosFromGitRef(this.env.commitSha, this.env.featureBranchNumber)
-      todos = todos.map(todo => Object.assign(todo, { foundInCommit: this.env.commitSha }))
-
-      await this.updateIssue(this.env.featureBranchNumber, todos, todohubState, this.env.commitSha, this.env.ref)
+      await this.featureBranchPush(todohubState, this.env.featureBranchNumber, this.env.ref, this.env.branchName, this.env.commitSha)
     } else if (this.env.isDefaultBranch) {
-      this.logger.info(`Push Event into default branch <${this.env.defaultBranch}>`)
-
-      this.logger.debug(`Searching state< ${this.env.commitSha}> for all Todos`)
-      let todos = await this.repo.getTodosFromGitRef(this.env.commitSha)
-      todos = todos.map((todo) => Object.assign(todo, { foundInCommit: this.env.commitSha }))
-
-      const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0))
-      this.logger.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`)
-
-      const trackedIssues = todohubState.getTrackedIssuesNumbers()
-      this.logger.debug(`Currently <${trackedIssues.size}> issues are tracked in Control Issue.`)
-
-      const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]))
-
-      const featureBranches = await this.repo.getFeatureBranches()
-      const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
-      const branchesAheadOfDefault = await this.repo.getFeatureBranchesAheadOf(this.env.defaultBranch, trackedFeatureBranches.map((branch) => branch.name))
-
-      const issuesWithNoFeatureBranchAheadOfDefault = issueUnion.filter((issue) =>
-        !branchesAheadOfDefault.some((branch) => branch.startsWith(`${issue}-`)))
-      this.logger.debug(`Feature branches <${branchesAheadOfDefault.join(',')}> are ahead of default <${this.env.defaultBranch}>. These will not be updated.`)
-
-      const strayTodos = todos.filter((todo) => !todo.issueNumber)
-      todohubState.setStrayTodoState({todos: strayTodos, commitSha: this.env.commitSha, trackedBranch: this.env.ref})
-
-      for (const issueNr of issuesWithNoFeatureBranchAheadOfDefault) {
-        await this.updateIssue(issueNr, todos, todohubState, this.env.commitSha, this.env.ref)
-      }
+      await this.defaultBranchPush(todohubState, this.env.commitSha, this.env.ref, this.env.defaultBranch)
     }
 
-    todohubState.setLastUpdatedCommit(this.env.commitSha)
     this.logger.debug('Writing Todohub Control issue...')
     const todohubIssueId = await this.dataStore.write(todohubState)
     this.runInfo.todohubIssueId = todohubIssueId
@@ -109,32 +66,90 @@ export class Runner {
     return this.runInfo
   }
 
-  private async updateIssue(issueNr: number, todos: ITodo[], todohubStates: IRepoTodoStates, commitSha: string, ref: string) {
-    this.logger.startGroup(`Processing Issue <${issueNr}>`)
+  private async featureBranchPush(todohubState: RepoTodoStates, featureBranchNr: number, ref: string, branchName: string, commitSha: string) {
+    this.logger.info(`Push Event into feature branch <${branchName}> related to issue <${featureBranchNr}>...`)
 
-    const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
-    this.logger.info(`Found <${issueTodos?.length || 0}> Todos for Issue <${issueNr}>...`)
+    // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
+    // TODO #62 parallelize stuff (+ add workers)
 
-    const commentUpdateNecessary = !todohubStates.todoStateEquals(issueNr, issueTodos)
+    this.logger.debug(`Searching state <${commitSha}> for Todos with issue number <${featureBranchNr}>...`)
+    const todos = await this.repo.getTodosFromGitRef(commitSha, featureBranchNr)
 
-    const todoState = todohubStates.setIssueTodoState(issueNr, {todos: issueTodos, commitSha, trackedBranch: ref})
+    const updatedFeatureTodoState = todohubState.setFeatureTodoState(featureBranchNr, todos, ref, commitSha)
 
-    if (commentUpdateNecessary) {
-      const githubComment = this.commentFactory.make(issueNr, todoState)
-      const writtenComment = await githubComment.write()
-      if (writtenComment) {
-        if (todoState.todos.length) {
-          await githubComment.reopenIssueWithOpenTodos()
-        }
-        this.runInfo.succesfullyUpdatedIssues.push(issueNr)
-        this.runInfo.totalTodosUpdated += issueTodos.length 
-      } else {
-        this.runInfo.failedToUpdate.push(issueNr)
-      }
-    } else {
-      this.logger.info(`No changes in todo state for issue <${issueNr}> - skip updating.`)
-      this.runInfo.skippedUnchangedIssues.push(issueNr)
+    if (updatedFeatureTodoState) {
+      const writtenCommentId = await this.updateIssue(featureBranchNr, todos, commitSha, ref)
+      todohubState.getTodoState(featureBranchNr)?.setComment(writtenCommentId, !writtenCommentId)
     }
-    this.logger.endGroup()
+  }
+
+  private async defaultBranchPush(todohubState: RepoTodoStates, commit: string, ref: string, defaultBranchName: string) {
+    this.logger.info(`Push Event into default branch <${defaultBranchName}>`)
+
+    this.logger.debug(`Searching state< ${commit}> for all Todos...`)
+    const todos = await this.repo.getTodosFromGitRef(commit)
+
+    const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0))
+    this.logger.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`)
+
+    const trackedIssues = todohubState.getTrackedIssuesNumbers()
+    this.logger.debug(`Currently <${trackedIssues.size}> issues are tracked in Control Issue.`)
+
+    const issueUnion = Array.from(new Set([...trackedIssues, ...issuesWithTodosInCode]))
+
+    const featureBranches = await this.repo.getFeatureBranches()
+    const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)))
+    const branchesAheadOfDefault = await this.repo.getFeatureBranchesAheadOf(defaultBranchName, trackedFeatureBranches.map((branch) => branch.name))
+
+    const strayTodos = todos.filter((todo) => !todo.issueNumber)
+
+    todohubState.setDefaultTrackedBranch(ref, commit)
+    todohubState.setStrayTodoState(strayTodos)
+
+    for (const issueNr of issueUnion) {
+      this.logger.startGroup(`Processing Issue <${issueNr}>`)
+      const featureBranchAhead = branchesAheadOfDefault.some((branch) => branch.startsWith(`${issueNr}-`))
+      const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
+      const commentId = todohubState.getTodoState(issueNr)?.commentId
+
+      const updatedDefaultTodoState = todohubState.setDefaultTodoState(issueNr, issueTodos)
+      if (!featureBranchAhead) {
+        todohubState.deleteFeatureTodoState(issueNr)
+        if (updatedDefaultTodoState) {
+          this.logger.debug(`Updating <${issueNr}>...`)
+          const writtenCommentId = await this.updateIssue(issueNr, updatedDefaultTodoState, commit, ref, commentId)
+          todohubState.getTodoState(issueNr)?.setComment(writtenCommentId, !writtenCommentId)
+        } else {
+          this.runInfo.skippedUnchangedIssues.push(issueNr)
+          this.logger.debug(`Skip updating <${issueNr}>: no changes in state.`)
+        }
+      } else {
+        this.logger.debug(`Feature branch of issue <${issueNr}> is ahead - skip updating.`)
+      }
+      this.logger.endGroup()
+    }
+
+    todohubState.setLastUpdatedDefaultCommit(commit)
+  }
+
+  private async updateIssue(
+    issueNr: number,
+    todos: TTodo[],
+    commitSha: string,
+    ref: string,
+    commentId?: number) {
+
+    const githubComment = this.commentFactory.make(issueNr, commentId, commitSha, ref, todos)
+    const writtenCommentId = await githubComment.write()
+    if (writtenCommentId) {
+      if (todos.length) {
+        await githubComment.reopenIssueWithOpenTodos()
+      }
+      this.runInfo.succesfullyUpdatedIssues.push(issueNr)
+      this.runInfo.totalTodosUpdated += todos.length
+    } else {
+      this.runInfo.failedToUpdate.push(issueNr)
+    }
+    return writtenCommentId
   }
 }

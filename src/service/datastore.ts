@@ -1,9 +1,11 @@
-import { ControlIssueParsingError } from '../error/error.js'
+import { gunzipSync, gzipSync } from 'node:zlib'
+import { ControlIssueDataDecodingError, ControlIssueParsingError } from '../error/error.js'
 import { DataStore, Id } from '../interfaces/datastore.js'
 import { Logger } from '../interfaces/logger.js'
 import { escapeMd } from '../util/escape-markdown.js'
-import { TodohubControlIssueData } from './data.js'
+import { RepoTodoStates } from '../model/model.repostate.js'
 import GithubService from './github.js'
+import { zRepoTodoStates } from '../model/validation.js'
 
 export class TodohubControlIssueDataStore implements DataStore {
 
@@ -18,7 +20,8 @@ export class TodohubControlIssueDataStore implements DataStore {
 
   constructor(private repo: GithubService, private logger: Logger) {}
 
-  async write(data: TodohubControlIssueData, _id: Id) {
+  async write(data: RepoTodoStates, _id: Id) {
+    // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
     const composed = this.compose(data)
     if (this.existingIssue) {
       const updated = await this.repo.updateIssue(this.existingIssue.number, undefined, composed)
@@ -41,13 +44,14 @@ export class TodohubControlIssueDataStore implements DataStore {
 
       let decodedData
       try {
-        decodedData = TodohubControlIssueData.decodeFrom(parsedBody.data, issueCandidate.number)
+        decodedData = this.decodeFrom(parsedBody.data)
 
         this.existingIssue = Object.assign(parsedBody, {
           number: issueCandidate.number,
           isClosed: issueCandidate.state === 'closed',
         })
 
+        this.logger.debug(`Found Todohub Control issue: <${issueCandidate.number}>`)
         return decodedData
 
       } catch (err) {
@@ -55,16 +59,42 @@ export class TodohubControlIssueDataStore implements DataStore {
         continue
       }
     }
-    return TodohubControlIssueData.fromScratch()
+
+    this.logger.debug('Did not find valid Todohub Control issue. Recreating state from scratch...')
+    return RepoTodoStates.fromScratch()
   }
 
-  private compose(data: TodohubControlIssueData) {
-    const todoStates = Object.entries(data.getIssuesTodoStates())
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  checkParsedFormat(parsed: any): RepoTodoStates {
+    try {
+      return zRepoTodoStates.parse(parsed)
+    } catch (err) {
+      throw new ControlIssueDataDecodingError('Failed to parse data from Ctrl issue.', err instanceof Error ? err : undefined)
+    }
+  }
+
+  private decodeFrom(data: string) {
+    const b64Decoded = Buffer.from(data, 'base64')
+    const unzipped = gunzipSync(b64Decoded)
+    const parsed = JSON.parse(unzipped.toString('utf-8'))
+    return this.checkParsedFormat(parsed)
+  }
+
+  private encode(data: RepoTodoStates) {
+    const stringified = JSON.stringify(data, (key, value) => key.startsWith('_') ? undefined : value)
+    const zipped = gzipSync(Buffer.from(stringified, 'utf-8'))
+    const b64Encoded = zipped.toString('base64')
+    return b64Encoded
+  }
+
+  private compose(data: RepoTodoStates) {
+    const todoStates = Object.entries(data.getTodoStatesByIssueNr())
     let newMidTag = todoStates.length ? '\n### Tracked Issues:' : ''
 
     const footnotes: string[] = []
     for (const [issueNr, todoState] of todoStates) {
-      if (!todoState.todos.length) {
+      const todos = todoState.featureBranch?.todos || todoState.defaultBranch?.todos
+      if (!todos || !todos.length) {
         continue
       }
       let link = ''
@@ -77,25 +107,25 @@ export class TodohubControlIssueDataStore implements DataStore {
       } else {
         link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`
       }
-      newMidTag += `\n* ${link}: *${todoState.todos.length}* open TODOs`
+      newMidTag += `\n* ${link}: *${todos.length}* open TODOs`
     }
 
     for (const [index, value] of footnotes.entries()) {
       newMidTag += `\n[^${index + 1}]: ${value}`
     }
 
-    const strayTodos = data.getStrayTodoState()
-    if (strayTodos && strayTodos.todos.length) {
+    const strayTodos = data.getStrayTodoState()?.defaultBranch?.todos
+    if (strayTodos && strayTodos.length) {
       newMidTag += '\n### Todos without Issue Reference:'
-      for (const strayTodo of strayTodos.todos) {
-        const codeLink = `[link](${this.repo.baseUrl}/blob/${strayTodos.commitSha}/${strayTodo.fileName}#L${strayTodo.lineNumber})`
+      for (const strayTodo of strayTodos) {
+        const codeLink = `[link](${this.repo.baseUrl}/blob/${data.getLastUpdatedDefaultCommit()}/${strayTodo.fileName}#L${strayTodo.lineNumber})`
         newMidTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`
       }
     }
 
-    newMidTag += `\n\n<sub>**Last updated:** ${data.getLastUpdatedCommit()}</sub>`
+    newMidTag += `\n\n<sub>**Last updated:** ${data.getLastUpdatedDefaultCommit()}</sub>`
 
-    return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${data.encode()}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`
+    return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${this.encode(data)}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`
   }
 
   parseBodyParts(issueBody: string) {

@@ -1,4 +1,4 @@
-import { TodoState } from '../interfaces/data.js'
+import { TTodo } from '../model/validation.js'
 import { Logger } from '../interfaces/logger.js'
 import GithubService from './github.js'
 import { escapeMd } from '../util/escape-markdown.js'
@@ -7,8 +7,8 @@ import { assertGithubError } from '../error/error.js'
 export class GithubCommentFactory {
   constructor(private repo: GithubService, private logger: Logger) { }
 
-  make(issueNr: number, data: TodoState) {
-    return new GithubIssueComment(this.repo, this.logger, issueNr, data)
+  make(issueNr: number, commentId: number | undefined, commitSha: string, refName: string, todos: TTodo[]) {
+    return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos)
   }
 }
 
@@ -17,11 +17,14 @@ class GithubIssueComment {
     private repo: GithubService,
     private logger: Logger,
     private issueNr: number,
-    private data: TodoState,
+    private commentId: number | undefined,
+    private commitSha: string,
+    private refName: string,
+    private todos: TTodo[],
   ) { }
 
   async reopenIssueWithOpenTodos() {
-    if (this.data.todos.length) {
+    if (this.todos.length) {
       this.logger.debug(`Opening issue <${this.issueNr}>...`)
       try {
         return await this.repo.updateIssue(this.issueNr, undefined, undefined, 'open')
@@ -45,18 +48,17 @@ class GithubIssueComment {
    * @returns Updated or created comment if successful
    */
   async write() {
-    const existingCommentId = this.data.commentId
     const composedComment = this.composeTrackedIssueComment()
 
-    if (existingCommentId) {
-      this.logger.debug(`Updating comment on issue <${this.issueNr}-${existingCommentId}>...`)
+    if (this.commentId) {
+      this.logger.debug(`Updating comment on issue <${this.issueNr}-${this.commentId}>...`)
       try {
-        return await this.repo.updateComment(existingCommentId, composedComment)
+        await this.repo.updateComment(this.commentId, composedComment)
+        return this.commentId
       } catch (err) {
         assertGithubError(err)
         if (err.status === 404) {
-          this.logger.warning(`Failed to update Issue Comment <${this.issueNr}-${existingCommentId}>. Trying to create new Comment instead...`)
-          this.data.commentId = undefined
+          this.logger.warning(`Failed to update Issue Comment <${this.issueNr}-${this.commentId}>. Trying to create new Comment instead...`)
         } else {
           throw err
         }
@@ -65,14 +67,13 @@ class GithubIssueComment {
     try {
       this.logger.debug(`Adding new comment to issue ${this.issueNr}...`)
       const created = await this.repo.createComment(this.issueNr, composedComment)
-      this.data.commentId = created.data.id
-      return created
+      return created.data.id
     } catch (err) {
       assertGithubError(err)
       if (err.status === 404 || err.status === 410) {
         this.logger.warning(`Error creating comment: It appears Issue <${this.issueNr}> does not exist.
         If the Issue has been deleted permanently, consider creating a new issue and migrating all Todos in your code referencing issue <${this.issueNr}> to the new issue.`)
-        this.data.deadIssue = true
+        return undefined
       } else {
         throw err
       }
@@ -80,12 +81,12 @@ class GithubIssueComment {
   }
 
   composeTrackedIssueComment() {
-    let composed = this.data.todos.length ? '#### TODOs:' : 'No Open Todos'
-    for (const todo of this.data.todos) {
-      const link = `[link](${this.repo.baseUrl}/blob/${this.data.commitSha}/${todo.fileName}#L${todo.lineNumber})`
+    let composed = this.todos.length ? '#### TODO' : 'No Open Todos'
+    for (const todo of this.todos) {
+      const link = `[link](${this.repo.baseUrl}/blob/${this.commitSha}/${todo.fileName}#L${todo.lineNumber})`
       composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
     }
-    composed += `\n\n<sub>**Last set:** ${this.data.commitSha} | **Tracked Branch:** \`${escapeMd(this.data.trackedBranch)}\`</sub>`
+    composed += `\n\n<sub>Last set: ${this.commitSha} | Tracked Branch: \`${escapeMd(this.refName)}\`</sub>`
 
     return composed
   }

@@ -10,9 +10,8 @@ import { Octokit } from 'octokit'
 import { OctokitGetter } from '../interfaces/octokit.js'
 import { Logger } from '../interfaces/logger.js'
 import { EnvironmentService } from './environment.js'
-import { FindTodoStream } from '../util/find-todo-stream.js'
-import { FindTodoStreamFactoryArgs } from '../di-container.js'
-import { ITodo } from '../interfaces/data.js'
+import { FindTodoStreamFactory } from '../util/find-todo-stream.js'
+import { Todo } from '../model/model.todo.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
@@ -26,7 +25,7 @@ export default class GithubService {
     private octokitGetter: OctokitGetter,
     private envService: EnvironmentService,
     private logger: Logger,
-    private findTodoStreamFactory: (...args: FindTodoStreamFactoryArgs) => FindTodoStream) {
+    private findTodoStreamFactory: FindTodoStreamFactory) {
     const env = envService.getEnv()
     this.owner = env.repoOwner
     this.repo = env.repo
@@ -76,12 +75,11 @@ export default class GithubService {
     tarBallStream: stream.Readable,
     issueNr?: number,
     ignore?: Ignore,
-  ): Promise<ITodo[]> {
-    // TODO #69 move logic
+  ): Promise<Todo[]> {
     const extractStream = tar.extract()
     const unzipStream = createGunzip()
 
-    const todos: ITodo[] = []
+    const todos: Todo[] = []
 
     tarBallStream.pipe(unzipStream).pipe(extractStream)
     // TODO #80 check and test event & error handling in streams (are they closed properly?) check for memory leaks
@@ -120,7 +118,7 @@ export default class GithubService {
         this.logger.debug(`Extracting Todos from file <${fileName}>...`)
 
         const splitLineStream = new SplitLineStream()
-        const findTodosStream = this.findTodoStreamFactory(todos, fileName, issueNr)
+        const findTodosStream = this.findTodoStreamFactory.make(todos, fileName, issueNr)
 
         splitLineStream.on('end', () => findTodosStream.end())
         // TODO #59 handle errors in splitLineStream, todoStream: https://stackoverflow.com/questions/21771220/error-handling-with-node-js-streams
@@ -141,23 +139,23 @@ export default class GithubService {
 
   /**
    * Searches for all "TODOs" occurrences in a certain git ref
-   * @param ref ref of the git state to be searched, defaults to the head of default branch if unset
+   * @param commitSha commitSha of the git state to be searched
    * @param issueNr if set, it will only seach occurences that reference this issueNr, such as "TOD‎O #18 do this", otherwise it will search all "TODOs", whether they refernce any issue or none
-   * @returns TodoState
+  * @returns TodoState
    */
   async getTodosFromGitRef(
-    ref?: string,
+    commitSha: string,
     issueNr?: number,
   ) {
     // TODO #62 parallelize
-    const tarStream = await this.getTarballStream(ref)
+    const tarStream = await this.getTarballStream(commitSha)
     const ignore = await this.getTodoIgnoreFile()
     const todos = await this.extractTodosFromTarGz(
       tarStream,
       issueNr,
       ignore,
     )
-    return todos
+    return todos.map((todo) => Object.assign(todo, { foundInCommit: commitSha }))
   }
 
   /**
@@ -174,6 +172,7 @@ export default class GithubService {
       {
         owner: this.owner,
         repo: this.repo,
+        per_page: 100,
       },
     )
     for await (const branchesPage of branchesPages) {

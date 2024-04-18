@@ -1,148 +1,344 @@
 import { ControlIssueDataDecodingError } from '../../src/error/error.js'
-import { TodohubControlIssueData } from '../../src/service/data.js'
+import { TodohubControlIssueDataStore } from '../../src/service/datastore.js'
+import { TOKENS, container } from '../../src/di-container.js'
+import { setupEmptyMocks } from '../mock/empty.mock.js'
+
+let dataStore: TodohubControlIssueDataStore
 
 describe('JSON decoding unit tests', () => {
   beforeEach(() => {
+    setupEmptyMocks(container)
+    dataStore = container.get(TOKENS.dataStore) as TodohubControlIssueDataStore
+
     jest.clearAllMocks()
   })
 
   it('Negative: Unrelated object', async () => {
-    expect(() => TodohubControlIssueData.checkParsedFormat({ hello: 1 })).toThrow(ControlIssueDataDecodingError)
+    expect(() => dataStore.checkParsedFormat({ hello: 1 })).toThrow(ControlIssueDataDecodingError)
   })
 
   it('Negative: Unrelated number', async () => {
-    expect(() => TodohubControlIssueData.checkParsedFormat(1)).toThrow(ControlIssueDataDecodingError)
+    expect(() => dataStore.checkParsedFormat(1)).toThrow(ControlIssueDataDecodingError)
   })
 
   it('Negative: Unrelated string', async () => {
-    expect(() => TodohubControlIssueData.checkParsedFormat('string')).toThrow(ControlIssueDataDecodingError)
+    expect(() => dataStore.checkParsedFormat('string')).toThrow(ControlIssueDataDecodingError)
   })
 
   it('Valid', async () => {
     const data = {
+      version: '1',
+      trackedDefaultBranch: 'refs/heads/main',
+      lastUpdatedDefaultCommit: '1b3dv3',
       todoStates: {
         0: {
-          commitSha: 'xyz',
-          todos: [],
-          trackedBranch: 'refs/heads/main',
+          defaultBranch: {
+            todos: [],
+          },
         },
         1: {
-          todos: [
-            {
-              rawLine: 'TODO #1 this already existed in control issue',
-              todoText: 'this already existed in control issue',
-              keyword: 'TODO',
-              lineNumber: 1,
-              issueNumber: 1,
-              fileName: 'file',
-              foundInCommit: 'xyz',
-            },
-            {
-              rawLine: 'TODO #1 this is new',
-              todoText: 'this is new',
-              keyword: 'TODO',
-              lineNumber: 2,
-              issueNumber: 1,
-              fileName: 'file',
-              foundInCommit: 'xyz',
-            },
-          ],
-          commitSha: 'xyz',
-          trackedBranch: 'refs/heads/main',
+          defaultBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 this already existed in control issue',
+                todoText: 'this already existed in control issue',
+                keyword: 'TODO',
+                lineNumber: 1,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+              {
+                rawLine: 'TODO #1 this is new',
+                todoText: 'this is new',
+                keyword: 'TODO',
+                lineNumber: 2,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+          },
+          featureBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 feat branch todo',
+                todoText: 'feat branch todo',
+                keyword: 'TODO',
+                lineNumber: 2,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+            commitSha: 'asd',
+            name: '1-feat-branch',
+          },
           commentId: 42,
+          deadIssue: true,
         },
       },
-      lastUpdatedCommitSha: 'xyz',
     }
-    expect(() => TodohubControlIssueData.checkParsedFormat(data)).not.toThrow()
+    expect(() => dataStore.checkParsedFormat(data)).not.toThrow()
   })
 
-  it('Valid: empty array', async () => {
+  it('Valid: empty arrays', async () => {
     const data = {
+      version: '1',
+      trackedDefaultBranch: 'refs/heads/main',
+      lastUpdatedDefaultCommit: '1b3dv3',
       todoStates: {
         0: {
-          commitSha: 'xyz',
-          todos: [],
-          trackedBranch: 'refs/heads/main',
+          defaultBranch: {
+            todos: [],
+          },
+        },
+        1: {
+          defaultBranch: {
+            todos: [],
+          },
+          featureBranch: {
+            todos: [],
+            commitSha: 'asd',
+            name: '1-feat-branch',
+          },
+          commentId: 42,
+          deadIssue: true,
         },
       },
-      lastUpdatedCommitSha: 'xyz',
     }
-    expect(() => TodohubControlIssueData.checkParsedFormat(data)).not.toThrow()
+    expect(() => dataStore.checkParsedFormat(data)).not.toThrow()
   })
 
   it('Negative: non integer key', async () => {
     const data = {
+      version: '1',
+      trackedDefaultBranch: 'refs/heads/main',
+      lastUpdatedDefaultCommit: '1b3dv3',
       todoStates: {
         test: {
-          commitSha: 'xyz',
-          todos: [],
-          trackedBranch: 'refs/heads/main',
+          defaultBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 this is new',
+                todoText: 'this is new',
+                keyword: 'TODO',
+                lineNumber: 2,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+          },
+          commentId: 42,
+          deadIssue: true,
         },
       },
-      lastUpdatedCommitSha: 'xyz',
     }
-    expect(() => TodohubControlIssueData.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
+    expect(() => dataStore.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
   })
 
-  it('Negative: mandatory missing', async () => {
+  it('Valid: minimal', async () => {
     const data = {
-      lastUpdatedCommitSha: 'xyz',
+      version: '1',
+      todoStates: {},
     }
-    expect(() => TodohubControlIssueData.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
+    expect(() => dataStore.checkParsedFormat(data)).not.toThrow()
   })
 
-  it('Valid: optional missing', async () => {
+  it('Negative: mandatory missing in TODO: lineNumber', async () => {
     const data = {
+      version: '1',
+      trackedDefaultBranch: 'refs/heads/main',
+      lastUpdatedDefaultCommit: '1b3dv3',
       todoStates: {
-        0: {
-          commitSha: 'xyz',
-          todos: [],
-          trackedBranch: 'refs/heads/main',
+        1: {
+          defaultBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 this already existed in control issue',
+                todoText: 'this already existed in control issue',
+                keyword: 'TODO',
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+          },
+          commentId: 42,
+          deadIssue: true,
         },
       },
     }
-    expect(() => TodohubControlIssueData.checkParsedFormat(data)).not.toThrow()
+    expect(() => dataStore.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
   })
 
-  it('Negative: mandatory missing 2', async () => {
+  it('Valid: optional missing in TODO: issueNr', async () => {
     const data = {
+      version: '1',
+      trackedDefaultBranch: 'refs/heads/main',
+      lastUpdatedDefaultCommit: '1b3dv3',
       todoStates: {
-        0: {
-          rawLine: 'TODO #1 this already existed in control issue',
-          todoText: 'this already existed in control issue',
-          lineNumber: 1,
-          issueNumber: 1,
-          fileName: 'file',
-          foundInCommit: 'xyz',
+        1: {
+          defaultBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 this already existed in control issue',
+                todoText: 'this already existed in control issue',
+                keyword: 'TODO',
+                lineNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+          },
+          commentId: 42,
+          deadIssue: true,
         },
       },
     }
-    expect(() => TodohubControlIssueData.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
+    expect(() => dataStore.checkParsedFormat(data)).not.toThrow()
   })
 
-  it('Valid equals original data', async () => {
+  it('Valid: optional missing in State: defaultBranch', async () => {
     const data = {
+      version: '1',
       todoStates: {
-        0: {
-          commitSha: 'abc',
-          trackedBranch: '1-feat-branch',
-          todos: [
-            {
-              rawLine: 'TODO #1 this already existed in control issue',
-              todoText: 'this already existed in control issue',
-              lineNumber: 1,
-              keyword: 'TODO',
-              issueNumber: 1,
-              fileName: 'file',
-              foundInCommit: 'xyz',
-            },
-          ],
+        1: {
+          featureBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 feat branch todo',
+                todoText: 'feat branch todo',
+                keyword: 'TODO',
+                lineNumber: 2,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+            commitSha: 'asd',
+            name: '1-feat-branch',
+          },
+          commentId: 42,
+          deadIssue: true,
         },
       },
     }
-
-    const decoded = TodohubControlIssueData.checkParsedFormat(data)
-    expect(decoded).toEqual(data)
+    expect(() => dataStore.checkParsedFormat(data)).not.toThrow()
   })
+
+  it('Not valid: missing mandatory in FeatureBranch: name', async () => {
+    const data = {
+      version: '1',
+      commentId: 42,
+      todoStates: {
+        1: {
+          featureBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 feat branch todo',
+                todoText: 'feat branch todo',
+                keyword: 'TODO',
+                lineNumber: 2,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+            commitSha: 'asd',
+          },
+          commentId: 42,
+          deadIssue: true,
+        },
+      },
+    }
+    expect(() => dataStore.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
+  })
+
+  it('Not Valid: unsupported version', async () => {
+    const data = {
+      version: '423',
+      commentId: 42,
+      todoStates: {
+        1: {
+          featureBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 feat branch todo',
+                todoText: 'feat branch todo',
+                keyword: 'TODO',
+                lineNumber: 2,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+            commitSha: 'asd',
+            name: '1-feat-branch',
+          },
+          commentId: 42,
+          deadIssue: true,
+        },
+      },
+    }
+    expect(() => dataStore.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
+  })
+
+  it('Not Valid: version missing', async () => {
+    const data = {
+      commentId: 42,
+      todoStates: {
+        1: {
+          featureBranch: {
+            todos: [
+              {
+                rawLine: 'TODO #1 feat branch todo',
+                todoText: 'feat branch todo',
+                keyword: 'TODO',
+                lineNumber: 2,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+            commitSha: 'asd',
+            name: '1-feat-branch',
+          },
+          commentId: 42,
+          deadIssue: true,
+        },
+      },
+    }
+    expect(() => dataStore.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
+  })
+
+  it('Not Valid: Wrong type in TODO: rawLine is number', async () => {
+    const data = {
+      version: '1',
+      todoStates: {
+        1: {
+          featureBranch: {
+            todos: [
+              {
+                rawLine: 1,
+                todoText: 'feat branch todo',
+                keyword: 'TODO',
+                lineNumber: 2,
+                issueNumber: 1,
+                fileName: 'file',
+                foundInCommit: 'xyz',
+              },
+            ],
+            commitSha: 'asd',
+            name: '1-feat-branch',
+          },
+          commentId: 42,
+          deadIssue: true,
+        },
+      },
+    }
+    expect(() => dataStore.checkParsedFormat(data)).toThrow(ControlIssueDataDecodingError)
+  })
+
 })

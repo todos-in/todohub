@@ -1,35 +1,38 @@
 {
+  "version": "1",
+  "lastUpdatedDefaultCommit": "xyz",
+  "trackedDefaultBranch": "refs/heads/main",
   "todoStates": {
     "0": {
-      "commitSha": "xyz",
-      "todos": [],
-      "trackedBranch": "refs/heads/main"
+      "defaultBranch": {
+        "todos": []
+      }
     },
     "1": {
-      "todos": [
-        {
-          "rawLine": "TODO #1 this already existed in control issue",
-          "todoText": "this already existed in control issue",
-          "keyword": "TODO",
-          "lineNumber": 1,
-          "issueNumber": 1,
-          "fileName": "file",
-          "foundInCommit": "xyz"
-        },
-        {
-          "rawLine": "TODO #1 this is new",
-          "todoText": "this is new",
-          "keyword": "TODO",
-          "lineNumber": 2,
-          "issueNumber": 1,
-          "fileName": "file",
-          "foundInCommit": "xyz"
-        }
-      ],
-      "commitSha": "xyz",
-      "trackedBranch": "refs/heads/main",
-      "commentId": 42
+      "defaultBranch": {
+        "todos": [
+          {
+            "rawLine": "TODO #1 this already existed in control issue",
+            "todoText": "this already existed in control issue",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 1,
+            "fileName": "file",
+            "foundInCommit": "xyz"
+          },
+          {
+            "rawLine": "TODO #1 this is new",
+            "todoText": "this is new",
+            "keyword": "TODO",
+            "lineNumber": 2,
+            "issueNumber": 1,
+            "fileName": "file",
+            "foundInCommit": "xyz"
+          }
+        ]
+      },
+      "commentId": 42,
+      "deadIssue": false
     }
-  },
-  "lastUpdatedCommitSha": "xyz"
+  }
 }
