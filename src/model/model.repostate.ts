@@ -55,7 +55,9 @@ export class RepoTodoStates implements TRepoTodoStates {
   }
 
   getTodoStatesByIssueNr() {
-    return this.todoStates
+    const clone = Object.assign({}, this.todoStates)
+    delete clone[STRAY_TODO_KEY]
+    return clone
   }
 
   getStrayTodoState() {

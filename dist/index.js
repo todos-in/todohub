@@ -35248,7 +35248,9 @@ class RepoTodoStates {
         this.getTodoState(issueNr)?.deleteFeatureState();
     }
     getTodoStatesByIssueNr() {
-        return this.todoStates;
+        const clone = Object.assign({}, this.todoStates);
+        delete clone[STRAY_TODO_KEY];
+        return clone;
     }
     getStrayTodoState() {
         return this.todoStates[STRAY_TODO_KEY];

@@ -6,3 +6,4 @@ __tests__/integration_*/description.md
 __tests__/**/*.json
 badges
 coverage
+README.md
