@@ -11,7 +11,7 @@ const replacers = [
   {regex: /\]/g, replace: '\\]'},
   {regex: /</g, replace: '&lt;'},
   {regex: />/g, replace: '&gt;'},
-  {regex: /_/g, replace: '\\_'},
+  // {regex: /_/g, replace: '\\_'},
   {regex: /`/g, replace: '\\`'},
 ]
 

@@ -35125,7 +35125,7 @@ const replacers = [
     { regex: /\]/g, replace: '\\]' },
     { regex: /</g, replace: '&lt;' },
     { regex: />/g, replace: '&gt;' },
-    { regex: /_/g, replace: '\\_' },
+    // {regex: /_/g, replace: '\\_'},
     { regex: /`/g, replace: '\\`' },
 ];
 const escapeMd = (markdown) => {
@@ -39406,6 +39406,58 @@ class TodohubControlIssueDataStore {
         const b64Encoded = zipped.toString('base64');
         return b64Encoded;
     }
+    renderTodos(todos, commit) {
+        const buildFileTree = (todos) => {
+            const fileTree = {};
+            for (const todo of todos) {
+                const segments = todo.fileName.split('/');
+                let currentNode = fileTree;
+                for (const [index, segment] of segments.entries()) {
+                    const isFile = index + 1 === segments.length;
+                    let child = currentNode[segment];
+                    if (!child) {
+                        if (isFile) {
+                            child = [todo];
+                        }
+                        else {
+                            child = {};
+                        }
+                        currentNode[segment] = child;
+                    }
+                    else {
+                        if (isFile) {
+                            child.push(todo);
+                        }
+                    }
+                    currentNode = child;
+                }
+            }
+            return fileTree;
+        };
+        const fileTree = buildFileTree(todos);
+        const renderTreeRecursive = (fileTree) => {
+            let markdown = '';
+            for (const [fileName, subTree] of Object.entries(fileTree)) {
+                if (Array.isArray(subTree)) {
+                    for (const todo of subTree) {
+                        const codeLink = `${this.repo.baseUrl}/blob/${commit}/${todo.fileName}#L${todo.lineNumber}`;
+                        const fileNameWithoutPath = todo.fileName.split('/').pop();
+                        markdown += `* [ ] [\`${fileNameWithoutPath}:${todo.lineNumber}\`](${codeLink}): ${escapeMd(todo.rawLine)}\n`;
+                    }
+                }
+                else {
+                    markdown += '<details open>\n';
+                    markdown += `<summary><code>${fileName}</code></summary>\n\n`;
+                    markdown += '<blockquote>\n\n';
+                    markdown += renderTreeRecursive(subTree);
+                    markdown += '</blockquote>\n';
+                    markdown += '</details>\n';
+                }
+            }
+            return markdown;
+        };
+        return renderTreeRecursive(fileTree);
+    }
     compose(data) {
         const todoStates = Object.entries(data.getTodoStatesByIssueNr());
         let newMidTag = todoStates.length ? '\n### Tracked Issues:' : '';
@@ -39425,7 +39477,7 @@ class TodohubControlIssueDataStore {
                 link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`;
             }
             else {
-                link = `Issue ${issueNr} (⚠️ No todohub comment found in associated)`;
+                link = `Issue ${issueNr} (⚠️ No todohub comment found in associated issue)`;
             }
             newMidTag += `\n* ${link}: *${todos.length}* open TODOs`;
         }
@@ -39434,11 +39486,14 @@ class TodohubControlIssueDataStore {
         }
         const strayTodos = data.getStrayTodoState()?.defaultBranch?.todos;
         if (strayTodos && strayTodos.length) {
-            newMidTag += '\n### Todos without Issue Reference:';
-            for (const strayTodo of strayTodos) {
-                const codeLink = `[link](${this.repo.baseUrl}/blob/${data.getLastUpdatedDefaultCommit()}/${strayTodo.fileName}#L${strayTodo.lineNumber})`;
-                newMidTag += `\n* [ ] \`${strayTodo.fileName}:${strayTodo.lineNumber}\`: ${escapeMd(strayTodo.rawLine)} <sup>${codeLink}</sup>`;
-            }
+            newMidTag += '\n### Todos without Issue Reference:\n';
+            newMidTag += `<details>
+<summary>:exclamation: Info</summary>
+
+> TODOs should reference an existing issue in github to prevent them from getting lost:
+>Instead of \`TODO fix this\`, create an Issue for the problem on Github and reference the number: \`TODO #42 fix this\`.
+</details>\n\n`;
+            newMidTag += this.renderTodos(strayTodos, data.getLastUpdatedDefaultCommit() || '');
         }
         newMidTag += `\n\n<sub>**Last updated:** ${data.getLastUpdatedDefaultCommit()}</sub>`;
         return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${this.encode(data)}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`;
