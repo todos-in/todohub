@@ -8,7 +8,7 @@ import GithubService from './github.js'
 import { zRepoTodoStates } from '../model/validation.js'
 import { Todo } from 'model/model.todo.js'
 
-type FileTree = {[fileName: string]: FileTree | Todo[]}
+type FileTree = { [fileName: string]: FileTree | Todo[] }
 
 export class TodohubControlIssueDataStore implements DataStore {
 
@@ -89,15 +89,17 @@ export class TodohubControlIssueDataStore implements DataStore {
     const b64Encoded = zipped.toString('base64')
     return b64Encoded
   }
-  
+
+  // TODO #106 According to https://gist.github.com/pierrejoubert73/902cc94d79424356a8d20be2b382e1ab nesting goes only 4 Levels - need testing/probably adjustments for deeply nested projects
+  // TODO #106 Single subfolders shouldnt be nested to avoid unnecessary deep nesting
   private renderTodos(todos: Todo[], commit: string) {
     const buildFileTree = (todos: Todo[]) => {
       const fileTree: FileTree = {}
-  
+
       for (const todo of todos) {
         const segments = todo.fileName.split('/')
         let currentNode = fileTree
-  
+
         for (const [index, segment] of segments.entries()) {
           const isFile = index + 1 === segments.length
           let child = currentNode[segment]
@@ -116,7 +118,7 @@ export class TodohubControlIssueDataStore implements DataStore {
           currentNode = child as FileTree
         }
       }
-  
+
       return fileTree
     }
 
@@ -125,7 +127,7 @@ export class TodohubControlIssueDataStore implements DataStore {
     const renderTreeRecursive = (fileTree: FileTree) => {
       let markdown = ''
 
-      for (const [fileName, subTree] of Object.entries(fileTree)) {  
+      for (const [fileName, subTree] of Object.entries(fileTree)) {
         if (Array.isArray(subTree)) {
           for (const todo of subTree) {
             const codeLink = `${this.repo.baseUrl}/blob/${commit}/${todo.fileName}#L${todo.lineNumber}`
@@ -134,7 +136,7 @@ export class TodohubControlIssueDataStore implements DataStore {
           }
         } else {
           markdown += '<details open>\n'
-          markdown += `<summary><code>${fileName}</code></summary>\n\n`  
+          markdown += `<summary><code>${fileName}</code></summary>\n\n`
           markdown += '<blockquote>\n\n'
           markdown += renderTreeRecursive(subTree)
           markdown += '</blockquote>\n'
@@ -142,11 +144,11 @@ export class TodohubControlIssueDataStore implements DataStore {
         }
 
       }
-  
+
       return markdown
 
     }
-      
+
     return renderTreeRecursive(fileTree)
   }
 
