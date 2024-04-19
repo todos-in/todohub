@@ -4,6 +4,8 @@ import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
 /***/ 1630:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
+// Note: necessary because ignore package can't be imported properly as esm at the moment: https://github.com/kaelzhang/node-ignore/issues/96
+
 const ignore = __nccwpck_require__(1230)
 
 module.exports = {ignoreWrapper: ignore.default}
@@ -34449,7 +34451,7 @@ const PersonalAccessTokenOctokitGetter = (token, _options) => {
     });
 };
 
-;// CONCATENATED MODULE: ./src/main.ts
+;// CONCATENATED MODULE: ./src/runner.ts
 class Runner {
     logger;
     environment;
