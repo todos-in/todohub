@@ -92,6 +92,8 @@ export class TodohubControlIssueDataStore implements DataStore {
 
   // TODO #106 According to https://gist.github.com/pierrejoubert73/902cc94d79424356a8d20be2b382e1ab nesting goes only 4 Levels - need testing/probably adjustments for deeply nested projects
   // TODO #106 Single subfolders shouldnt be nested to avoid unnecessary deep nesting
+  // TODO #106 sort TODOS by 1.nesting level and 2.filename before rendering
+  // TODO #106 use same rendering for comments in issues for todos with issue reference?
   private renderTodos(todos: Todo[], commit: string) {
     const buildFileTree = (todos: Todo[]) => {
       const fileTree: FileTree = {}
@@ -140,7 +142,7 @@ export class TodohubControlIssueDataStore implements DataStore {
           markdown += '<blockquote>\n\n'
           markdown += renderTreeRecursive(subTree)
           markdown += '</blockquote>\n'
-          markdown += '</details>\n'
+          markdown += '</details>\n\n'
         }
 
       }
