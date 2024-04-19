@@ -30,17 +30,16 @@ plugins:
   - jest
   - '@typescript-eslint'
   - '@stylistic/js'
-  - eslint-plugin-todohub
+  - todohub
 
 extends:
   - eslint:recommended
   - plugin:@typescript-eslint/recommended
   - plugin:jest/recommended
+  - plugin:todohub/recommended
 
 rules:
   {
-    'todohub/no-todos-without-issue-ref': 'warn',
-    'todohub/current-feature-branch-issues': 'warn',
     '@stylistic/js/indent': ['error', 2],
     '@stylistic/js/quote-props': ['error', 'consistent-as-needed'],
     '@stylistic/js/quotes': ['error', 'single'],

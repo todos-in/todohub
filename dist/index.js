@@ -34462,6 +34462,7 @@ class Runner {
         failedToUpdate: [],
         totalTodosUpdated: 0,
         todohubIssueId: undefined,
+        strayTodos: 0,
     };
     env;
     constructor(logger, environment, repo, dataStore, commentFactory) {
@@ -34482,6 +34483,7 @@ class Runner {
         this.logger.info(`Pushing commit: <${this.env.commitSha}>, ref: <${this.env.ref}>`);
         if (!this.env.isFeatureBranch && !this.env.isDefaultBranch) {
             this.logger.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): <${this.env.branchName}>. Doing nothing...`);
+            this.runInfo.cancelReason = 'BRANCH_DID_NOT_TRIGGER';
             return this.runInfo;
         }
         this.logger.debug('Getting existing Todohub Control Issue...');
@@ -34524,6 +34526,7 @@ class Runner {
         const strayTodos = todos.filter((todo) => !todo.issueNumber);
         todohubState.setDefaultTrackedBranch(ref, commit);
         todohubState.setStrayTodoState(strayTodos);
+        this.runInfo.strayTodos = strayTodos.length;
         for (const issueNr of issueUnion) {
             this.logger.startGroup(`Processing Issue <${issueNr}>`);
             const featureBranchAhead = branchesAheadOfDefault.some((branch) => branch.startsWith(`${issueNr}-`));
@@ -39610,6 +39613,14 @@ injected(FindTodoStreamFactory, TOKENS.environmentService, TOKENS.logger);
 const runner = container.get(TOKENS.runner);
 runner.run()
     .then((runInfo) => {
+    if (runInfo.cancelReason) {
+        let reason = '';
+        if (runInfo.cancelReason === 'BRANCH_DID_NOT_TRIGGER') {
+            reason = 'Todohub is only triggered for the repositories default branch and for feature branches in the format `1-branch-name`';
+        }
+        core.summary.addDetails('Todohub not executed', reason);
+        return;
+    }
     core.setOutput('UPDATED_ISSUES', runInfo.succesfullyUpdatedIssues.join(','));
     core.setOutput('SKIPPED_UNCHANGED_ISSUES', runInfo.skippedUnchangedIssues.join(','));
     core.setOutput('ISSUES_FAILED_TO_UPDATE', runInfo.failedToUpdate.join(','));
@@ -39621,6 +39632,7 @@ runner.run()
 > Total updated TODOs in this run: ${runInfo.totalTodosUpdated}
 > Issues updated: ${runInfo.succesfullyUpdatedIssues.length}
 > Skipped TODOs in this run: ${runInfo.skippedUnchangedIssues.length}
+> TODOs without Issue Reference: ${runInfo.strayTodos}
 `, true);
     if (runInfo.failedToUpdate.length) {
         core.summary.addRaw(`
@@ -39630,13 +39642,17 @@ runner.run()
     core.summary.addSeparator()
         .addHeading('✅ Updated Issues', 4)
         .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `#${issueNr}`))
-        .addEOL()
-        .addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
-        .addEOL()
-        .addList(runInfo.skippedUnchangedIssues.map(issueNr => `#${issueNr}`))
-        .addHeading('⚠️ Failed to update:', 4)
-        .addList(runInfo.failedToUpdate.map(issueNr => `#${issueNr}`))
-        .write();
+        .addEOL();
+    if (runInfo.skippedUnchangedIssues.length) {
+        core.summary.addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
+            .addEOL()
+            .addList(runInfo.skippedUnchangedIssues.map(issueNr => `#${issueNr}`));
+    }
+    if (runInfo.failedToUpdate.length) {
+        core.summary.addHeading('⚠️ Failed to update:', 4)
+            .addList(runInfo.failedToUpdate.map(issueNr => `#${issueNr}`));
+    }
+    core.summary.write();
 })
     .catch((error) => {
     if (error instanceof TodohubError) {

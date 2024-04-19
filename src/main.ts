@@ -13,6 +13,8 @@ interface RunInfo {
   failedToUpdate: number[],
   totalTodosUpdated: number,
   todohubIssueId?: number,
+  cancelReason?: 'BRANCH_DID_NOT_TRIGGER',
+  strayTodos: number,
 }
 
 export class Runner {
@@ -23,6 +25,7 @@ export class Runner {
     failedToUpdate: [],
     totalTodosUpdated: 0,
     todohubIssueId: undefined,
+    strayTodos: 0,
   }
 
   private env: Environment
@@ -47,6 +50,7 @@ export class Runner {
     this.logger.info(`Pushing commit: <${this.env.commitSha}>, ref: <${this.env.ref}>`)
     if (!this.env.isFeatureBranch && !this.env.isDefaultBranch) {
       this.logger.info(`Push event to neither default nor feature branch format ([0-9]-branch-name): <${this.env.branchName}>. Doing nothing...`)
+      this.runInfo.cancelReason = 'BRANCH_DID_NOT_TRIGGER'
       return this.runInfo
     }
 
@@ -105,6 +109,8 @@ export class Runner {
 
     todohubState.setDefaultTrackedBranch(ref, commit)
     todohubState.setStrayTodoState(strayTodos)
+
+    this.runInfo.strayTodos = strayTodos.length
 
     for (const issueNr of issueUnion) {
       this.logger.startGroup(`Processing Issue <${issueNr}>`)

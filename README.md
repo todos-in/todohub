@@ -15,12 +15,12 @@
 
 ## Usage
 
-* Set up the workflow:
+### Use as a github action:
+
+* Set up the workflow by adding a file `.github/workflows/todohub.yml`:
 ```
 name: Todohub Workflow
-on:
-  push:
-  pull_request:
+on: [push, pull_request]
 
 permissions:
   contents: read
@@ -29,12 +29,10 @@ permissions:
 
 jobs:
   todohub-job:
-    name: Todohub
     runs-on: ubuntu-latest
-
     steps:
-      - name: Test Remote Action
-        id: test-action
+      - name: Todohub
+        id: todohub
         uses: todos-in/todohub@main
 ```
 
@@ -44,16 +42,25 @@ This Project contains an eslint plugin help you manage local TODOs in your codeb
 ```
 npm i --save-dev eslint-plugin-todohub
 ```
-and add `eslint-plugin-todohub` to your eslint plugins section, e. g. 
+
+> [!NOTE]
+> This documentation shows how to config eslint using an `.eslintrc.yml` config file.
+> There are multiple ways to config eslint, please refer to [eslint](https://eslint.org/docs/latest/use/configure/) to find the suitable configuration for your project.
+
+Add `todohub` to your eslint plugins section, and enable the recommended rule set:
 ```
 //.eslintrc.yml
-...
+[...]
 plugins:
-   - eslint-plugin-todohub
-...
-```
+   - todohub
 
-The plugin features two rules:
+extends:
+  - plugin:todohub/recommended
+[...]
+```
+<details>
+<summary>Advanced Configuration</summary>
+The plugin features two rules, which can also be configured individually:
 1. `todohub/no-todos-without-issue-ref`: Hints towards All Todos in codebase which do not have an issue number reference (such as `TODO #1`). Keeps track of potentially lost Todos. (Recommended to turn on, and set to `error`)
 1.  `todohub/current-feature-branch-issues`: Checks if you are in a feature branch currently and hints towards all open TODOs referencing the current feature branch. Useful to keep track of what you are currently working on. (Recommended to set to `warn`)
 
@@ -66,6 +73,7 @@ rules:
    ...
   }
 ```
+</details>
 
 ## Development & Testing
 1. :hammer_and_wrench: Installing
