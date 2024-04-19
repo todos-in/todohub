@@ -59,7 +59,9 @@ extends:
 [...]
 ```
 <details>
+
 <summary>Advanced Configuration</summary>
+
 The plugin features two rules, which can also be configured individually:
 1. `todohub/no-todos-without-issue-ref`: Hints towards All Todos in codebase which do not have an issue number reference (such as `TODO #1`). Keeps track of potentially lost Todos. (Recommended to turn on, and set to `error`)
 1.  `todohub/current-feature-branch-issues`: Checks if you are in a feature branch currently and hints towards all open TODOs referencing the current feature branch. Useful to keep track of what you are currently working on. (Recommended to set to `warn`)
@@ -73,6 +75,7 @@ rules:
    ...
   }
 ```
+
 </details>
 
 ## Development & Testing

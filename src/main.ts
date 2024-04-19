@@ -8,7 +8,7 @@ import { DataStore } from './interfaces/datastore.js'
 import { GithubCommentFactory } from './service/comment.js'
 
 interface RunInfo {
-  succesfullyUpdatedIssues: number[]
+  succesfullyUpdatedIssues: number[],
   skippedUnchangedIssues: number[],
   failedToUpdate: number[],
   totalTodosUpdated: number,
