@@ -39410,7 +39410,6 @@ class TodohubControlIssueDataStore {
     // TODO #106 Single subfolders shouldnt be nested to avoid unnecessary deep nesting
     // TODO #106 sort TODOS by 1.nesting level and 2.filename before rendering
     // TODO #106 use same rendering for comments in issues for todos with issue reference?
-    // TODO #106 test
     renderTodos(todos, commit) {
         const buildFileTree = (todos) => {
             const fileTree = {};
