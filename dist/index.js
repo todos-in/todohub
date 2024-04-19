@@ -39609,7 +39609,9 @@ injected(FindTodoStreamFactory, TOKENS.environmentService, TOKENS.logger);
 
 
 // TODO #93 this runner should have the environment/context parser
-// TODO #93 create Runnter for testing which returns, timings, setFailed and one for action, later for App
+// TODO #93 once this has access to environment/context use to create links to the issues in the summary
+// TODO #93 create Runner for testing which returns, timings, setFailed and one for action
+// TODO #93 create Runner for app environment
 const runner = container.get(TOKENS.runner);
 runner.run()
     .then((runInfo) => {
