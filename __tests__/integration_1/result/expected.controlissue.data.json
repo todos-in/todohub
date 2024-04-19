@@ -13,6 +13,54 @@
             "lineNumber": 5,
             "fileName": "file_with_todos",
             "foundInCommit": "xyz"
+          },
+          {
+            "rawLine": "TODO this is a nested todo in nested_file",
+            "todoText": "this is a nested todo in nested_file",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "fileName": "nested/nested_file",
+            "foundInCommit": "xyz"
+          },
+          {
+            "rawLine": "TODO this is another nested todo in nested_file",
+            "todoText": "this is another nested todo in nested_file",
+            "keyword": "TODO",
+            "lineNumber": 2,
+            "fileName": "nested/nested_file",
+            "foundInCommit": "xyz"
+          },
+          {
+            "rawLine": "TODO this is a nested todo in nested_file_2",
+            "todoText": "this is a nested todo in nested_file_2",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "fileName": "nested/nested_file_2",
+            "foundInCommit": "xyz"
+          },
+          {
+            "rawLine": "TODO this is another nested todo in nested_file_2",
+            "todoText": "this is another nested todo in nested_file_2",
+            "keyword": "TODO",
+            "lineNumber": 2,
+            "fileName": "nested/nested_file_2",
+            "foundInCommit": "xyz"
+          },
+          {
+            "rawLine": "TODO this is a nested todo in subnested_file",
+            "todoText": "this is a nested todo in subnested_file",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "fileName": "nested/subnested/subnested_file",
+            "foundInCommit": "xyz"
+          },
+          {
+            "rawLine": "TODO this is another nested todo in subnested_file",
+            "todoText": "this is another nested todo in subnested_file",
+            "keyword": "TODO",
+            "lineNumber": 2,
+            "fileName": "nested/subnested/subnested_file",
+            "foundInCommit": "xyz"
           }
         ]
       }
