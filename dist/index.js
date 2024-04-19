@@ -39628,21 +39628,23 @@ runner.run()
     core.summary.addEOL()
         .addRaw(`
 >[!NOTE]
-> Tracked Todohub Control Issue: #${runInfo.todohubIssueId}
-> Total updated TODOs in this run: ${runInfo.totalTodosUpdated}
-> Issues updated: ${runInfo.succesfullyUpdatedIssues.length}
-> Skipped TODOs in this run: ${runInfo.skippedUnchangedIssues.length}
-> TODOs without Issue Reference: ${runInfo.strayTodos}
+> Tracked Todohub Control Issue: **#${runInfo.todohubIssueId}**
+> Total updated TODOs in this run: **${runInfo.totalTodosUpdated}**
+> Issues updated: **${runInfo.succesfullyUpdatedIssues.length}**
+> Skipped TODOs in this run: **${runInfo.skippedUnchangedIssues.length}**
+> TODOs without Issue Reference: **${runInfo.strayTodos}**
 `, true);
     if (runInfo.failedToUpdate.length) {
         core.summary.addRaw(`
 >[!WARNING]
 > Issues failed to update: ${runInfo.failedToUpdate.length}`, true);
     }
-    core.summary.addSeparator()
-        .addHeading('✅ Updated Issues', 4)
-        .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `#${issueNr}`))
-        .addEOL();
+    core.summary.addSeparator();
+    if (runInfo.succesfullyUpdatedIssues.length) {
+        core.summary.addHeading('✅ Updated Issues', 4)
+            .addList(runInfo.succesfullyUpdatedIssues.map(issueNr => `#${issueNr}`))
+            .addEOL();
+    }
     if (runInfo.skippedUnchangedIssues.length) {
         core.summary.addHeading('🧘‍♀️ Skipped Issues without any changes', 4)
             .addEOL()
