@@ -7,9 +7,11 @@
   "private": true,
   "homepage": "https://github.com/todos-in/todohub",
   "keywords": [
+    "github",
     "actions",
     "node",
-    "setup"
+    "todos",
+    "issues"
   ],
   "exports": {
     ".": "./dist/index.js"
