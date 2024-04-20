@@ -94,6 +94,7 @@ export class TodohubControlIssueDataStore implements DataStore {
   // TODO #106 Single subfolders shouldnt be nested to avoid unnecessary deep nesting
   // TODO #106 sort TODOS by 1.nesting level and 2.filename before rendering
   // TODO #106 use same rendering for comments in issues for todos with issue reference?
+  // TODO #106 test
   private renderTodos(todos: Todo[], commit: string) {
     const buildFileTree = (todos: Todo[]) => {
       const fileTree: FileTree = {}
@@ -156,7 +157,7 @@ export class TodohubControlIssueDataStore implements DataStore {
 
   private compose(data: RepoTodoStates) {
     const todoStates = Object.entries(data.getTodoStatesByIssueNr())
-    let newMidTag = todoStates.length ? '\n### Tracked Issues:' : ''
+    let newMidTag = todoStates.length ? '\n### Tracked Issues' : ''
 
     const footnotes: string[] = []
     for (const [issueNr, todoState] of todoStates) {
@@ -184,9 +185,9 @@ export class TodohubControlIssueDataStore implements DataStore {
     const strayTodos = data.getStrayTodoState()?.defaultBranch?.todos
 
     if (strayTodos && strayTodos.length) {
-      newMidTag += '\n### Todos without Issue Reference:\n'
+      newMidTag += '\n### Todos without Issue Reference\n'
       newMidTag += `<details>
-<summary>:exclamation: Info</summary>
+<summary><sub>:exclamation: Info<sub></summary>
 
 > TODOs should reference an existing issue in github to prevent them from getting lost:
 >Instead of \`TODO fix this\`, create an Issue for the problem on Github and reference the number: \`TODO #42 fix this\`.
