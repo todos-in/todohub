@@ -39408,7 +39408,6 @@ class TodohubControlIssueDataStore {
         const b64Encoded = zipped.toString('base64');
         return b64Encoded;
     }
-    // TODO #106 According to https://gist.github.com/pierrejoubert73/902cc94d79424356a8d20be2b382e1ab nesting goes only 4 Levels - need testing/probably adjustments for deeply nested projects
     // TODO #106 Single subfolders shouldnt be nested to avoid unnecessary deep nesting
     // TODO #106 use same rendering for comments in issues for todos with issue reference?
     renderTodos(todos, commit) {
