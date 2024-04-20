@@ -169,7 +169,7 @@ export class TodohubControlIssueDataStore implements DataStore {
 
     const fileTree = buildFileTree(todos)
     const flattenedFileTree = flattenSingleNodes(fileTree)
-    return renderTreeRecursive(fileTree)
+    return renderTreeRecursive(flattenedFileTree)
   }
 
   private compose(data: RepoTodoStates) {

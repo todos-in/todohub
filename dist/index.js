@@ -39481,7 +39481,7 @@ class TodohubControlIssueDataStore {
         };
         const fileTree = buildFileTree(todos);
         const flattenedFileTree = flattenSingleNodes(fileTree);
-        return renderTreeRecursive(fileTree);
+        return renderTreeRecursive(flattenedFileTree);
     }
     compose(data) {
         const todoStates = Object.entries(data.getTodoStatesByIssueNr());
