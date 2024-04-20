@@ -122,7 +122,20 @@ export class TodohubControlIssueDataStore implements DataStore {
       return fileTree
     }
 
-    const fileTree = buildFileTree(todos)
+    const flattenSingleNodes = (fileTree: FileTree) => {
+      for (const [fileName, subTree] of Object.entries(fileTree)) {
+        if (Array.isArray(subTree)) {
+          continue
+        }
+        if (Object.entries(subTree).length === 1) {
+          const [subTreeName, subSubTree] = Object.entries(subTree)[0] as [string, FileTree]
+          fileTree[fileName] = flattenSingleNodes({[`${fileName}/${subTreeName}`]: subSubTree})
+        } else {
+          fileTree[fileName] = flattenSingleNodes(subTree)
+        }
+      }
+      return fileTree
+    }
 
     const renderTreeRecursive = (fileTree: FileTree) => {
       let markdown = ''
@@ -154,6 +167,8 @@ export class TodohubControlIssueDataStore implements DataStore {
 
     }
 
+    const fileTree = buildFileTree(todos)
+    const flattenedFileTree = flattenSingleNodes(fileTree)
     return renderTreeRecursive(fileTree)
   }
 

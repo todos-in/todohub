@@ -39438,7 +39438,21 @@ class TodohubControlIssueDataStore {
             }
             return fileTree;
         };
-        const fileTree = buildFileTree(todos);
+        const flattenSingleNodes = (fileTree) => {
+            for (const [fileName, subTree] of Object.entries(fileTree)) {
+                if (Array.isArray(subTree)) {
+                    continue;
+                }
+                if (Object.entries(subTree).length === 1) {
+                    const [subTreeName, subSubTree] = Object.entries(subTree)[0];
+                    fileTree[fileName] = flattenSingleNodes({ [`${fileName}/${subTreeName}`]: subSubTree });
+                }
+                else {
+                    fileTree[fileName] = flattenSingleNodes(subTree);
+                }
+            }
+            return fileTree;
+        };
         const renderTreeRecursive = (fileTree) => {
             let markdown = '';
             // Sort All entries in a node By Type first and name second (leaf nodes (files) should show first)
@@ -39465,6 +39479,8 @@ class TodohubControlIssueDataStore {
             }
             return markdown;
         };
+        const fileTree = buildFileTree(todos);
+        const flattenedFileTree = flattenSingleNodes(fileTree);
         return renderTreeRecursive(fileTree);
     }
     compose(data) {
