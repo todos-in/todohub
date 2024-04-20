@@ -81,12 +81,14 @@ class GithubIssueComment {
   }
 
   composeTrackedIssueComment() {
+    // TODO #106 test rm this
     let composed = this.todos.length ? '#### TODO' : 'No Open Todos'
     for (const todo of this.todos) {
       const link = `[link](${this.repo.baseUrl}/blob/${this.commitSha}/${todo.fileName}#L${todo.lineNumber})`
       composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
     }
     const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`
+    composed += '\n---'
     composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} | </sub>`
     return composed
   }
