@@ -86,8 +86,8 @@ class GithubIssueComment {
       const link = `[link](${this.repo.baseUrl}/blob/${this.commitSha}/${todo.fileName}#L${todo.lineNumber})`
       composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
     }
-    composed += `\n\n<sub>Last set: ${this.commitSha} | Tracked Branch: \`${escapeMd(this.refName)}\`</sub>`
-
+    const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`
+    composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} | </sub>`
     return composed
   }
 }
