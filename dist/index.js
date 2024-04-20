@@ -39443,8 +39443,12 @@ class TodohubControlIssueDataStore {
         const fileTree = buildFileTree(todos);
         const renderTreeRecursive = (fileTree) => {
             let markdown = '';
-            for (const [fileName, subTree] of Object.entries(fileTree)) {
+            // Sort All entries in a node By Type first and name second (leaf nodes (files) should show first)
+            const nodes = Object.entries(fileTree)
+                .sort(([nodeNameA, nodeA], [nodeNameB, nodeB]) => (Array.isArray(nodeA) ? 1 : 0) - (Array.isArray(nodeB) ? 1 : 0) || nodeNameA.localeCompare(nodeNameB));
+            for (const [pathSegment, subTree] of nodes) {
                 if (Array.isArray(subTree)) {
+                    // This is a leaf node (file) with a list of Todos within that file
                     for (const todo of subTree) {
                         const codeLink = `${this.repo.baseUrl}/blob/${commit}/${todo.fileName}#L${todo.lineNumber}`;
                         const fileNameWithoutPath = todo.fileName.split('/').pop();
@@ -39452,8 +39456,9 @@ class TodohubControlIssueDataStore {
                     }
                 }
                 else {
+                    // This is a folder node
                     markdown += '<details open>\n';
-                    markdown += `<summary><code>${fileName}</code></summary>\n\n`;
+                    markdown += `<summary><code>${pathSegment + '/'}</code></summary>\n\n`;
                     markdown += '<blockquote>\n\n';
                     markdown += renderTreeRecursive(subTree);
                     markdown += '</blockquote>\n';
