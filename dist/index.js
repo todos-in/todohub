@@ -34508,9 +34508,9 @@ class Runner {
         this.logger.debug(`Searching state <${commitSha}> for Todos with issue number <${featureBranchNr}>...`);
         const todos = await this.repo.getTodosFromGitRef(commitSha, featureBranchNr);
         const updatedFeatureTodoState = todohubState.setFeatureTodoState(featureBranchNr, todos, ref, commitSha);
+        const commentId = todohubState.getTodoState(featureBranchNr)?.commentId;
         if (updatedFeatureTodoState) {
-            const writtenCommentId = await this.updateIssue(featureBranchNr, todos, commitSha, ref);
-            // TODO #106 test rm this
+            const writtenCommentId = await this.updateIssue(featureBranchNr, todos, commitSha, ref, commentId);
             console.info('writtenCommentId', writtenCommentId);
             todohubState.getTodoState(featureBranchNr)?.setComment(writtenCommentId, !writtenCommentId);
         }
