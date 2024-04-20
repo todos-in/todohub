@@ -39410,7 +39410,6 @@ class TodohubControlIssueDataStore {
     }
     // TODO #106 According to https://gist.github.com/pierrejoubert73/902cc94d79424356a8d20be2b382e1ab nesting goes only 4 Levels - need testing/probably adjustments for deeply nested projects
     // TODO #106 Single subfolders shouldnt be nested to avoid unnecessary deep nesting
-    // TODO #106 sort TODOS by 1.nesting level and 2.filename before rendering
     // TODO #106 use same rendering for comments in issues for todos with issue reference?
     renderTodos(todos, commit) {
         const buildFileTree = (todos) => {
@@ -39501,8 +39500,7 @@ class TodohubControlIssueDataStore {
             newMidTag += `<details>
 <summary><sub>:exclamation: Info<sub></summary>
 
-> TODOs should reference an existing issue in github to prevent them from getting lost:
->Instead of \`TODO fix this\`, create an Issue for the problem on Github and reference the number: \`TODO #42 fix this\`.
+> TODOs should reference an existing issue in github to prevent them from getting lost: Instead of \`TODO fix this\`, create an Issue for the problem on Github and reference the issue number: \`TODO #42 fix this\`.
 </details>\n\n`;
             newMidTag += this.renderTodos(strayTodos, data.getLastUpdatedDefaultCommit() || '');
         }
