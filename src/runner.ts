@@ -83,6 +83,8 @@ export class Runner {
 
     if (updatedFeatureTodoState) {
       const writtenCommentId = await this.updateIssue(featureBranchNr, todos, commitSha, ref)
+      // TODO #106 test rm this
+      console.info('writtenCommentId', writtenCommentId)
       todohubState.getTodoState(featureBranchNr)?.setComment(writtenCommentId, !writtenCommentId)
     }
   }
