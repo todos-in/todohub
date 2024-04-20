@@ -39445,7 +39445,7 @@ class TodohubControlIssueDataStore {
             let markdown = '';
             // Sort All entries in a node By Type first and name second (leaf nodes (files) should show first)
             const nodes = Object.entries(fileTree)
-                .sort(([nodeNameA, nodeA], [nodeNameB, nodeB]) => (Array.isArray(nodeA) ? 1 : 0) - (Array.isArray(nodeB) ? 1 : 0) || nodeNameA.localeCompare(nodeNameB));
+                .sort(([nodeNameA, nodeA], [nodeNameB, nodeB]) => (Number(Array.isArray(nodeB))) - (Number(Array.isArray(nodeA))) || nodeNameA.localeCompare(nodeNameB));
             for (const [pathSegment, subTree] of nodes) {
                 if (Array.isArray(subTree)) {
                     // This is a leaf node (file) with a list of Todos within that file
