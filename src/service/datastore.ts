@@ -122,22 +122,32 @@ export class TodohubControlIssueDataStore implements DataStore {
       return fileTree
     }
 
-    const flattenSingleNodes = (fileTree: FileTree) => {
+    const flattenSingleNodes = (fileTree: FileTree, key?: string) => {
       for (const [fileName, subTree] of Object.entries(fileTree)) {
+        if (key && fileName !== key) {
+          continue
+        }
         if (Array.isArray(subTree)) {
           continue
         }
-        if (Object.entries(subTree).length === 1) {
-          const [subTreeName, subSubTree] = Object.entries(subTree)[0] as [string, FileTree]
-          fileTree[fileName] = flattenSingleNodes({[`${fileName}/${subTreeName}`]: subSubTree})
+        if (Object.keys(subTree).length === 1) {
+          const [subFileName, subSubTree] = Object.entries(subTree)[0] as [string, FileTree | Todo[]]
+          if (Array.isArray(subSubTree)) {
+            continue
+          }
+          const compositeKey = `${fileName}/${subFileName}`
+          const flattenedSubtree = {[compositeKey]: subSubTree}
+          Object.assign(fileTree, flattenedSubtree)
+          delete fileTree[fileName]
+          flattenSingleNodes(fileTree, compositeKey)
         } else {
-          fileTree[fileName] = flattenSingleNodes(subTree)
+          flattenSingleNodes(subTree)
         }
       }
       return fileTree
     }
 
-    const renderTreeRecursive = (fileTree: FileTree) => {
+    const renderTree = (fileTree: FileTree) => {
       let markdown = ''
 
       // Sort All entries in a node By Type first and name second (leaf nodes (files) should show first)
@@ -156,7 +166,7 @@ export class TodohubControlIssueDataStore implements DataStore {
           markdown += '<details open>\n'
           markdown += `<summary><code>${pathSegment + '/'}</code></summary>\n\n`
           markdown += '<blockquote>\n\n'
-          markdown += renderTreeRecursive(subTree)
+          markdown += renderTree(subTree)
           markdown += '</blockquote>\n'
           markdown += '</details>\n\n'
         }
@@ -164,12 +174,12 @@ export class TodohubControlIssueDataStore implements DataStore {
       }
 
       return markdown
-
     }
 
     const fileTree = buildFileTree(todos)
-    const flattenedFileTree = flattenSingleNodes(fileTree)
-    return renderTreeRecursive(flattenedFileTree)
+    const flattenedTree = flattenSingleNodes(fileTree)
+    const renderedTodos = renderTree(flattenedTree)
+    return renderedTodos
   }
 
   private compose(data: RepoTodoStates) {

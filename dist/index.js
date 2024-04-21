@@ -39438,22 +39438,32 @@ class TodohubControlIssueDataStore {
             }
             return fileTree;
         };
-        const flattenSingleNodes = (fileTree) => {
+        const flattenSingleNodes = (fileTree, key) => {
             for (const [fileName, subTree] of Object.entries(fileTree)) {
+                if (key && fileName !== key) {
+                    continue;
+                }
                 if (Array.isArray(subTree)) {
                     continue;
                 }
-                if (Object.entries(subTree).length === 1) {
-                    const [subTreeName, subSubTree] = Object.entries(subTree)[0];
-                    fileTree[fileName] = flattenSingleNodes({ [`${fileName}/${subTreeName}`]: subSubTree });
+                if (Object.keys(subTree).length === 1) {
+                    const [subFileName, subSubTree] = Object.entries(subTree)[0];
+                    if (Array.isArray(subSubTree)) {
+                        continue;
+                    }
+                    const compositeKey = `${fileName}/${subFileName}`;
+                    const flattenedSubtree = { [compositeKey]: subSubTree };
+                    Object.assign(fileTree, flattenedSubtree);
+                    delete fileTree[fileName];
+                    flattenSingleNodes(fileTree, compositeKey);
                 }
                 else {
-                    fileTree[fileName] = flattenSingleNodes(subTree);
+                    flattenSingleNodes(subTree);
                 }
             }
             return fileTree;
         };
-        const renderTreeRecursive = (fileTree) => {
+        const renderTree = (fileTree) => {
             let markdown = '';
             // Sort All entries in a node By Type first and name second (leaf nodes (files) should show first)
             const nodes = Object.entries(fileTree)
@@ -39472,7 +39482,7 @@ class TodohubControlIssueDataStore {
                     markdown += '<details open>\n';
                     markdown += `<summary><code>${pathSegment + '/'}</code></summary>\n\n`;
                     markdown += '<blockquote>\n\n';
-                    markdown += renderTreeRecursive(subTree);
+                    markdown += renderTree(subTree);
                     markdown += '</blockquote>\n';
                     markdown += '</details>\n\n';
                 }
@@ -39480,8 +39490,9 @@ class TodohubControlIssueDataStore {
             return markdown;
         };
         const fileTree = buildFileTree(todos);
-        const flattenedFileTree = flattenSingleNodes(fileTree);
-        return renderTreeRecursive(flattenedFileTree);
+        const flattenedTree = flattenSingleNodes(fileTree);
+        const renderedTodos = renderTree(flattenedTree);
+        return renderedTodos;
     }
     compose(data) {
         const todoStates = Object.entries(data.getTodoStatesByIssueNr());
