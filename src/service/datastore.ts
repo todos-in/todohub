@@ -90,8 +90,6 @@ export class TodohubControlIssueDataStore implements DataStore {
     return b64Encoded
   }
 
-  // TODO #106 Single subfolders shouldnt be nested to avoid unnecessary deep nesting
-  // TODO #106 use same rendering for comments in issues for todos with issue reference?
   private renderTodos(todos: Todo[], commit: string) {
     const buildFileTree = (todos: Todo[]) => {
       const fileTree: FileTree = {}
