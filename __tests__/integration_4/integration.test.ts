@@ -1,6 +1,6 @@
 import path from 'node:path'
 import * as fs from 'node:fs'
-import { getOctokitMockFactory } from '../mock/octokit.mock.js'
+import { getGithubClientMock } from '../mock/octokit.mock.js'
 import { TOKENS, container } from '../../src/di-container.js'
 import { testLogger } from '../mock/logger.mock.js'
 import { makeConfigMock, makeMockPushContextGetter } from '../mock/environment.mock.js'
@@ -32,7 +32,7 @@ const mockedApiResponses = {
   controlIssueSearch: [corruptedControlIssue, realControlIssue],
   branchesAheadBy: {},
 }
-const getOctokitMock = getOctokitMockFactory(mockedApiResponses, path.join(__dirname, 'repo'))
+const githubClientMock = getGithubClientMock(mockedApiResponses, path.join(__dirname, 'repo'))
 
 describe('action: integration test 4: main branch push with existing control issue', () => {
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe('action: integration test 4: main branch push with existing control iss
   })
 
   it('feature-branch', async () => {
-    container.bind(TOKENS.octokitGetter).toConstant(getOctokitMock)
+    container.bind(TOKENS.githubClient).toConstant(githubClientMock)
     container.bind(TOKENS.config).toConstant(configMock)
     container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)
     container.bind(TOKENS.logger).toConstant(testLogger)
@@ -53,14 +53,15 @@ describe('action: integration test 4: main branch push with existing control iss
     // We expect one warning because one of the control issue candidates returned by the search endpoint is corrupted and cannot be parsed
     expect(testLogger.warning).toHaveBeenCalledTimes(1)
     // Once to 'reopen' issue 1 with comment 42, once to update the control issue
-    expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledTimes(2)
-    expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 1, state: 'open' }))
-    expect(getOctokitMock.spies.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 100 }))
-    expect(getOctokitMock.spies.rest.issues.updateComment).toHaveBeenCalledTimes(1)
-    expect(getOctokitMock.spies.rest.issues.updateComment).toHaveBeenCalledWith(expect.objectContaining({ comment_id: 42 }))
+    expect(githubClientMock.octokit.rest.issues.update).toHaveBeenCalledTimes(2)
+    expect(githubClientMock.octokit.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 1, state: 'open' }))
+    expect(githubClientMock.octokit.rest.issues.update).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 100 }))
+    expect(githubClientMock.octokit.rest.issues.updateComment).toHaveBeenCalledTimes(1)
+    expect(githubClientMock.octokit.rest.issues.updateComment).toHaveBeenCalledWith(expect.objectContaining({ comment_id: 42 }))
 
     // Second call is the control issue
-    const todohubControlIssueBody = await getOctokitMock.spies.rest.issues.update.mock.results[1]?.value
+    // @ts-ignore create is a spy
+    const todohubControlIssueBody = await githubClientMock.octokit.rest.issues.update.mock.results[1]?.value
     expect(todohubControlIssueBody._decoded).toEqual(expectedIssueData)
   }, 2000000)
 })

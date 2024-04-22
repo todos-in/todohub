@@ -2,11 +2,11 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { gunzipSync } from 'node:zlib'
 import { Readable } from 'node:stream'
-import { Octokit } from 'octokit'
 import { RequestError } from '@octokit/request-error'
 import * as tar from 'tar'
 import { TOKENS, container } from '../../src/di-container.js'
 import { TodohubControlIssueDataStore } from '../../src/service/datastore.js'
+import { GithubClient } from '../../src/service/octokit.js'
 
 interface ApiResponses {
   branches: string[]
@@ -38,13 +38,13 @@ const createTarGzStream = (repoPath: string) => {
 }
 
 const createMockGithubError = (message: string, status: number) => {
-  return new RequestError(`Mocked Api Error: ${message}`, status, {headers: {}, request: {method: 'GET', url: '', headers: {}}})
+  return new RequestError(`Mocked Api Error: ${message}`, status, {request: {method: 'GET', url: '', headers: {}}})
 }
 
 class ApiMockError extends Error { }
 
-export const getOctokitMockFactory = (responses: ApiResponses, repoPath: string) => {
-  const mock = {
+export const getGithubClientMock = (responses: ApiResponses, repoPath: string) => {
+  const octokitMock = {
     request: jest.fn(async (_req: string, _options: object) => { throw new ApiMockError('Request fn is not mock-implemented yet') }),
     paginate: {
       iterator: (request: () => Promise<{ data: { total_count: number, items: [] } }>) => {
@@ -103,10 +103,7 @@ export const getOctokitMockFactory = (responses: ApiResponses, repoPath: string)
     graphql: jest.fn(async (_query, _vars) => ({})),
   }
 
-  const getOctokit = (_token: string, _options?: object) => {
-    return mock as unknown as Octokit
-  }
-  getOctokit['spies'] = mock
-
-  return getOctokit
+  return {
+    octokit: octokitMock,
+  } as unknown as GithubClient
 }

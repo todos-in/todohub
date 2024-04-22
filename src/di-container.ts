@@ -1,8 +1,7 @@
 import { Container, injected, token } from 'brandi'
 import { Logger } from './interfaces/logger.js'
 import { ActionLogger } from './service/logger.js'
-import { ActionOctokitGetter } from './service/octokit.js'
-import { OctokitGetter } from './interfaces/octokit.js'
+import { GithubClient } from './service/octokit.js'
 import { Runner } from './runner.js'
 import { ActionConfig, getActionPushContext } from './service/config.js'
 import { Config, PushContextGetter } from './interfaces/config.js'
@@ -17,7 +16,7 @@ export const TOKENS = {
   logger: token<Logger>('logger'),
   runner: token<Runner>('runner'),
   environmentService: token<EnvironmentService>('environmentService'),
-  octokitGetter: token<OctokitGetter>('octokitGetter'),
+  githubClient: token<GithubClient>('githubClient'),
   githubService: token<GithubService>('githubService'),
   config: token<Config>('config'),
   pushContextGetter: token<PushContextGetter>('pushContextGetter'),
@@ -35,16 +34,17 @@ container.bind(TOKENS.githubService).toInstance(GithubService).inSingletonScope(
 container.bind(TOKENS.logger).toInstance(ActionLogger).inSingletonScope()
 container.bind(TOKENS.config).toInstance(ActionConfig).inSingletonScope()
 container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext)
-container.bind(TOKENS.octokitGetter).toConstant(ActionOctokitGetter)
+container.bind(TOKENS.githubClient).toInstance(GithubClient)
 container.bind(TOKENS.dataStore).toInstance(TodohubControlIssueDataStore).inTransientScope()
 container.bind(TOKENS.githubCommentFactory).toInstance(GithubCommentFactory).inSingletonScope()
 
 container.bind(TOKENS.findTodoStreamFactory).toInstance(FindTodoStreamFactory).inSingletonScope()
 
 injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService, TOKENS.dataStore, TOKENS.githubCommentFactory)
-injected(GithubService, TOKENS.octokitGetter, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory)
+injected(GithubService, TOKENS.githubClient, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory)
 injected(EnvironmentService, TOKENS.pushContextGetter, TOKENS.config)
 injected(TodohubControlIssueDataStore, TOKENS.githubService, TOKENS.logger)
 injected(GithubCommentFactory, TOKENS.githubService, TOKENS.logger)
+injected(GithubClient, TOKENS.logger, TOKENS.config)
 
 injected(FindTodoStreamFactory, TOKENS.environmentService, TOKENS.logger)

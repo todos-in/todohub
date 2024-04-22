@@ -3,8 +3,6 @@
 import path from 'node:path'
 import {container, TOKENS} from '../src/di-container.js'
 import { makeConfigMock, makeMockPushContextGetter } from './mock/environment.mock.js'
-import { PersonalAccessTokenOctokitGetter } from '../src/service/octokit.js'
-
 
 describe.skip('For tests against real github instance.', () => {
   beforeEach(() => {
@@ -20,7 +18,6 @@ describe.skip('For tests against real github instance.', () => {
     
     container.bind(TOKENS.config).toConstant(configMock)
     container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)
-    container.bind(TOKENS.octokitGetter).toConstant(PersonalAccessTokenOctokitGetter)
     const runner = container.get(TOKENS.runner)
     await runner.run()
 

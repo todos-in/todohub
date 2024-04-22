@@ -6,30 +6,29 @@ import * as tar from 'tar-stream'
 import { ignoreWrapper, Ignore } from 'ignore-wrapper'
 import { SplitLineStream } from '../util/line-stream.js'
 import { assertGithubError } from '../error/error.js'
-import { Octokit } from 'octokit'
-import { OctokitGetter } from '../interfaces/octokit.js'
 import { Logger } from '../interfaces/logger.js'
 import { EnvironmentService } from './environment.js'
 import { FindTodoStreamFactory } from '../util/find-todo-stream.js'
 import { Todo } from '../model/model.todo.js'
+import { GithubClient } from './octokit.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
 export default class GithubService {
-  octokit: Octokit
+  octokit
   repo: string
   owner: string
   baseUrl: string
 
   constructor(
-    private octokitGetter: OctokitGetter,
+    private githubClient: GithubClient,
     private envService: EnvironmentService,
     private logger: Logger,
     private findTodoStreamFactory: FindTodoStreamFactory) {
     const env = envService.getEnv()
     this.owner = env.repoOwner
     this.repo = env.repo
-    this.octokit = octokitGetter(env.githubToken, { userAgent: 'todohub/v1' })
+    this.octokit = githubClient.octokit
     this.baseUrl = `https://github.com/${this.owner}/${this.repo}`
   }
 
