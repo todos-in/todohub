@@ -37,7 +37,7 @@
     "ignore-wrapper": "file:ignore-wrapper",
     "octokit": "^3.2.0",
     "tar-stream": "^3.1.7",
-    "zod": "^3.22.4"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^1.7.2",
