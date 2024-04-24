@@ -39777,14 +39777,14 @@ function paginateRest(octokit) {
 paginateRest.VERSION = plugin_paginate_rest_dist_bundle_VERSION;
 
 
-;// CONCATENATED MODULE: ./src/service/octokit.ts
+;// CONCATENATED MODULE: ./src/service/github-api-client.ts
 
 
 
 
 const MAX_RETRIES = 10;
 const USER_AGENT = 'todohub/v1';
-class GithubClient {
+class GithubApiClient {
     logger;
     config;
     DefaultOctokit = Octokit.plugin(restEndpointMethods, throttling, paginateRest).defaults({
@@ -45089,7 +45089,7 @@ class TodohubControlIssueDataStore {
                 link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${todoState.commentId || ''})`;
             }
             else if (todoState.deadIssue) {
-                footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`);
+                footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all Todos in code referencing issue number #${issueNr} to the new issue.`);
                 const currentFootnoteIndex = footnotes.length;
                 link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`;
             }
@@ -45264,7 +45264,7 @@ container.bind(TOKENS.githubService).toInstance(GithubService).inSingletonScope(
 container.bind(TOKENS.logger).toInstance(ActionLogger).inSingletonScope();
 container.bind(TOKENS.config).toInstance(ActionConfig).inSingletonScope();
 container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext);
-container.bind(TOKENS.githubClient).toInstance(GithubClient).inSingletonScope();
+container.bind(TOKENS.githubClient).toInstance(GithubApiClient).inSingletonScope();
 container.bind(TOKENS.dataStore).toInstance(TodohubControlIssueDataStore).inTransientScope();
 container.bind(TOKENS.githubCommentFactory).toInstance(GithubCommentFactory).inSingletonScope();
 container.bind(TOKENS.findTodoStreamFactory).toInstance(FindTodoStreamFactory).inSingletonScope();
@@ -45273,7 +45273,7 @@ injected(GithubService, TOKENS.githubClient, TOKENS.environmentService, TOKENS.l
 injected(EnvironmentService, TOKENS.pushContextGetter, TOKENS.config);
 injected(TodohubControlIssueDataStore, TOKENS.githubService, TOKENS.logger);
 injected(GithubCommentFactory, TOKENS.githubService, TOKENS.logger);
-injected(GithubClient, TOKENS.logger, TOKENS.config);
+injected(GithubApiClient, TOKENS.logger, TOKENS.config);
 injected(FindTodoStreamFactory, TOKENS.environmentService, TOKENS.logger);
 
 ;// CONCATENATED MODULE: ./src/index.ts

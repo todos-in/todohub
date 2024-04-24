@@ -23,15 +23,19 @@ const mockedApiResponses = {
 const githubClientMock = getGithubClientMock(mockedApiResponses, relativeFilePath(import.meta.url, 'repo'))
 
 describe('action: integration test 1: default-branch push', () => {
+
+  beforeAll(() => {
+    container.bind(TOKENS.githubClient).toConstant(githubClientMock)
+    container.bind(TOKENS.config).toConstant(configMock)
+    container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)
+    container.bind(TOKENS.logger).toConstant(testLogger)
+  })
+
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
   it('default-branch', async () => {
-    container.bind(TOKENS.githubClient).toConstant(githubClientMock)
-    container.bind(TOKENS.config).toConstant(configMock)
-    container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)
-    container.bind(TOKENS.logger).toConstant(testLogger)
 
     const runner = container.get(TOKENS.runner)
 

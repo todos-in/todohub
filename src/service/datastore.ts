@@ -194,7 +194,7 @@ export class TodohubControlIssueDataStore implements DataStore {
       if (todoState.commentId) {
         link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${todoState.commentId || ''})`
       } else if (todoState.deadIssue) {
-        footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all open Todos in code referencing issue number ${issueNr}.`)
+        footnotes.push(`Associated issue ${issueNr} seems to have been deleted permanently. Consider creating a new issue and migrating all Todos in code referencing issue number #${issueNr} to the new issue.`)
         const currentFootnoteIndex = footnotes.length
         link = `Issue ${issueNr} (❗[^${currentFootnoteIndex}])`
       } else {
