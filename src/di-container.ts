@@ -16,7 +16,7 @@ export const TOKENS = {
   logger: token<Logger>('logger'),
   runner: token<Runner>('runner'),
   environmentService: token<EnvironmentService>('environmentService'),
-  githubClient: token<GithubApiClient>('githubClient'),
+  githubApiClient: token<GithubApiClient>('githubClient'),
   githubService: token<GithubService>('githubService'),
   config: token<Config>('config'),
   pushContextGetter: token<PushContextGetter>('pushContextGetter'),
@@ -34,14 +34,14 @@ container.bind(TOKENS.githubService).toInstance(GithubService).inSingletonScope(
 container.bind(TOKENS.logger).toInstance(ActionLogger).inSingletonScope()
 container.bind(TOKENS.config).toInstance(ActionConfig).inSingletonScope()
 container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext)
-container.bind(TOKENS.githubClient).toInstance(GithubApiClient).inSingletonScope()
+container.bind(TOKENS.githubApiClient).toInstance(GithubApiClient).inSingletonScope()
 container.bind(TOKENS.dataStore).toInstance(TodohubControlIssueDataStore).inTransientScope()
 container.bind(TOKENS.githubCommentFactory).toInstance(GithubCommentFactory).inSingletonScope()
 
 container.bind(TOKENS.findTodoStreamFactory).toInstance(FindTodoStreamFactory).inSingletonScope()
 
 injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService, TOKENS.dataStore, TOKENS.githubCommentFactory)
-injected(GithubService, TOKENS.githubClient, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory)
+injected(GithubService, TOKENS.githubApiClient, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory)
 injected(EnvironmentService, TOKENS.pushContextGetter, TOKENS.config)
 injected(TodohubControlIssueDataStore, TOKENS.githubService, TOKENS.logger)
 injected(GithubCommentFactory, TOKENS.githubService, TOKENS.logger)

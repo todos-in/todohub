@@ -13,7 +13,6 @@ import { Todo } from '../model/model.todo.js'
 import { GithubApiClient } from './github-api-client.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
-// TODO #63 handle rate limits (primary and secondary)
 export default class GithubService {
   octokit
   repo: string
@@ -21,8 +20,8 @@ export default class GithubService {
   baseUrl: string
 
   constructor(
-    private githubClient: GithubApiClient,
-    private envService: EnvironmentService,
+    githubClient: GithubApiClient,
+    envService: EnvironmentService,
     private logger: Logger,
     private findTodoStreamFactory: FindTodoStreamFactory) {
     const env = envService.getEnv()

@@ -10,7 +10,7 @@ const USER_AGENT = 'todohub/v1'
 
 export class GithubApiClient {
 
-  private DefaultOctokit = Octokit.plugin(restEndpointMethods, throttling, paginateRest).defaults({
+  private DefaultOctokitWithPlugins = Octokit.plugin(restEndpointMethods, throttling, paginateRest).defaults({
     throttle: {
       retryAfterBaseValue: 1200,
       fallbackSecondaryRateRetryAfter: 10,
@@ -35,7 +35,7 @@ export class GithubApiClient {
   octokit
   
   constructor(private logger: Logger, private config: Config) {
-    this.octokit = new this.DefaultOctokit({
+    this.octokit = new this.DefaultOctokitWithPlugins({
       auth: `token ${this.config.getGithubToken()}`,
     })
   }

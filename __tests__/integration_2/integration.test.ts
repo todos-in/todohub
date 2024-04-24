@@ -25,7 +25,7 @@ const githubClientMock = getGithubClientMock(mockedApiResponses, relativeFilePat
 describe('action: integration test 2: feature-branch push', () => {
 
   beforeAll(() => {
-    container.bind(TOKENS.githubClient).toConstant(githubClientMock)
+    container.bind(TOKENS.githubApiClient).toConstant(githubClientMock)
     container.bind(TOKENS.config).toConstant(configMock)
     container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)
     container.bind(TOKENS.logger).toConstant(testLogger)

@@ -39787,7 +39787,7 @@ const USER_AGENT = 'todohub/v1';
 class GithubApiClient {
     logger;
     config;
-    DefaultOctokit = Octokit.plugin(restEndpointMethods, throttling, paginateRest).defaults({
+    DefaultOctokitWithPlugins = Octokit.plugin(restEndpointMethods, throttling, paginateRest).defaults({
         throttle: {
             retryAfterBaseValue: 1200,
             fallbackSecondaryRateRetryAfter: 10,
@@ -39812,7 +39812,7 @@ class GithubApiClient {
     constructor(logger, config) {
         this.logger = logger;
         this.config = config;
-        this.octokit = new this.DefaultOctokit({
+        this.octokit = new this.DefaultOctokitWithPlugins({
             auth: `token ${this.config.getGithubToken()}`,
         });
     }
@@ -40140,10 +40140,7 @@ class SplitLineStream extends external_stream_.Transform {
 
 
 // TODO #77 use graphql where possible to reduce data transfer
-// TODO #63 handle rate limits (primary and secondary)
 class GithubService {
-    githubClient;
-    envService;
     logger;
     findTodoStreamFactory;
     octokit;
@@ -40151,8 +40148,6 @@ class GithubService {
     owner;
     baseUrl;
     constructor(githubClient, envService, logger, findTodoStreamFactory) {
-        this.githubClient = githubClient;
-        this.envService = envService;
         this.logger = logger;
         this.findTodoStreamFactory = findTodoStreamFactory;
         const env = envService.getEnv();
@@ -45249,7 +45244,7 @@ const TOKENS = {
     logger: token('logger'),
     runner: token('runner'),
     environmentService: token('environmentService'),
-    githubClient: token('githubClient'),
+    githubApiClient: token('githubClient'),
     githubService: token('githubService'),
     config: token('config'),
     pushContextGetter: token('pushContextGetter'),
@@ -45264,12 +45259,12 @@ container.bind(TOKENS.githubService).toInstance(GithubService).inSingletonScope(
 container.bind(TOKENS.logger).toInstance(ActionLogger).inSingletonScope();
 container.bind(TOKENS.config).toInstance(ActionConfig).inSingletonScope();
 container.bind(TOKENS.pushContextGetter).toConstant(getActionPushContext);
-container.bind(TOKENS.githubClient).toInstance(GithubApiClient).inSingletonScope();
+container.bind(TOKENS.githubApiClient).toInstance(GithubApiClient).inSingletonScope();
 container.bind(TOKENS.dataStore).toInstance(TodohubControlIssueDataStore).inTransientScope();
 container.bind(TOKENS.githubCommentFactory).toInstance(GithubCommentFactory).inSingletonScope();
 container.bind(TOKENS.findTodoStreamFactory).toInstance(FindTodoStreamFactory).inSingletonScope();
 injected(Runner, TOKENS.logger, TOKENS.environmentService, TOKENS.githubService, TOKENS.dataStore, TOKENS.githubCommentFactory);
-injected(GithubService, TOKENS.githubClient, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory);
+injected(GithubService, TOKENS.githubApiClient, TOKENS.environmentService, TOKENS.logger, TOKENS.findTodoStreamFactory);
 injected(EnvironmentService, TOKENS.pushContextGetter, TOKENS.config);
 injected(TodohubControlIssueDataStore, TOKENS.githubService, TOKENS.logger);
 injected(GithubCommentFactory, TOKENS.githubService, TOKENS.logger);

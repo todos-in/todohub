@@ -5,7 +5,7 @@ import { PushContext } from '../../src/interfaces/config.js'
 import { GithubApiClient } from '../../src/service/github-api-client.js'
 
 export const setupEmptyMocks = (container: Container) => {
-  container.bind(TOKENS.githubClient).toConstant({} as unknown as GithubApiClient)
+  container.bind(TOKENS.githubApiClient).toConstant({} as unknown as GithubApiClient)
   container.bind(TOKENS.config).toConstant({
     getGithubToken: () => 'token',
     getMaxLineLength: () => '1',
