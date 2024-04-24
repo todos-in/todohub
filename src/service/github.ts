@@ -10,7 +10,7 @@ import { Logger } from '../interfaces/logger.js'
 import { EnvironmentService } from './environment.js'
 import { FindTodoStreamFactory } from '../util/find-todo-stream.js'
 import { Todo } from '../model/model.todo.js'
-import { GithubClient } from './octokit.js'
+import { GithubApiClient } from './github-api-client.js'
 
 // TODO #77 use graphql where possible to reduce data transfer
 // TODO #63 handle rate limits (primary and secondary)
@@ -21,7 +21,7 @@ export default class GithubService {
   baseUrl: string
 
   constructor(
-    private githubClient: GithubClient,
+    private githubClient: GithubApiClient,
     private envService: EnvironmentService,
     private logger: Logger,
     private findTodoStreamFactory: FindTodoStreamFactory) {

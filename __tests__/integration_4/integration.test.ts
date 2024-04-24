@@ -1,16 +1,17 @@
-import path from 'node:path'
+import { jest } from '@jest/globals'
+import { relativeFilePath  } from '../util.relativepath.js'
 import * as fs from 'node:fs'
-import { getGithubClientMock } from '../mock/octokit.mock.js'
+import { getGithubClientMock } from '../mock/github.mock.js'
 import { TOKENS, container } from '../../src/di-container.js'
 import { testLogger } from '../mock/logger.mock.js'
 import { makeConfigMock, makeMockPushContextGetter } from '../mock/environment.mock.js'
 
-const expectedIssueData = JSON.parse(fs.readFileSync(path.join(__dirname, 'result', 'expected.controlissue.data.json'), 'utf8'))
+const expectedIssueData = JSON.parse(fs.readFileSync(relativeFilePath(import.meta.url, 'result', 'expected.controlissue.data.json'), 'utf8'))
 const pushContextMock = makeMockPushContextGetter(
-  path.join(__dirname, 'environment', 'envvar.json'),
-  path.join(__dirname, 'environment', 'payload.json'),
+  relativeFilePath(import.meta.url, 'environment', 'envvar.json'),
+  relativeFilePath(import.meta.url, 'environment', 'payload.json'),
 )
-const configMock = makeConfigMock(path.join(__dirname, 'environment', 'envvar.json'))
+const configMock = makeConfigMock(relativeFilePath(import.meta.url, 'environment', 'envvar.json'))
 
 const realControlIssue = {
   body: `Here would be some text before the data tag
@@ -32,7 +33,7 @@ const mockedApiResponses = {
   controlIssueSearch: [corruptedControlIssue, realControlIssue],
   branchesAheadBy: {},
 }
-const githubClientMock = getGithubClientMock(mockedApiResponses, path.join(__dirname, 'repo'))
+const githubClientMock = getGithubClientMock(mockedApiResponses, relativeFilePath(import.meta.url, 'repo'))
 
 describe('action: integration test 4: main branch push with existing control issue', () => {
   beforeEach(() => {
@@ -60,7 +61,7 @@ describe('action: integration test 4: main branch push with existing control iss
     expect(githubClientMock.octokit.rest.issues.updateComment).toHaveBeenCalledWith(expect.objectContaining({ comment_id: 42 }))
 
     // Second call is the control issue
-    // @ts-ignore create is a spy
+    // @ts-expect-error create is a spy
     const todohubControlIssueBody = await githubClientMock.octokit.rest.issues.update.mock.results[1]?.value
     expect(todohubControlIssueBody._decoded).toEqual(expectedIssueData)
   }, 2000000)

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import { matchTodo } from '../../src/util/todo-match.js'
 
 describe('Regex unit tests', () => {

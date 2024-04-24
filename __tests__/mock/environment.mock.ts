@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import { PushEvent } from '@octokit/webhooks-types'
 import { Config, PushContextGetter, PushContext } from '../../src/interfaces/config.js'
 import * as fs from 'node:fs'
@@ -5,8 +6,8 @@ import * as fs from 'node:fs'
 export const makeConfigMock: (envVarPath: string) => Config = (envVarPath) => {
   const environmentVariables = JSON.parse(fs.readFileSync(envVarPath, 'utf8'))
   return {
-    getGithubToken: jest.fn().mockImplementation(() => environmentVariables['INPUT_TOKEN']),
-    getMaxLineLength: jest.fn().mockImplementation(() => environmentVariables['INPUT_MAX_LINE_LENGTH']),
+    getGithubToken: jest.fn(() => environmentVariables['INPUT_TOKEN']),
+    getMaxLineLength: jest.fn(() => environmentVariables['INPUT_MAX_LINE_LENGTH']),
   }
 }
 

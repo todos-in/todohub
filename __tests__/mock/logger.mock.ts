@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals'
 import { Logger } from '../../src/interfaces/logger.js'
 
 export const testLogger: Logger = {
@@ -10,10 +11,10 @@ export const testLogger: Logger = {
 }
 
 export const debugLogger: Logger = {
-  debug: jest.fn().mockImplementation((log: string) => console.debug(log)),
-  info: jest.fn().mockImplementation((log: string) => console.info(log)),
-  warning: jest.fn().mockImplementation((log: string) => console.warn(log)),
-  error: jest.fn().mockImplementation((log: string | Error) => console.error(log)),
+  debug: jest.fn((log: string) => console.debug(log)),
+  info: jest.fn((log: string) => console.info(log)),
+  warning: jest.fn((log: string) => console.warn(log)),
+  error: jest.fn((log: string | Error) => console.error(log)),
   startGroup: jest.fn(),
   endGroup: jest.fn(),
 }

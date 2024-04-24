@@ -1,6 +1,6 @@
 /* eslint-disable jest/no-disabled-tests -- Skipped because this is only for manual runs for debugging! */
-
-import path from 'node:path'
+import { jest } from '@jest/globals'
+import { relativeFilePath  } from './util.relativepath.js'
 import {container, TOKENS} from '../src/di-container.js'
 import { makeConfigMock, makeMockPushContextGetter } from './mock/environment.mock.js'
 
@@ -11,10 +11,10 @@ describe.skip('For tests against real github instance.', () => {
 
   it('production test', async () => {
     const pushContextMock = makeMockPushContextGetter(
-      path.join(__dirname, '.prod.env.json'),
-      path.join(__dirname, 'payload.feature-branch-push.json'),
+      relativeFilePath(import.meta.url, '.prod.env.json'),
+      relativeFilePath(import.meta.url, 'payload.default-branch-push.json'),
     )
-    const configMock = makeConfigMock(path.join(__dirname, '.prod.env.json'))
+    const configMock = makeConfigMock(relativeFilePath(import.meta.url, '.prod.env.json'))
     
     container.bind(TOKENS.config).toConstant(configMock)
     container.bind(TOKENS.pushContextGetter).toConstant(pushContextMock)

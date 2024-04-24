@@ -2,10 +2,10 @@ import { Container } from 'brandi'
 import { TOKENS } from '../../src/di-container.js'
 import { debugLogger } from './logger.mock.js'
 import { PushContext } from '../../src/interfaces/config.js'
-import { GithubClient } from 'src/service/octokit.js'
+import { GithubApiClient } from '../../src/service/github-api-client.js'
 
 export const setupEmptyMocks = (container: Container) => {
-  container.bind(TOKENS.githubClient).toConstant({} as unknown as GithubClient)
+  container.bind(TOKENS.githubClient).toConstant({} as unknown as GithubApiClient)
   container.bind(TOKENS.config).toConstant({
     getGithubToken: () => 'token',
     getMaxLineLength: () => '1',

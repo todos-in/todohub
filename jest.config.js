@@ -1,6 +1,7 @@
-import type { Config } from 'jest'
+/** @type {import('jest').Config} */
 
-const config: Config = {
+const config = {
+  // preset: 'ts-jest/presets/js-with-ts-esm',
   verbose: true,
   clearMocks: true,
   testEnvironment: 'node',
@@ -35,7 +36,7 @@ const config: Config = {
     'text',
     'lcov',
   ],
-  collectCoverage: true,
+  collectCoverage: false,
   collectCoverageFrom: [
     './src/**',
   ],

@@ -13,7 +13,7 @@ ignorePatterns:
   - 'dist/'
   - 'coverage/'
   - git_tests
-  - jest.config.ts
+  - jest.config.js
   - script/**
   - ignore-wrapper
 

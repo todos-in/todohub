@@ -2,5 +2,6 @@
   "eslint.workingDirectories": [
     "./eslintrc.yml"
   ],
-  "eslint.nodePath": "./node_modules/.bin/eslint"
+  "eslint.nodePath": "./node_modules/.bin/eslint",
+  "jestrunner.jestCommand": "export NODE_OPTIONS=--experimental-vm-modules && node node_modules/.bin/jest"
 }

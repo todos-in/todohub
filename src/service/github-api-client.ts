@@ -8,7 +8,7 @@ import { Config } from 'interfaces/config.js'
 const MAX_RETRIES = 10
 const USER_AGENT = 'todohub/v1'
 
-export class GithubClient implements GithubClient {
+export class GithubApiClient {
 
   private DefaultOctokit = Octokit.plugin(restEndpointMethods, throttling, paginateRest).defaults({
     throttle: {

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { jest } from '@jest/globals'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { gunzipSync } from 'node:zlib'
@@ -6,7 +8,7 @@ import { RequestError } from '@octokit/request-error'
 import * as tar from 'tar'
 import { TOKENS, container } from '../../src/di-container.js'
 import { TodohubControlIssueDataStore } from '../../src/service/datastore.js'
-import { GithubClient } from '../../src/service/octokit.js'
+import { GithubApiClient } from '../../src/service/github-api-client.js'
 
 interface ApiResponses {
   branches: string[]
@@ -74,7 +76,7 @@ export const getGithubClientMock = (responses: ApiResponses, repoPath: string) =
             },
           }
         }),
-        compareCommits: jest.fn(async (options) => {
+        compareCommits: jest.fn(async (options: any) => {
           const branchAheadBy = responses.branchesAheadBy[options.head]
           if (branchAheadBy) {
             return { data: { ahead_by: branchAheadBy.aheadBy } }
@@ -84,8 +86,8 @@ export const getGithubClientMock = (responses: ApiResponses, repoPath: string) =
       },
       issues: {
         // add _decoded: dirty hack to get the decoded data for easier testing
-        update: jest.fn(async (_options) => ({ data: { id: 42 }, _decoded: _options.body && _options.body.includes('<!--todohub_ctrl_issue_data') ? decodeControlIssueData(_options.body) : undefined })),
-        create: jest.fn(async (_options) => ({ data: { id: 42 }, _decoded: decodeControlIssueData(_options.body) })),
+        update: jest.fn(async (_options: any) => ({ data: { id: 42 }, _decoded: _options.body && _options.body.includes('<!--todohub_ctrl_issue_data') ? decodeControlIssueData(_options.body) : undefined })),
+        create: jest.fn(async (_options: any) => ({ data: { id: 42 }, _decoded: decodeControlIssueData(_options.body) })),
         createComment: jest.fn(async (_options) => ({ data: { id: 42 } })),
         updateComment: jest.fn(async (_options) => ({ data: { id: 42 } })),
       },
@@ -105,5 +107,5 @@ export const getGithubClientMock = (responses: ApiResponses, repoPath: string) =
 
   return {
     octokit: octokitMock,
-  } as unknown as GithubClient
+  } as unknown as GithubApiClient
 }
