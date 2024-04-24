@@ -13,7 +13,7 @@ export class GithubApiClient {
   private DefaultOctokitWithPlugins = Octokit.plugin(restEndpointMethods, throttling, paginateRest).defaults({
     throttle: {
       retryAfterBaseValue: 1200,
-      fallbackSecondaryRateRetryAfter: 10,
+      fallbackSecondaryRateRetryAfter: 20,
       onRateLimit: (retryAfter, options, _octokit, retryCount) => {
         this.logger.warning(`Rate limit exhausted for request: ${options.method} ${options.url}.`)
         if (retryCount <= MAX_RETRIES) {
