@@ -40272,8 +40272,13 @@ class GithubService {
         return featureBranches;
     }
     async getFeatureBranchesAheadOf(base, heads) {
-        // TODO #63 concurrent requests could be a problem for secondary rate limits: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
-        const comparisons = await Promise.all(heads.map((head) => this.compareCommits(base, head)));
+        // NOTE #63 concurrent requests could be a problem for secondary rate limits: https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
+        // const comparisons = await Promise.all(heads.map((head) => this.compareCommits(base, head)))
+        // Executing requests sequentially instead
+        const comparisons = [];
+        for (const head of heads) {
+            comparisons.push(await this.compareCommits(base, head));
+        }
         const featureBranchesAheadOf = [];
         for (let i = 0; i < comparisons.length; i++) {
             const ahead = comparisons[i]?.data.ahead_by;

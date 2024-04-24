@@ -23,10 +23,11 @@
     "lint": "npx eslint .",
     "lint-fix": "npx eslint --fix .",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test-coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage && make-coverage-badge --output-path ./badges/coverage.svg",
+    "test-coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+    "coverage-badge": "make-coverage-badge --output-path ./badges/coverage.svg",
     "bundle": "ncc build src/index.ts --license licenses.txt",
     "bundle-debug": "tsc -p tsconfig.json",
-    "release": "npm ci && npm run lint && npm run test-coverage && npm run bundle"
+    "release": "npm ci && npm run lint && npm run test-coverage && npm run bundle && npm run coverage-badge"
   },
   "license": "MIT",
   "dependencies": {
