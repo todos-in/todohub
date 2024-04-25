@@ -11,5 +11,5 @@ export interface Environment {
   isFeatureBranch: boolean
   maxLineLength: number
   runId: number
-  runNumber: number
+  runAttempt: number | undefined
 }

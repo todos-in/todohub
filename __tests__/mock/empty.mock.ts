@@ -20,7 +20,6 @@ export const setupEmptyMocks = (container: Container) => {
       },
     },
     runId: 12345678,
-    runNumber: 1,
   } as PushContext),
   )
   container.bind(TOKENS.logger).toConstant(debugLogger)

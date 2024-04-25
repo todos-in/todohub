@@ -219,7 +219,7 @@ export class TodohubControlIssueDataStore implements DataStore {
       newMidTag += this.renderTodos(strayTodos, data.getLastUpdatedDefaultCommit() || '')
     }
 
-    // TODO #110 write runId+runNumber to footer like in comment.ts
+    // TODO #110 write runId to footer like in comment.ts
     newMidTag += '\n\n---'
     newMidTag += `\n<sub>**Last updated:** ${data.getLastUpdatedDefaultCommit()}</sub>`
 

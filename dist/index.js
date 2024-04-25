@@ -39794,7 +39794,7 @@ class GithubApiClient {
             onRateLimit: (retryAfter, options, _octokit, retryCount) => {
                 this.logger.warning(`Rate limit exhausted for request: ${options.method} ${options.url}. Need to wait for ${retryAfter}s.`);
                 if (retryCount <= MAX_RETRIES) {
-                    this.logger.info(`Retrying after ${retryAfter}s. Retry number #${retryCount + 1}/${MAX_RETRIES}.`);
+                    this.logger.info(`Retrying after ${retryAfter}s. Retry ${retryCount + 1}/${MAX_RETRIES}.`);
                     return true;
                 }
                 this.logger.error(`Error: Could not resolve request ${options.method} ${options.url} after max number of retries: ${MAX_RETRIES}`);
@@ -39802,7 +39802,7 @@ class GithubApiClient {
             onSecondaryRateLimit: (retryAfter, options, _octokit, retryCount) => {
                 this.logger.warning(`Secondary rate limit exhausted for request: ${options.method} ${options.url}. Need to wait for ${retryAfter}s.`);
                 if (retryCount <= MAX_RETRIES) {
-                    this.logger.info(`Retrying after ${retryAfter}s. Retry number #${retryCount + 1}/${MAX_RETRIES}.`);
+                    this.logger.info(`Retrying after ${retryAfter}s. Retry ${retryCount + 1}/${MAX_RETRIES}.`);
                     return true;
                 }
                 this.logger.error(`Error: Could not resolve request ${options.method} ${options.url} after max number of retries: ${MAX_RETRIES}`);
@@ -39926,7 +39926,7 @@ class Runner {
         todohubState.setLastUpdatedDefaultCommit(this.env.commitSha);
     }
     async updateIssue(issueNr, todos, commentId) {
-        const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId, this.env.runNumber);
+        const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId, this.env.runAttempt);
         const writtenCommentId = await githubComment.write();
         if (writtenCommentId) {
             if (todos.length) {
@@ -40072,10 +40072,8 @@ class EnvironmentService {
         if (!runId) {
             throw new EnvironmentLoadError({ key: 'runId', place: 'context' });
         }
-        const runNumber = context.runNumber;
-        if (!runNumber) {
-            throw new EnvironmentLoadError({ key: 'runNumber', place: 'context' });
-        }
+        // @ts-expect-error runAttempt property exists, but is not in Context: https://github.com/actions/toolkit/issues/1388 
+        const runAttempt = context.runAttempt;
         const featureBranchNumber = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)?.groups?.['featureBranch'];
         let featureBranchNumberParsed;
         if (featureBranchNumber) {
@@ -40100,7 +40098,7 @@ class EnvironmentService {
             isFeatureBranch,
             maxLineLength,
             runId,
-            runNumber,
+            runAttempt,
         };
         return environment;
     }
@@ -45123,7 +45121,7 @@ class TodohubControlIssueDataStore {
 </details>\n\n`;
             newMidTag += this.renderTodos(strayTodos, data.getLastUpdatedDefaultCommit() || '');
         }
-        // TODO #110 write runId+runNumber to footer like in comment.ts
+        // TODO #110 write runId to footer like in comment.ts
         newMidTag += '\n\n---';
         newMidTag += `\n<sub>**Last updated:** ${data.getLastUpdatedDefaultCommit()}</sub>`;
         return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${this.encode(data)}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`;
@@ -45153,8 +45151,8 @@ class GithubCommentFactory {
         this.repo = repo;
         this.logger = logger;
     }
-    make(issueNr, commentId, commitSha, refName, todos, runId, runNumber) {
-        return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos, runId, runNumber);
+    make(issueNr, commentId, commitSha, refName, todos, runId, runAttempt) {
+        return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos, runId, runAttempt);
     }
 }
 class GithubIssueComment {
@@ -45166,8 +45164,8 @@ class GithubIssueComment {
     refName;
     todos;
     runId;
-    runNumber;
-    constructor(repo, logger, issueNr, commentId, commitSha, refName, todos, runId, runNumber) {
+    runAttempt;
+    constructor(repo, logger, issueNr, commentId, commitSha, refName, todos, runId, runAttempt) {
         this.repo = repo;
         this.logger = logger;
         this.issueNr = issueNr;
@@ -45176,7 +45174,7 @@ class GithubIssueComment {
         this.refName = refName;
         this.todos = todos;
         this.runId = runId;
-        this.runNumber = runNumber;
+        this.runAttempt = runAttempt;
     }
     async reopenIssueWithOpenTodos() {
         if (this.todos.length) {
@@ -45246,9 +45244,12 @@ class GithubIssueComment {
             composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
         }
         const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`;
-        const linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}/attempts/${this.runNumber}`;
+        let linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}`;
+        if (this.runAttempt) {
+            linkToRun += `/attempts/${this.runAttempt}`;
+        }
         composed += '\n---';
-        composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} </sub> | Last Run: [\`${this.runId}#${this.runNumber}\`](${linkToRun})`;
+        composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} | Run: [\`${this.runId}\`](${linkToRun}) </sub>`;
         return composed;
     }
 }
