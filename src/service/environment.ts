@@ -49,8 +49,8 @@ export class EnvironmentService {
       throw new EnvironmentLoadError({ key: 'runId', place: 'context' })
     }
 
-    // @ts-expect-error runAttempt property exists, but is not in Context: https://github.com/actions/toolkit/issues/1388 
-    const runAttempt = context.runAttempt as number | undefined
+    // TODO #110 runAttempt property is not yet implemented to be in action context: https://github.com/actions/toolkit/issues/1388 - add once this is done
+    // const runAttempt = context.runAttempt as number | undefined
 
     const featureBranchNumber = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)?.groups?.['featureBranch']
 
@@ -79,7 +79,6 @@ export class EnvironmentService {
       isFeatureBranch,
       maxLineLength,
       runId,
-      runAttempt,
     }
     return environment
   }

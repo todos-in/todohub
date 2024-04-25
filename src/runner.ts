@@ -145,7 +145,7 @@ export class Runner {
     todos: TTodo[],
     commentId?: number) {
 
-    const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId, this.env.runAttempt)
+    const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId)
     const writtenCommentId = await githubComment.write()
     if (writtenCommentId) {
       if (todos.length) {

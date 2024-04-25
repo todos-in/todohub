@@ -7,8 +7,8 @@ import { assertGithubError } from '../error/error.js'
 export class GithubCommentFactory {
   constructor(private repo: GithubService, private logger: Logger) { }
 
-  make(issueNr: number, commentId: number | undefined, commitSha: string, refName: string, todos: TTodo[], runId: number, runAttempt?: number) {
-    return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos, runId, runAttempt)
+  make(issueNr: number, commentId: number | undefined, commitSha: string, refName: string, todos: TTodo[], runId: number) {
+    return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos, runId)
   }
 }
 
@@ -22,7 +22,6 @@ class GithubIssueComment {
     private refName: string,
     private todos: TTodo[],
     private runId: number,
-    private runAttempt?: number,
   ) { }
 
   async reopenIssueWithOpenTodos() {
@@ -89,10 +88,10 @@ class GithubIssueComment {
       composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
     }
     const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`
-    let linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}`
-    if (this.runAttempt) {
-      linkToRun += `/attempts/${this.runAttempt}`
-    }
+    const linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}`
+    // if (this.runAttempt) {
+    //   linkToRun += `/attempts/${this.runAttempt}`
+    // }
     composed += '\n---'
     composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} | Run: [\`${this.runId}\`](${linkToRun}) </sub>`
     return composed

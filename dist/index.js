@@ -39926,7 +39926,7 @@ class Runner {
         todohubState.setLastUpdatedDefaultCommit(this.env.commitSha);
     }
     async updateIssue(issueNr, todos, commentId) {
-        const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId, this.env.runAttempt);
+        const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId);
         const writtenCommentId = await githubComment.write();
         if (writtenCommentId) {
             if (todos.length) {
@@ -40072,8 +40072,8 @@ class EnvironmentService {
         if (!runId) {
             throw new EnvironmentLoadError({ key: 'runId', place: 'context' });
         }
-        // @ts-expect-error runAttempt property exists, but is not in Context: https://github.com/actions/toolkit/issues/1388 
-        const runAttempt = context.runAttempt;
+        // TODO #110 runAttempt property is not yet implemented to be in action context: https://github.com/actions/toolkit/issues/1388 - add once this is done
+        // const runAttempt = context.runAttempt as number | undefined
         const featureBranchNumber = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)?.groups?.['featureBranch'];
         let featureBranchNumberParsed;
         if (featureBranchNumber) {
@@ -40098,7 +40098,6 @@ class EnvironmentService {
             isFeatureBranch,
             maxLineLength,
             runId,
-            runAttempt,
         };
         return environment;
     }
@@ -45151,8 +45150,8 @@ class GithubCommentFactory {
         this.repo = repo;
         this.logger = logger;
     }
-    make(issueNr, commentId, commitSha, refName, todos, runId, runAttempt) {
-        return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos, runId, runAttempt);
+    make(issueNr, commentId, commitSha, refName, todos, runId) {
+        return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos, runId);
     }
 }
 class GithubIssueComment {
@@ -45164,8 +45163,7 @@ class GithubIssueComment {
     refName;
     todos;
     runId;
-    runAttempt;
-    constructor(repo, logger, issueNr, commentId, commitSha, refName, todos, runId, runAttempt) {
+    constructor(repo, logger, issueNr, commentId, commitSha, refName, todos, runId) {
         this.repo = repo;
         this.logger = logger;
         this.issueNr = issueNr;
@@ -45174,7 +45172,6 @@ class GithubIssueComment {
         this.refName = refName;
         this.todos = todos;
         this.runId = runId;
-        this.runAttempt = runAttempt;
     }
     async reopenIssueWithOpenTodos() {
         if (this.todos.length) {
@@ -45244,10 +45241,10 @@ class GithubIssueComment {
             composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
         }
         const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`;
-        let linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}`;
-        if (this.runAttempt) {
-            linkToRun += `/attempts/${this.runAttempt}`;
-        }
+        const linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}`;
+        // if (this.runAttempt) {
+        //   linkToRun += `/attempts/${this.runAttempt}`
+        // }
         composed += '\n---';
         composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} | Run: [\`${this.runId}\`](${linkToRun}) </sub>`;
         return composed;
