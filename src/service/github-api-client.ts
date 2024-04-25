@@ -17,16 +17,15 @@ export class GithubApiClient {
       onRateLimit: (retryAfter, options, _octokit, retryCount) => {
         this.logger.warning(`Rate limit exhausted for request: ${options.method} ${options.url}. Need to wait for ${retryAfter}s.`)
         if (retryCount <= MAX_RETRIES) {
-          this.logger.info(`Retrying after ${retryAfter}s. Retry number #${retryCount + 1}/${MAX_RETRIES}.`)
+          this.logger.info(`Retrying after ${retryAfter}s. Retry ${retryCount + 1}/${MAX_RETRIES}.`)
           return true
         }
         this.logger.error(`Error: Could not resolve request ${options.method} ${options.url} after max number of retries: ${MAX_RETRIES}`)
-
       },
       onSecondaryRateLimit: (retryAfter, options, _octokit, retryCount) => {
         this.logger.warning(`Secondary rate limit exhausted for request: ${options.method} ${options.url}. Need to wait for ${retryAfter}s.`)
         if (retryCount <= MAX_RETRIES) {
-          this.logger.info(`Retrying after ${retryAfter}s. Retry number #${retryCount + 1}/${MAX_RETRIES}.`)
+          this.logger.info(`Retrying after ${retryAfter}s. Retry ${retryCount + 1}/${MAX_RETRIES}.`)
           return true
         }
         this.logger.error(`Error: Could not resolve request ${options.method} ${options.url} after max number of retries: ${MAX_RETRIES}`)

@@ -10,4 +10,5 @@ export interface Environment {
   featureBranchNumber?: number
   isFeatureBranch: boolean
   maxLineLength: number
+  runId: number
 }

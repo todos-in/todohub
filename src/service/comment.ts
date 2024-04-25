@@ -7,8 +7,8 @@ import { assertGithubError } from '../error/error.js'
 export class GithubCommentFactory {
   constructor(private repo: GithubService, private logger: Logger) { }
 
-  make(issueNr: number, commentId: number | undefined, commitSha: string, refName: string, todos: TTodo[]) {
-    return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos)
+  make(issueNr: number, commentId: number | undefined, commitSha: string, refName: string, todos: TTodo[], runId: number) {
+    return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos, runId)
   }
 }
 
@@ -21,6 +21,7 @@ class GithubIssueComment {
     private commitSha: string,
     private refName: string,
     private todos: TTodo[],
+    private runId: number,
   ) { }
 
   async reopenIssueWithOpenTodos() {
@@ -87,8 +88,12 @@ class GithubIssueComment {
       composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
     }
     const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`
+    const linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}`
+    // if (this.runAttempt) {
+    //   linkToRun += `/attempts/${this.runAttempt}`
+    // }
     composed += '\n---'
-    composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} </sub>`
+    composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} | Run: [\`${this.runId}\`](${linkToRun}) </sub>`
     return composed
   }
 }

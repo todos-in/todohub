@@ -44,6 +44,14 @@ export class EnvironmentService {
       throw new EnvironmentParsingError(`Could not parse branchName from ref.context <${ref}>`)
     }
 
+    const runId = context.runId
+    if (!runId) {
+      throw new EnvironmentLoadError({ key: 'runId', place: 'context' })
+    }
+
+    // TODO #110 runAttempt property is not yet implemented to be in action context: https://github.com/actions/toolkit/issues/1388 - add once this is done
+    // const runAttempt = context.runAttempt as number | undefined
+
     const featureBranchNumber = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)?.groups?.['featureBranch']
 
     let featureBranchNumberParsed: number | undefined
@@ -70,6 +78,7 @@ export class EnvironmentService {
       featureBranchNumber: featureBranchNumberParsed,
       isFeatureBranch,
       maxLineLength,
+      runId,
     }
     return environment
   }

@@ -26,6 +26,7 @@ export const makeMockPushContextGetter: (envVarPath: string, payloadFilePath: st
       eventName: environmentVariables['GITHUB_EVENT_NAME'],
       apiUrl: environmentVariables['GITHUB_API_URL'],
       payload: githubContextPayload,
+      runId: 12345678,
     } as PushContext
   }
 }
