@@ -19,6 +19,8 @@ export const setupEmptyMocks = (container: Container) => {
         default_branch: 'main',
       },
     },
+    runId: 12345678,
+    runNumber: 1,
   } as PushContext),
   )
   container.bind(TOKENS.logger).toConstant(debugLogger)

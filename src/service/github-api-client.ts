@@ -21,7 +21,6 @@ export class GithubApiClient {
           return true
         }
         this.logger.error(`Error: Could not resolve request ${options.method} ${options.url} after max number of retries: ${MAX_RETRIES}`)
-
       },
       onSecondaryRateLimit: (retryAfter, options, _octokit, retryCount) => {
         this.logger.warning(`Secondary rate limit exhausted for request: ${options.method} ${options.url}. Need to wait for ${retryAfter}s.`)

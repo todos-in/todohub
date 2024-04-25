@@ -44,6 +44,16 @@ export class EnvironmentService {
       throw new EnvironmentParsingError(`Could not parse branchName from ref.context <${ref}>`)
     }
 
+    const runId = context.runId
+    if (!runId) {
+      throw new EnvironmentLoadError({ key: 'runId', place: 'context' })
+    }
+
+    const runNumber = context.runNumber
+    if (!runNumber) {
+      throw new EnvironmentLoadError({ key: 'runNumber', place: 'context' })
+    }
+
     const featureBranchNumber = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)?.groups?.['featureBranch']
 
     let featureBranchNumberParsed: number | undefined
@@ -70,6 +80,8 @@ export class EnvironmentService {
       featureBranchNumber: featureBranchNumberParsed,
       isFeatureBranch,
       maxLineLength,
+      runId,
+      runNumber,
     }
     return environment
   }

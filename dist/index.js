@@ -39860,34 +39860,34 @@ class Runner {
         this.logger.debug('Getting existing Todohub Control Issue...');
         const todohubState = await this.dataStore.get(undefined);
         if (this.env.isFeatureBranch && this.env.featureBranchNumber) {
-            await this.featureBranchPush(todohubState, this.env.featureBranchNumber, this.env.ref, this.env.branchName, this.env.commitSha);
+            await this.featureBranchPush(todohubState, this.env.featureBranchNumber, this.env.branchName);
         }
         else if (this.env.isDefaultBranch) {
-            await this.defaultBranchPush(todohubState, this.env.commitSha, this.env.ref, this.env.defaultBranch);
+            await this.defaultBranchPush(todohubState, this.env.defaultBranch);
         }
         this.logger.debug('Writing Todohub Control issue...');
         const todohubIssueId = await this.dataStore.write(todohubState);
         this.runInfo.todohubIssueId = todohubIssueId;
         return this.runInfo;
     }
-    async featureBranchPush(todohubState, featureBranchNr, ref, branchName, commitSha) {
+    async featureBranchPush(todohubState, featureBranchNr, branchName) {
         this.logger.info(`Push Event into feature branch <${branchName}> related to issue <${featureBranchNr}>...`);
         // TODO #64 instead of getting all TODOs from - get diff from todohubComment to current sha in TodoCommment + apply diff
         // TODO #62 parallelize stuff (+ add workers)
-        this.logger.debug(`Searching state <${commitSha}> for Todos with issue number <${featureBranchNr}>...`);
-        const todos = await this.repo.getTodosFromGitRef(commitSha, featureBranchNr);
-        const updatedFeatureTodoState = todohubState.setFeatureTodoState(featureBranchNr, todos, ref, commitSha);
+        this.logger.debug(`Searching state <${this.env.commitSha}> for Todos with issue number <${featureBranchNr}>...`);
+        const todos = await this.repo.getTodosFromGitRef(this.env.commitSha, featureBranchNr);
+        const updatedFeatureTodoState = todohubState.setFeatureTodoState(featureBranchNr, todos, this.env.ref, this.env.commitSha);
         const commentId = todohubState.getTodoState(featureBranchNr)?.commentId;
         if (updatedFeatureTodoState) {
-            const writtenCommentId = await this.updateIssue(featureBranchNr, todos, commitSha, ref, commentId);
+            const writtenCommentId = await this.updateIssue(featureBranchNr, todos, commentId);
             console.info('writtenCommentId', writtenCommentId);
             todohubState.getTodoState(featureBranchNr)?.setComment(writtenCommentId, !writtenCommentId);
         }
     }
-    async defaultBranchPush(todohubState, commit, ref, defaultBranchName) {
+    async defaultBranchPush(todohubState, defaultBranchName) {
         this.logger.info(`Push Event into default branch <${defaultBranchName}>`);
-        this.logger.debug(`Searching state< ${commit}> for all Todos...`);
-        const todos = await this.repo.getTodosFromGitRef(commit);
+        this.logger.debug(`Searching state< ${this.env.commitSha}> for all Todos...`);
+        const todos = await this.repo.getTodosFromGitRef(this.env.commitSha);
         const issuesWithTodosInCode = new Set(todos.map((todo) => todo.issueNumber || 0).filter(issueNr => issueNr !== 0));
         this.logger.debug(`Found Todos for <${issuesWithTodosInCode.size}> different issues.`);
         const trackedIssues = todohubState.getTrackedIssuesNumbers();
@@ -39897,7 +39897,7 @@ class Runner {
         const trackedFeatureBranches = featureBranches.filter((branch) => issueUnion.some((issue) => branch.name.startsWith(`${issue}-`)));
         const branchesAheadOfDefault = await this.repo.getFeatureBranchesAheadOf(defaultBranchName, trackedFeatureBranches.map((branch) => branch.name));
         const strayTodos = todos.filter((todo) => !todo.issueNumber);
-        todohubState.setDefaultTrackedBranch(ref, commit);
+        todohubState.setDefaultTrackedBranch(this.env.ref, this.env.commitSha);
         todohubState.setStrayTodoState(strayTodos);
         this.runInfo.strayTodos = strayTodos.length;
         for (const issueNr of issueUnion) {
@@ -39910,7 +39910,7 @@ class Runner {
                 todohubState.deleteFeatureTodoState(issueNr);
                 if (updatedDefaultTodoState) {
                     this.logger.debug(`Updating <${issueNr}>...`);
-                    const writtenCommentId = await this.updateIssue(issueNr, updatedDefaultTodoState, commit, ref, commentId);
+                    const writtenCommentId = await this.updateIssue(issueNr, updatedDefaultTodoState, commentId);
                     todohubState.getTodoState(issueNr)?.setComment(writtenCommentId, !writtenCommentId);
                 }
                 else {
@@ -39923,10 +39923,10 @@ class Runner {
             }
             this.logger.endGroup();
         }
-        todohubState.setLastUpdatedDefaultCommit(commit);
+        todohubState.setLastUpdatedDefaultCommit(this.env.commitSha);
     }
-    async updateIssue(issueNr, todos, commitSha, ref, commentId) {
-        const githubComment = this.commentFactory.make(issueNr, commentId, commitSha, ref, todos);
+    async updateIssue(issueNr, todos, commentId) {
+        const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId, this.env.runNumber);
         const writtenCommentId = await githubComment.write();
         if (writtenCommentId) {
             if (todos.length) {
@@ -40068,6 +40068,14 @@ class EnvironmentService {
         if (!branchName) {
             throw new EnvironmentParsingError(`Could not parse branchName from ref.context <${ref}>`);
         }
+        const runId = context.runId;
+        if (!runId) {
+            throw new EnvironmentLoadError({ key: 'runId', place: 'context' });
+        }
+        const runNumber = context.runNumber;
+        if (!runNumber) {
+            throw new EnvironmentLoadError({ key: 'runNumber', place: 'context' });
+        }
         const featureBranchNumber = branchName.match(/^(?<featureBranch>[0-9]+)-.*/)?.groups?.['featureBranch'];
         let featureBranchNumberParsed;
         if (featureBranchNumber) {
@@ -40091,6 +40099,8 @@ class EnvironmentService {
             featureBranchNumber: featureBranchNumberParsed,
             isFeatureBranch,
             maxLineLength,
+            runId,
+            runNumber,
         };
         return environment;
     }
@@ -45113,7 +45123,9 @@ class TodohubControlIssueDataStore {
 </details>\n\n`;
             newMidTag += this.renderTodos(strayTodos, data.getLastUpdatedDefaultCommit() || '');
         }
-        newMidTag += `\n\n<sub>**Last updated:** ${data.getLastUpdatedDefaultCommit()}</sub>`;
+        // TODO #110 write runId+runNumber to footer like in comment.ts
+        newMidTag += '\n\n---';
+        newMidTag += `\n<sub>**Last updated:** ${data.getLastUpdatedDefaultCommit()}</sub>`;
         return `${this.existingIssue?.preTag || ''}<!--todohub_ctrl_issue_data="${this.encode(data)}"-->${newMidTag || ''}<!--todohub_ctrl_issue_end-->${this.existingIssue?.postTag || ''}`;
     }
     parseBodyParts(issueBody) {
@@ -45141,8 +45153,8 @@ class GithubCommentFactory {
         this.repo = repo;
         this.logger = logger;
     }
-    make(issueNr, commentId, commitSha, refName, todos) {
-        return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos);
+    make(issueNr, commentId, commitSha, refName, todos, runId, runNumber) {
+        return new GithubIssueComment(this.repo, this.logger, issueNr, commentId, commitSha, refName, todos, runId, runNumber);
     }
 }
 class GithubIssueComment {
@@ -45153,7 +45165,9 @@ class GithubIssueComment {
     commitSha;
     refName;
     todos;
-    constructor(repo, logger, issueNr, commentId, commitSha, refName, todos) {
+    runId;
+    runNumber;
+    constructor(repo, logger, issueNr, commentId, commitSha, refName, todos, runId, runNumber) {
         this.repo = repo;
         this.logger = logger;
         this.issueNr = issueNr;
@@ -45161,6 +45175,8 @@ class GithubIssueComment {
         this.commitSha = commitSha;
         this.refName = refName;
         this.todos = todos;
+        this.runId = runId;
+        this.runNumber = runNumber;
     }
     async reopenIssueWithOpenTodos() {
         if (this.todos.length) {
@@ -45230,8 +45246,9 @@ class GithubIssueComment {
             composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
         }
         const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`;
+        const linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}/attempts/${this.runNumber}`;
         composed += '\n---';
-        composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} </sub>`;
+        composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} </sub> | Last Run: [\`${this.runId}#${this.runNumber}\`](${linkToRun})`;
         return composed;
     }
 }
