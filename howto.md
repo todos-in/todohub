@@ -1,13 +1,19 @@
-[!WARNING]  
+## Steps to install todohub and integrate into your workflow efficiently:
+
+1. Installation (Link)
+2. Once installed and todohub executed its first run, it will create an Issue for you, which will likely look something like this:
+> [!WARNING]  
 > **42 TODO**'s without an issue reference found for this repository
->
+3. Don't panic! This is intended: Your code base contains `TODO`'s, which are at risk of being forgotten.
+
+This is the part where some manual work is necessary:
 
 `TODO`'s should **always** reference an issue in github to prevent them from getting lost.
-Instead of writing a comment like `TODO fix this` that tent to get forgotten, reference an issue where the todo should be tackeled `TODO #42 fix this`.
+Instead of writing a comment like `// TODO fix this` that tend to get forgotten, reference an issue in your comment: `// TODO #42 fix this`. This issue can (and probably should) contain additional information on the problem. Multiple `TODO`'s can reference the same issue - in many cases one Issue will require work on multiple places in code.
 
-<details><summary>Examples:</summary>
+## Use case examples:
 
-### The \"getting to a happy path\" TODO
+### The "getting to a happy path" TODO
 
 You are Working on issue `#42` - on this awesome new feature. You are in flow staten and just want to see it working - yeah those exceptions are not helpful for now.
 
@@ -18,9 +24,9 @@ try {
    // TODO handle non happy path
 }
 ```
- The `TODO` in code here is great to get it out of your head for **now** but it also tent to just end up forgotten.
+ The `TODO` in code here is great to get it out of your head for **now** but it also tends get lost.
 
-Instead of loosing tack of the `TODO`'s just add your current issue number like:
+Instead of losing track of the `TODO`'s just add your current issue number like:
 
 ```diff
 try {
@@ -31,7 +37,7 @@ try {
 }
 ```
 
-### The \"ugly but we cant fix this for now - we should do this later\" TODO
+### The "ugly but we cant fix this for now - we should do this later" TODO
 
 You are working on an issue that aims to make your app's UI/UX more inclusive. The `gender` property you need is sourced from a third party api and the servers response already contains it - but the library you are using to fetch the data didn't catch up on the types yet. Accessing `gender` is possible by casting the response to `any` and access the known property directly.
 
@@ -60,7 +66,7 @@ if (user.gender !== undefined) {
 }
 ```
 
-### The \"premature optimization\" TODO
+### The "premature optimization" TODO
 
 You are still working on issue `#42` - you need to add a function that returns a user by its id. Users are stored in an array and finding it means iterating though the whole array. You have the feeling that this becomes slow in the future. You feel soo ashamed of not writing optimized code but something tells you - stop think about this - this is a premature optimization trap!
 
@@ -82,7 +88,6 @@ function getUserById(id: string) {
     return users.find(user => user.id === id)
 }
 ```
-</details>
 
 
 
