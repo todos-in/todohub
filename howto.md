@@ -1,6 +1,8 @@
-[!WARNING]  
+> [!WARNING]  
 > **42 TODO**'s without an issue reference found for this repository
 >
+
+## What to do
 
 `TODO`'s should **always** reference an issue in github to prevent them from getting lost.
 Instead of writing a comment like `TODO fix this` that tent to get forgotten, reference an issue where the todo should be tackeled `TODO #42 fix this`.
