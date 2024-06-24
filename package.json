@@ -42,7 +42,7 @@
     "brandi": "^5.0.0",
     "ignore-wrapper": "file:ignore-wrapper",
     "tar-stream": "^3.1.7",
-    "zod": "^3.23.0"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@stylistic/eslint-plugin": "^1.7.2",
