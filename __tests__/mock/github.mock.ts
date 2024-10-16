@@ -35,7 +35,8 @@ const createTarGzStream = (repoPath: string) => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stream = tar.create({ gzip: true, cwd: path.dirname(repoPath) }, [path.basename(repoPath)]) as any
   stream['_readableState'] = {} // Hack to trick nodeJs Readable.toWeb into accepting tar.create stream
-  // @ts-ignore stream is missing properties to be accepted as Readable, but it works for now
+  // @ts-ignore stream is missing properties to be accepted as Readable, but it works for now.
+  // this is failing after at least node 20.17.x, needs to solved properly before upgrading
   const tarGzWebStream = Readable.toWeb(stream as Readable)
   return tarGzWebStream
 }
