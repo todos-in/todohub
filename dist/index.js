@@ -40040,6 +40040,7 @@ class EnvironmentService {
     }
     getEnv() {
         const context = this.getContext();
+        // TODO use zod for validation
         const githubToken = this.config.getGithubToken();
         if (!githubToken) {
             throw new EnvironmentLoadError({ key: 'TOKEN', place: 'input' });
