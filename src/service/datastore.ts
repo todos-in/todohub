@@ -40,7 +40,7 @@ export class TodohubControlIssueDataStore implements DataStore {
       let parsedBody
       try {
         parsedBody = this.parseBodyParts(issueCandidate.body || '')
-      } catch (err) {
+      } catch (_err) {
         this.logger.debug(`Issue <${issueCandidate.number}> looks like a TodohubControlIssue Candidate, but failed to parse.`)
         continue
       }
@@ -57,8 +57,8 @@ export class TodohubControlIssueDataStore implements DataStore {
         this.logger.debug(`Found Todohub Control issue: <${issueCandidate.number}>`)
         return decodedData
 
-      } catch (err) {
-        this.logger.debug(`Issue <${issueCandidate.number}> looks like a TodohubControlIssue Candidate, data tag failed to be decoded.`)
+      } catch (_err) {
+        this.logger.debug(`Issue <${issueCandidate.number}> looks like a TodohubControlIssue Candidate, but data tag failed to be decoded.`)
         continue
       }
     }
@@ -190,7 +190,7 @@ export class TodohubControlIssueDataStore implements DataStore {
       if (!todos || !todos.length) {
         continue
       }
-      let link = ''
+      let link
       if (todoState.commentId) {
         link = `[Issue ${issueNr}](${issueNr}/#issuecomment-${todoState.commentId || ''})`
       } else if (todoState.deadIssue) {

@@ -3,7 +3,7 @@ import * as path from 'node:path'
 import { ReadableStream } from 'node:stream/web'
 import stream from 'node:stream'
 import * as tar from 'tar-stream'
-import { ignoreWrapper, Ignore } from 'ignore-wrapper'
+import ignore from 'ignore'
 import { SplitLineStream } from '../util/line-stream.js'
 import { assertGithubError } from '../error/error.js'
 import { Logger } from '../interfaces/logger.js'
@@ -53,7 +53,7 @@ export default class GithubService {
     }
     const contents = todoIgnoreFileRaw.data.toString()
     this.logger.debug(`".todoignore" file found. Parsing contents: <${contents.substring(0, 200)}>...`)
-    return ignoreWrapper().add(contents)
+    return ignore().add(contents)
   }
 
   private async getTarballStream(ref?: string) {
@@ -72,7 +72,7 @@ export default class GithubService {
   private async extractTodosFromTarGz(
     tarBallStream: stream.Readable,
     issueNr?: number,
-    ignore?: Ignore,
+    ignore?: ignore.Ignore,
   ): Promise<Todo[]> {
     const extractStream = tar.extract()
     const unzipStream = createGunzip()

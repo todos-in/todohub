@@ -25,19 +25,16 @@ const decodeControlIssueData = (encoded: string) => {
     const b64Decoded = Buffer.from(issueContent.data, 'base64')
     const unzipped = gunzipSync(b64Decoded)
     return JSON.parse(unzipped.toString('utf-8'))
-  } catch (err) {
+  } catch (_err) {
     console.warn('Decoding Control issue data failed: ' + encoded)
     return undefined
   }
 }
 
 const createTarGzStream = (repoPath: string) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const stream = tar.create({ gzip: true, cwd: path.dirname(repoPath) }, [path.basename(repoPath)]) as any
-  stream['_readableState'] = {} // Hack to trick nodeJs Readable.toWeb into accepting tar.create stream
-  // @ts-ignore stream is missing properties to be accepted as Readable, but it works for now.
-  // this is failing after at least node 20.17.x, needs to solved properly before upgrading
-  const tarGzWebStream = Readable.toWeb(stream as Readable)
+  const tarStream = tar.create({ gzip: true, cwd: path.dirname(repoPath) }, [path.basename(repoPath)])
+  const nodeReadable = Readable.from(tarStream)
+  const tarGzWebStream = Readable.toWeb(nodeReadable)
   return tarGzWebStream
 }
 
@@ -64,7 +61,7 @@ export const getGithubClientMock = (responses: ApiResponses, repoPath: string) =
           try {
             const data = fs.readFileSync(path.join(repoPath, '.todoignore'), 'utf8')
             return {data}
-          } catch (err) {
+          } catch (_err) {
             throw createMockGithubError('Couldnt read .todoignore.', 404)
           }
         }),

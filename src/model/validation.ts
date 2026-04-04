@@ -35,8 +35,9 @@ const zTodoState = z.object({
 export type TTodoState = z.infer<typeof zTodoState>
 
 const zIntegerString = z.string().regex(/^[0-9]+$/)
+
 const zSupportedVersions = z.enum(SUPPORTED_VERSIONS, {
-  invalid_type_error: 'Unsupported Data Format Version: This Todohub version supports only versions: ["1"]',
+  error: `Unsupported Data Format Version: This Todohub version supports only versions: ${SUPPORTED_VERSIONS}`,
 })
 export type TSupportedVersions = z.infer<typeof zSupportedVersions>
 

@@ -69,7 +69,7 @@ export class RegexError extends TodohubError {
 export function assertGithubError(error: unknown): asserts error is RequestError {
   try {
     assert(error instanceof RequestError)
-  } catch (assertError) {
+  } catch (_assertError) {
     throw error
   }
 }
