@@ -17,7 +17,7 @@
     ".": "./dist/index.js"
   },
   "engines": {
-    "node": "20.9.0"
+    "node": "24.13.0"
   },
   "scripts": {
     "lint": "npx eslint .",
