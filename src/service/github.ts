@@ -72,7 +72,7 @@ export default class GithubService {
   private async extractTodosFromTarGz(
     tarBallStream: stream.Readable,
     issueNr?: number,
-    ignore?: Ignore,
+    ignore?: ignore.Ignore,
   ): Promise<Todo[]> {
     const extractStream = tar.extract()
     const unzipStream = createGunzip()
