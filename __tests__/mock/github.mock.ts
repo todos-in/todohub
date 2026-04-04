@@ -25,7 +25,7 @@ const decodeControlIssueData = (encoded: string) => {
     const b64Decoded = Buffer.from(issueContent.data, 'base64')
     const unzipped = gunzipSync(b64Decoded)
     return JSON.parse(unzipped.toString('utf-8'))
-  } catch (err) {
+  } catch (_err) {
     console.warn('Decoding Control issue data failed: ' + encoded)
     return undefined
   }
@@ -61,7 +61,7 @@ export const getGithubClientMock = (responses: ApiResponses, repoPath: string) =
           try {
             const data = fs.readFileSync(path.join(repoPath, '.todoignore'), 'utf8')
             return {data}
-          } catch (err) {
+          } catch (_err) {
             throw createMockGithubError('Couldnt read .todoignore.', 404)
           }
         }),
