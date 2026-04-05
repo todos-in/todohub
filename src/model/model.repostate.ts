@@ -77,4 +77,10 @@ export class RepoTodoStates implements TRepoTodoStates {
   setLastUpdatedDefaultCommit(sha: string) {
     this.lastUpdatedDefaultCommit = sha
   }
+
+  sortTodos() {
+    for (const state of Object.values(this.todoStates)) {
+      state.sort()
+    }
+  }
 }

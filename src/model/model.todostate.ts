@@ -49,12 +49,21 @@ export class TodoState implements TTodoState {
   deleteFeatureState() {
     delete this.featureBranch
   }
+
+  sort() {
+    this.featureBranch?.sort()
+    this.defaultBranch?.sort()
+  }
 }
 
 class DefaultBranchState implements TDefaultBranchState {
   todos: Todo[]
   constructor(todos: TTodo[]) {
     this.todos = todos.map((todo) => new Todo(todo))
+  }
+
+  sort() {
+    this.todos.sort((a, b) => a.compare(b))
   }
 }
 

@@ -24,7 +24,7 @@ export class TodohubControlIssueDataStore implements DataStore {
   constructor(private repo: GithubService, private logger: Logger) { }
 
   async write(data: RepoTodoStates, _id: Id) {
-    // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
+    data.sortTodos()
     const composed = this.compose(data)
     if (this.existingIssue) {
       const updated = await this.repo.updateIssue(this.existingIssue.number, undefined, composed)
