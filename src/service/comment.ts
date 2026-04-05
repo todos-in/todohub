@@ -24,20 +24,18 @@ class GithubIssueComment {
     private runId: number,
   ) { }
 
-  async reopenIssueWithOpenTodos() {
-    if (this.todos.length) {
-      this.logger.debug(`Opening issue <${this.issueNr}>...`)
-      try {
-        return await this.repo.updateIssue(this.issueNr, undefined, undefined, 'open')
-      } catch (err) {
-        assertGithubError(err)
-        if (err.status === 410 || err.status === 404) {
-          this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Issue does not exist or was permanently deleted.`)
-        } else if (err.status === 422) {
-          this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Possibly a pull request, which cannot be reopened due to the respective branch being deleted.`)
-        } else {
-          throw err
-        }
+  async reopenIssue() {
+    this.logger.debug(`Opening issue <${this.issueNr}>...`)
+    try {
+      return await this.repo.updateIssue(this.issueNr, undefined, undefined, 'open')
+    } catch (err) {
+      assertGithubError(err)
+      if (err.status === 410 || err.status === 404) {
+        this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Issue does not exist or was permanently deleted.`)
+      } else if (err.status === 422) {
+        this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Possibly a pull request, which cannot be reopened due to the respective branch being deleted.`)
+      } else {
+        throw err
       }
     }
   }
@@ -82,16 +80,31 @@ class GithubIssueComment {
   }
 
   composeTrackedIssueComment() {
-    let composed = this.todos.length ? '#### TODO' : 'No Open Todos'
-    for (const todo of this.todos) {
-      const link = `[link](${this.repo.baseUrl}/blob/${this.commitSha}/${todo.fileName}#L${todo.lineNumber})`
-      composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
+    const openTodos = this.todos.filter(todo => !todo.doneInCommit)
+    const doneTodos = this.todos.filter(todo => todo.doneInCommit)
+
+    let composed = (openTodos.length || doneTodos.length) ? '' : 'No Open Todos'
+
+    if (openTodos.length) {
+      composed += '#### Open'
+      for (const todo of openTodos) {
+        const linkRef = todo.foundInCommit || this.commitSha
+        const link = `[link](${this.repo.baseUrl}/blob/${linkRef}/${todo.fileName}#L${todo.lineNumber})`
+        composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
+      }
     }
+
+    if (doneTodos.length) {
+      composed += `${openTodos.length ? '\n\n' : ''}#### Completed`
+      for (const todo of doneTodos) {
+        const linkRef = todo.doneInCommit
+        const link = `[link](${this.repo.baseUrl}/blob/${linkRef}/${todo.fileName}#L${todo.lineNumber})`
+        composed += `\n* [x] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
+      }
+    }
+
     const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`
     const linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}`
-    // if (this.runAttempt) {
-    //   linkToRun += `/attempts/${this.runAttempt}`
-    // }
     composed += '\n---'
     composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} | Run: [\`${this.runId}\`](${linkToRun}) </sub>`
     return composed
