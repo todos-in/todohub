@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import { Logger } from 'interfaces/logger.js'
+import { Logger } from '../interfaces/logger.js'
 
 export class ConsoleLogger implements Logger {
   debug(log: string) { console.debug(log) }
