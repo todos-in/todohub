@@ -26,5 +26,5 @@ outputs:
   TODOHUB_CONTROL_ISSUE_ID:
     description: issue number of todoshubs control center
 runs:
-  using: node20
+  using: node24
   main: dist/index.js

@@ -6,7 +6,6 @@
     "target": "es2022",
     "rootDir": ".",
     "moduleResolution": "node16",
-    "baseUrl": "./src",
     "isolatedModules": true,
     "sourceMap": true,
     "outDir": "./dist/",

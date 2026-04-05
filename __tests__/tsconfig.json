@@ -6,7 +6,6 @@
     "target": "es2022",
     "rootDir": "../",
     "moduleResolution": "node16",
-    "baseUrl": "../",
     "noImplicitAny": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
