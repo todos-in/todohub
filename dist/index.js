@@ -57395,7 +57395,8 @@ class TodohubControlIssueDataStore {
         const footnotes = [];
         for (const [issueNr, todoState] of todoStates) {
             const todos = todoState.featureBranch?.todos || todoState.defaultBranch?.todos;
-            if (!todos || !todos.length) {
+            const openTodos = todos?.filter(todo => !todo.doneInCommit);
+            if (!openTodos || !openTodos.length) {
                 continue;
             }
             let link;
@@ -57410,7 +57411,7 @@ class TodohubControlIssueDataStore {
             else {
                 link = `Issue ${issueNr} (⚠️ No todohub comment found in associated issue)`;
             }
-            newMidTag += `\n* ${link}: *${todos.length}* open TODOs`;
+            newMidTag += `\n* ${link}: *${openTodos.length}* open TODOs`;
         }
         for (const [index, value] of footnotes.entries()) {
             newMidTag += `\n[^${index + 1}]: ${value}`;

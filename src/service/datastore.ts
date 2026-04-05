@@ -187,7 +187,8 @@ export class TodohubControlIssueDataStore implements DataStore {
     const footnotes: string[] = []
     for (const [issueNr, todoState] of todoStates) {
       const todos = todoState.featureBranch?.todos || todoState.defaultBranch?.todos
-      if (!todos || !todos.length) {
+      const openTodos = todos?.filter(todo => !todo.doneInCommit)
+      if (!openTodos || !openTodos.length) {
         continue
       }
       let link
@@ -200,7 +201,7 @@ export class TodohubControlIssueDataStore implements DataStore {
       } else {
         link = `Issue ${issueNr} (⚠️ No todohub comment found in associated issue)`
       }
-      newMidTag += `\n* ${link}: *${todos.length}* open TODOs`
+      newMidTag += `\n* ${link}: *${openTodos.length}* open TODOs`
     }
 
     for (const [index, value] of footnotes.entries()) {
