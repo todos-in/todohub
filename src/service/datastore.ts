@@ -6,7 +6,7 @@ import { escapeMd } from '../util/escape-markdown.js'
 import { RepoTodoStates } from '../model/model.repostate.js'
 import GithubService from './github.js'
 import { zRepoTodoStates } from '../model/validation.js'
-import { Todo } from 'model/model.todo.js'
+import { Todo } from '../model/model.todo.js'
 
 type FileTree = { [fileName: string]: FileTree | Todo[] }
 
