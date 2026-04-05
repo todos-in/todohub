@@ -21,6 +21,15 @@
             "foundInCommit": "old-sha"
           },
           {
+            "rawLine": "TODO #5 add email notification on user signup",
+            "todoText": "add email notification on user signup",
+            "keyword": "TODO",
+            "lineNumber": 2,
+            "issueNumber": 5,
+            "fileName": "notifications",
+            "foundInCommit": "old-sha"
+          },
+          {
             "rawLine": "TODO #5 write unit tests for auth",
             "todoText": "write unit tests for auth",
             "keyword": "TODO",
@@ -36,6 +45,15 @@
             "lineNumber": 2,
             "issueNumber": 5,
             "fileName": "validation",
+            "foundInCommit": "old-sha"
+          },
+          {
+            "rawLine": "TODO #5 add email notification when account is deleted",
+            "todoText": "add email notification when account is deleted",
+            "keyword": "TODO",
+            "lineNumber": 8,
+            "issueNumber": 5,
+            "fileName": "notifications",
             "foundInCommit": "old-sha"
           },
           {
@@ -73,24 +91,6 @@
             "issueNumber": 5,
             "fileName": "search",
             "foundInCommit": "new-sha"
-          },
-          {
-            "rawLine": "TODO #5 add email notification on user signup",
-            "todoText": "add email notification on user signup",
-            "keyword": "TODO",
-            "lineNumber": 2,
-            "issueNumber": 5,
-            "fileName": "notifications",
-            "foundInCommit": "old-sha"
-          },
-          {
-            "rawLine": "TODO #5 add email notification when account is deleted",
-            "todoText": "add email notification when account is deleted",
-            "keyword": "TODO",
-            "lineNumber": 4,
-            "issueNumber": 5,
-            "fileName": "notifications",
-            "foundInCommit": "old-sha"
           },
           {
             "rawLine": "TODO #5 setup CI pipeline",
