@@ -12,21 +12,22 @@
       "defaultBranch": {
         "todos": [
           {
+            "rawLine": "TODO #5 remove deprecated API endpoints",
+            "todoText": "remove deprecated API endpoints",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "api",
+            "foundInCommit": "old-sha",
+            "doneInCommit": "new-sha"
+          },
+          {
             "rawLine": "TODO #5 implement user authentication",
             "todoText": "implement user authentication",
             "keyword": "TODO",
             "lineNumber": 3,
             "issueNumber": 5,
             "fileName": "auth_module",
-            "foundInCommit": "old-sha"
-          },
-          {
-            "rawLine": "TODO #5 add email notification on user signup",
-            "todoText": "add email notification on user signup",
-            "keyword": "TODO",
-            "lineNumber": 2,
-            "issueNumber": 5,
-            "fileName": "notifications",
             "foundInCommit": "old-sha"
           },
           {
@@ -39,22 +40,14 @@
             "foundInCommit": "old-sha"
           },
           {
-            "rawLine": "TODO #5 add input validation for email addresses",
-            "todoText": "add input validation for email addresses",
+            "rawLine": "TODO #5 setup CI pipeline",
+            "todoText": "setup CI pipeline",
             "keyword": "TODO",
-            "lineNumber": 2,
+            "lineNumber": 1,
             "issueNumber": 5,
-            "fileName": "validation",
-            "foundInCommit": "old-sha"
-          },
-          {
-            "rawLine": "TODO #5 add email notification when account is deleted",
-            "todoText": "add email notification when account is deleted",
-            "keyword": "TODO",
-            "lineNumber": 8,
-            "issueNumber": 5,
-            "fileName": "notifications",
-            "foundInCommit": "old-sha"
+            "fileName": "ci",
+            "foundInCommit": "old-sha",
+            "doneInCommit": "done-sha"
           },
           {
             "rawLine": "TODO #5 refactor database connection pooling",
@@ -75,6 +68,44 @@
             "foundInCommit": "new-sha"
           },
           {
+            "rawLine": "TODO #5 completely rewrite the legacy system",
+            "todoText": "completely rewrite the legacy system",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "legacy",
+            "foundInCommit": "old-sha",
+            "doneInCommit": "new-sha"
+          },
+          {
+            "rawLine": "TODO #5 add email notification on user signup",
+            "todoText": "add email notification on user signup",
+            "keyword": "TODO",
+            "lineNumber": 2,
+            "issueNumber": 5,
+            "fileName": "notifications",
+            "foundInCommit": "old-sha"
+          },
+          {
+            "rawLine": "TODO #5 add email notification for password reset",
+            "todoText": "add email notification for password reset",
+            "keyword": "TODO",
+            "lineNumber": 4,
+            "issueNumber": 5,
+            "fileName": "notifications",
+            "foundInCommit": "old-sha",
+            "doneInCommit": "new-sha"
+          },
+          {
+            "rawLine": "TODO #5 add email notification when account is deleted",
+            "todoText": "add email notification when account is deleted",
+            "keyword": "TODO",
+            "lineNumber": 8,
+            "issueNumber": 5,
+            "fileName": "notifications",
+            "foundInCommit": "old-sha"
+          },
+          {
             "rawLine": "TODO #5 integrate new payment gateway",
             "todoText": "integrate new payment gateway",
             "keyword": "TODO",
@@ -93,44 +124,13 @@
             "foundInCommit": "new-sha"
           },
           {
-            "rawLine": "TODO #5 setup CI pipeline",
-            "todoText": "setup CI pipeline",
+            "rawLine": "TODO #5 add input validation for email addresses",
+            "todoText": "add input validation for email addresses",
             "keyword": "TODO",
-            "lineNumber": 1,
+            "lineNumber": 2,
             "issueNumber": 5,
-            "fileName": "ci",
-            "foundInCommit": "old-sha",
-            "doneInCommit": "done-sha"
-          },
-          {
-            "rawLine": "TODO #5 remove deprecated API endpoints",
-            "todoText": "remove deprecated API endpoints",
-            "keyword": "TODO",
-            "lineNumber": 1,
-            "issueNumber": 5,
-            "fileName": "api",
-            "foundInCommit": "old-sha",
-            "doneInCommit": "new-sha"
-          },
-          {
-            "rawLine": "TODO #5 completely rewrite the legacy system",
-            "todoText": "completely rewrite the legacy system",
-            "keyword": "TODO",
-            "lineNumber": 1,
-            "issueNumber": 5,
-            "fileName": "legacy",
-            "foundInCommit": "old-sha",
-            "doneInCommit": "new-sha"
-          },
-          {
-            "rawLine": "TODO #5 add email notification for password reset",
-            "todoText": "add email notification for password reset",
-            "keyword": "TODO",
-            "lineNumber": 4,
-            "issueNumber": 5,
-            "fileName": "notifications",
-            "foundInCommit": "old-sha",
-            "doneInCommit": "new-sha"
+            "fileName": "validation",
+            "foundInCommit": "old-sha"
           }
         ]
       },
