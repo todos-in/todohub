@@ -19,20 +19,4 @@ export class Todo {
     Object.assign(this, todo)
   }
 
-  compare(otherTodo: TTodo) {
-    return ((this.issueNumber || 0) - (otherTodo.issueNumber || 0))
-      || this.fileName.localeCompare(otherTodo.fileName)
-      || (this.lineNumber - otherTodo.lineNumber)
-      || this.rawLine.localeCompare(otherTodo.rawLine)
-  }
-
-  equals(otherTodo: TTodo) {
-    // TODO #65 is this enough to compare?
-    return (
-      this.fileName === otherTodo.fileName &&
-      this.lineNumber === otherTodo.lineNumber &&
-      this.rawLine === otherTodo.rawLine
-    )
-  }
-
 }

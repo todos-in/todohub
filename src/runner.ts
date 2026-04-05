@@ -83,7 +83,7 @@ export class Runner {
     const commentId = todohubState.getTodoState(featureBranchNr)?.commentId
 
     if (updatedFeatureTodoState) {
-      const writtenCommentId = await this.updateIssue(featureBranchNr, todos, commentId)
+      const writtenCommentId = await this.updateIssue(featureBranchNr, updatedFeatureTodoState, commentId)
       console.info('writtenCommentId', writtenCommentId)
       todohubState.getTodoState(featureBranchNr)?.setComment(writtenCommentId, !writtenCommentId)
     }
@@ -110,7 +110,7 @@ export class Runner {
     const strayTodos = todos.filter((todo) => !todo.issueNumber)
 
     todohubState.setDefaultTrackedBranch(this.env.ref, this.env.commitSha)
-    todohubState.setStrayTodoState(strayTodos)
+    todohubState.setStrayTodoState(strayTodos, this.env.commitSha)
 
     this.runInfo.strayTodos = strayTodos.length
 
@@ -120,7 +120,7 @@ export class Runner {
       const issueTodos = todos.filter(todo => todo.issueNumber === issueNr)
       const commentId = todohubState.getTodoState(issueNr)?.commentId
 
-      const updatedDefaultTodoState = todohubState.setDefaultTodoState(issueNr, issueTodos)
+      const updatedDefaultTodoState = todohubState.setDefaultTodoState(issueNr, issueTodos, this.env.commitSha)
       if (!featureBranchAhead) {
         todohubState.deleteFeatureTodoState(issueNr)
         if (updatedDefaultTodoState) {
@@ -148,8 +148,8 @@ export class Runner {
     const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId)
     const writtenCommentId = await githubComment.write()
     if (writtenCommentId) {
-      if (todos.length) {
-        await githubComment.reopenIssueWithOpenTodos()
+      if (todos.some(todo => !todo.doneInCommit)) {
+        await githubComment.reopenIssue()
       }
       this.runInfo.succesfullyUpdatedIssues.push(issueNr)
       this.runInfo.totalTodosUpdated += todos.length

@@ -26,12 +26,12 @@ export class RepoTodoStates implements TRepoTodoStates {
     return this.todoStates[issueNr]
   }
 
-  setDefaultTodoState(issueNr: number, todos: Todo[]): Todo[] | undefined {
+  setDefaultTodoState(issueNr: number, todos: Todo[], commitSha: string): Todo[] | undefined {
     if (!this.getTodoState(issueNr)) {
       this.todoStates[issueNr] = new TodoState({todos})
       return this.getTodoState(issueNr)?.defaultBranch?.todos
     }
-    return this.getTodoState(issueNr)?.setDefaultState(todos)
+    return this.getTodoState(issueNr)?.setDefaultState(todos, commitSha)
   }
 
   setFeatureTodoState(issueNr: number, todos: Todo[], name: string, commitSha: string): Todo[] | undefined {
@@ -41,8 +41,8 @@ export class RepoTodoStates implements TRepoTodoStates {
     return this.getTodoState(issueNr)?.setFeatureState(todos, name, commitSha)
   }
 
-  setStrayTodoState(todos: Todo[]): Todo[] | undefined {
-    return this.setDefaultTodoState(STRAY_TODO_KEY, todos)
+  setStrayTodoState(todos: Todo[], commitSha: string): Todo[] | undefined {
+    return this.setDefaultTodoState(STRAY_TODO_KEY, todos, commitSha)
   }
 
   setDefaultTrackedBranch(ref: string, commitSha: string) {

@@ -28,6 +28,16 @@
             "issueNumber": 1,
             "fileName": "file",
             "foundInCommit": "xyz"
+          },
+          {
+            "rawLine": "TODO #1 this existed in control issue, but anymore in repo",
+            "todoText": "this existed in control issue, but anymore in repo",
+            "keyword": "TODO",
+            "lineNumber": 5,
+            "issueNumber": 1,
+            "fileName": "file",
+            "foundInCommit": "def",
+            "doneInCommit": "xyz"
           }
         ]
       },

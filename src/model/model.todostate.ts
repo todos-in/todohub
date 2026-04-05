@@ -1,5 +1,6 @@
 import { Todo } from './model.todo.js'
 import { TDefaultBranchState, TFeatureBranchState, TTodo, TTodoState } from './validation.js'
+import { reconcileTodos } from '../util/todo-reconcile.js'
 
 export class TodoState implements TTodoState {
   defaultBranch?: DefaultBranchState
@@ -26,16 +27,18 @@ export class TodoState implements TTodoState {
     return !!this.featureBranch
   }
 
-  setDefaultState(todos: Todo[]): Todo[] | undefined {
-    const equalTodos = this.defaultBranch?.equalTodos(todos)
-    this.defaultBranch = new DefaultBranchState(todos)
-    return equalTodos ?  undefined : this.defaultBranch.todos
+  setDefaultState(todos: Todo[], commitSha: string): Todo[] | undefined {
+    const previousTodos = this.defaultBranch?.todos || []
+    const { todos: reconciled, changed } = reconcileTodos(previousTodos, todos, commitSha)
+    this.defaultBranch = new DefaultBranchState(reconciled)
+    return changed ? this.defaultBranch.todos : undefined
   } 
 
   setFeatureState(todos: Todo[], name: string, commitSha: string): Todo[] | undefined {
-    const equalTodos = this.featureBranch?.equalTodos(todos)
-    this.featureBranch = new FeatureBranchState(todos, name, commitSha)
-    return equalTodos ?  undefined : this.featureBranch.todos
+    const previousTodos = this.featureBranch?.todos || []
+    const { todos: reconciled, changed } = reconcileTodos(previousTodos, todos, commitSha)
+    this.featureBranch = new FeatureBranchState(reconciled, name, commitSha)
+    return changed ? this.featureBranch.todos : undefined
   }
 
   setComment(id: number | undefined, issueIsDead: boolean) {
@@ -52,21 +55,6 @@ class DefaultBranchState implements TDefaultBranchState {
   todos: Todo[]
   constructor(todos: TTodo[]) {
     this.todos = todos.map((todo) => new Todo(todo))
-  }
-
-  equalTodos(todos: Todo[]) {
-    if (this.todos.length !== todos.length) {
-      return false
-    }
-
-    const orderedTodos = todos.sort(((a, b) => a.compare(b)))
-
-    for (const [i, thisTodo] of this.todos.entries()) {
-      if (!thisTodo.equals(orderedTodos[i] as Todo)) {
-        return false
-      }
-    }
-    return true
   }
 }
 

@@ -42359,7 +42359,7 @@ class Runner {
         const updatedFeatureTodoState = todohubState.setFeatureTodoState(featureBranchNr, todos, this.env.ref, this.env.commitSha);
         const commentId = todohubState.getTodoState(featureBranchNr)?.commentId;
         if (updatedFeatureTodoState) {
-            const writtenCommentId = await this.updateIssue(featureBranchNr, todos, commentId);
+            const writtenCommentId = await this.updateIssue(featureBranchNr, updatedFeatureTodoState, commentId);
             console.info('writtenCommentId', writtenCommentId);
             todohubState.getTodoState(featureBranchNr)?.setComment(writtenCommentId, !writtenCommentId);
         }
@@ -42378,14 +42378,14 @@ class Runner {
         const branchesAheadOfDefault = await this.repo.getFeatureBranchesAheadOf(defaultBranchName, trackedFeatureBranches.map((branch) => branch.name));
         const strayTodos = todos.filter((todo) => !todo.issueNumber);
         todohubState.setDefaultTrackedBranch(this.env.ref, this.env.commitSha);
-        todohubState.setStrayTodoState(strayTodos);
+        todohubState.setStrayTodoState(strayTodos, this.env.commitSha);
         this.runInfo.strayTodos = strayTodos.length;
         for (const issueNr of issueUnion) {
             this.logger.startGroup(`Processing Issue <${issueNr}>`);
             const featureBranchAhead = branchesAheadOfDefault.some((branch) => branch.startsWith(`${issueNr}-`));
             const issueTodos = todos.filter(todo => todo.issueNumber === issueNr);
             const commentId = todohubState.getTodoState(issueNr)?.commentId;
-            const updatedDefaultTodoState = todohubState.setDefaultTodoState(issueNr, issueTodos);
+            const updatedDefaultTodoState = todohubState.setDefaultTodoState(issueNr, issueTodos, this.env.commitSha);
             if (!featureBranchAhead) {
                 todohubState.deleteFeatureTodoState(issueNr);
                 if (updatedDefaultTodoState) {
@@ -42409,8 +42409,8 @@ class Runner {
         const githubComment = this.commentFactory.make(issueNr, commentId, this.env.commitSha, this.env.ref, todos, this.env.runId);
         const writtenCommentId = await githubComment.write();
         if (writtenCommentId) {
-            if (todos.length) {
-                await githubComment.reopenIssueWithOpenTodos();
+            if (todos.some(todo => !todo.doneInCommit)) {
+                await githubComment.reopenIssue();
             }
             this.runInfo.succesfullyUpdatedIssues.push(issueNr);
             this.runInfo.totalTodosUpdated += todos.length;
@@ -43042,18 +43042,6 @@ class Todo {
     constructor(todo) {
         Object.assign(this, todo);
     }
-    compare(otherTodo) {
-        return ((this.issueNumber || 0) - (otherTodo.issueNumber || 0))
-            || this.fileName.localeCompare(otherTodo.fileName)
-            || (this.lineNumber - otherTodo.lineNumber)
-            || this.rawLine.localeCompare(otherTodo.rawLine);
-    }
-    equals(otherTodo) {
-        // TODO #65 is this enough to compare?
-        return (this.fileName === otherTodo.fileName &&
-            this.lineNumber === otherTodo.lineNumber &&
-            this.rawLine === otherTodo.rawLine);
-    }
 }
 
 ;// CONCATENATED MODULE: ./src/util/find-todo-stream.ts
@@ -43142,7 +43130,224 @@ const STRAY_TODO_KEY = 0;
 const CURRENT_VERSION = '1';
 const SUPPORTED_VERSIONS = ['1'];
 
+;// CONCATENATED MODULE: ./src/util/todo-similarity.ts
+function levenshteinDistance(a, b) {
+    const m = a.length;
+    const n = b.length;
+    // Optimize: if one string is empty, distance is the length of the other
+    if (m === 0)
+        return n;
+    if (n === 0)
+        return m;
+    // Use two rows instead of full matrix for O(min(m,n)) space
+    let previousRow = new Array(n + 1);
+    let currentRow = new Array(n + 1);
+    for (let j = 0; j <= n; j++) {
+        previousRow[j] = j;
+    }
+    for (let i = 1; i <= m; i++) {
+        currentRow[0] = i;
+        for (let j = 1; j <= n; j++) {
+            const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+            currentRow[j] = Math.min(currentRow[j - 1] + 1, // insertion
+            previousRow[j] + 1, // deletion
+            previousRow[j - 1] + cost);
+        }
+        const tmp = previousRow;
+        previousRow = currentRow;
+        currentRow = tmp;
+    }
+    return previousRow[n];
+}
+/**
+ * Returns a similarity ratio between 0 and 1 based on Levenshtein distance.
+ * 1 means identical, 0 means completely different.
+ */
+function stringSimilarity(a, b) {
+    if (a === b)
+        return 1;
+    const maxLen = Math.max(a.length, b.length);
+    if (maxLen === 0)
+        return 1;
+    return 1 - levenshteinDistance(a, b) / maxLen;
+}
+/**
+ * Calculates a line number proximity score between 0 and 1.
+ * Lines at the same position score 1, lines further apart score lower.
+ * Lines more than maxDistance apart score 0.
+ */
+function lineProximity(lineA, lineB, maxDistance = 30) {
+    const diff = Math.abs(lineA - lineB);
+    if (diff === 0)
+        return 1;
+    if (diff >= maxDistance)
+        return 0;
+    return 1 - diff / maxDistance;
+}
+// Weights for the multi-factor similarity score
+const WEIGHTS = {
+    fileName: 0.25,
+    lineNumber: 0.25,
+    todoText: 0.50,
+};
+/**
+ * calculates a multi-factor similarity score between two Todos.
+ * Returns a value between 0 and 1 (1 means identical)
+ *
+ * factors:
+ * - File name match (25%): exact match or path similarity
+ * - Line number proximity (25%): how close the line numbers are
+ * - todotext similarity (50%): Levenshtein similarity of the todo-description-text
+ */
+function todoSimilarity(oldTodo, newTodo) {
+    // precondition: issue numbers must match
+    if ((oldTodo.issueNumber || 0) !== (newTodo.issueNumber || 0)) {
+        return 0;
+    }
+    let score = 0;
+    if (oldTodo.fileName === newTodo.fileName) {
+        score += WEIGHTS.fileName;
+    }
+    else {
+        // Check if just the base filename matches (file was moved)
+        const oldBase = oldTodo.fileName.split('/').pop() || '';
+        const newBase = newTodo.fileName.split('/').pop() || '';
+        if (oldBase === newBase && oldBase !== '') {
+            score += WEIGHTS.fileName * 0.6;
+        }
+        else {
+            score += WEIGHTS.fileName * stringSimilarity(oldTodo.fileName, newTodo.fileName);
+        }
+    }
+    score += WEIGHTS.lineNumber * lineProximity(oldTodo.lineNumber, newTodo.lineNumber);
+    score += WEIGHTS.todoText * stringSimilarity(oldTodo.todoText.trim(), newTodo.todoText.trim());
+    return score;
+}
+
+;// CONCATENATED MODULE: ./src/util/todo-reconcile.ts
+
+
+const MATCH_THRESHOLD = 0.7;
+/**
+ * Reconciles a previous list of tracked items with a newly scanned list.
+ *
+ * Three-phase matching:
+ * 1. Exact matches: same file, line, and rawLine
+ * 2. Similarity matches: multi-factor scoring above threshold
+ * 3. Remaining: unmatched old items are marked done, unmatched new items are marked as found
+ *
+ * @param previousTodos - Items from the previous state (may include already-done items)
+ * @param currentTodos - Items freshly scanned from the current commit
+ * @param commitSha - The current commit SHA for setting foundInCommit/doneInCommit
+ * @returns The reconciled list and whether it changed
+ */
+function reconcileTodos(previousTodos, currentTodos, commitSha) {
+    const previouslyDone = previousTodos.filter(t => t.doneInCommit);
+    const previousOpen = previousTodos.filter(t => !t.doneInCommit);
+    const unmatchedOld = new Set(previousOpen.map((_, i) => i));
+    const unmatchedNew = new Set(currentTodos.map((_, i) => i));
+    const matched = [];
+    // Get exact matches (same issueNumber + file + line + rawLine)
+    for (const oldIdx of [...unmatchedOld]) {
+        const oldTodo = previousOpen[oldIdx];
+        for (const newIdx of [...unmatchedNew]) {
+            const newTodo = currentTodos[newIdx];
+            if ((oldTodo.issueNumber || 0) === (newTodo.issueNumber || 0) &&
+                oldTodo.fileName === newTodo.fileName &&
+                oldTodo.lineNumber === newTodo.lineNumber &&
+                oldTodo.rawLine === newTodo.rawLine) {
+                // Exact match: preserve foundInCommit from old, update other fields
+                matched.push(new Todo({
+                    ...newTodo,
+                    foundInCommit: oldTodo.foundInCommit || commitSha,
+                }));
+                unmatchedOld.delete(oldIdx);
+                unmatchedNew.delete(newIdx);
+                break;
+            }
+        }
+    }
+    // Similarity matching using greedy best-match
+    if (unmatchedOld.size > 0 && unmatchedNew.size > 0) {
+        // Build similarity matrix for remaining unmatched items
+        const pairs = [];
+        for (const oldIdx of unmatchedOld) {
+            for (const newIdx of unmatchedNew) {
+                const score = todoSimilarity(previousOpen[oldIdx], currentTodos[newIdx]);
+                if (score >= MATCH_THRESHOLD) {
+                    pairs.push({ oldIdx, newIdx, score });
+                }
+            }
+        }
+        pairs.sort((a, b) => b.score - a.score);
+        for (const pair of pairs) {
+            if (!unmatchedOld.has(pair.oldIdx) || !unmatchedNew.has(pair.newIdx)) {
+                continue;
+            }
+            const oldTodo = previousOpen[pair.oldIdx];
+            const newTodo = currentTodos[pair.newIdx];
+            // Similar match: treat as an update of the same item
+            matched.push(new Todo({
+                ...newTodo,
+                foundInCommit: oldTodo.foundInCommit || commitSha,
+            }));
+            unmatchedOld.delete(pair.oldIdx);
+            unmatchedNew.delete(pair.newIdx);
+        }
+    }
+    // Mark remaining unmatched old items as done, add new items
+    const nowDone = [];
+    for (const oldIdx of unmatchedOld) {
+        const oldTodo = previousOpen[oldIdx];
+        nowDone.push(new Todo({
+            ...oldTodo,
+            doneInCommit: commitSha,
+        }));
+    }
+    const newlyFound = [];
+    for (const newIdx of unmatchedNew) {
+        const newTodo = currentTodos[newIdx];
+        newlyFound.push(new Todo({
+            ...newTodo,
+            foundInCommit: newTodo.foundInCommit || commitSha,
+        }));
+    }
+    // Combine open items first (matched + new), then done items (previously done + newly done)
+    const allDone = [...previouslyDone.map(t => new Todo(t)), ...nowDone];
+    const allOpen = [...matched, ...newlyFound];
+    const reconciled = [...allOpen, ...allDone];
+    // Determine if anything changed
+    const changed = hasChanged(previousTodos, reconciled);
+    return { todos: reconciled, changed };
+}
+/**
+ * Checks whether the reconciled list differs from the previous list.
+ */
+function hasChanged(previous, reconciled) {
+    if (previous.length !== reconciled.length)
+        return true;
+    const sortFn = (a, b) => a.fileName.localeCompare(b.fileName)
+        || (a.lineNumber - b.lineNumber)
+        || a.rawLine.localeCompare(b.rawLine)
+        || (a.doneInCommit || '').localeCompare(b.doneInCommit || '');
+    const sortedPrev = [...previous].sort(sortFn);
+    const sortedRecon = [...reconciled].sort(sortFn);
+    for (let i = 0; i < sortedPrev.length; i++) {
+        const prev = sortedPrev[i];
+        const recon = sortedRecon[i];
+        if (prev.fileName !== recon.fileName ||
+            prev.lineNumber !== recon.lineNumber ||
+            prev.rawLine !== recon.rawLine ||
+            prev.doneInCommit !== recon.doneInCommit ||
+            prev.foundInCommit !== recon.foundInCommit) {
+            return true;
+        }
+    }
+    return false;
+}
+
 ;// CONCATENATED MODULE: ./src/model/model.todostate.ts
+
 
 class TodoState {
     commentId;
@@ -43162,15 +43367,17 @@ class TodoState {
     tracksFeatureBranch() {
         return !!this.featureBranch;
     }
-    setDefaultState(todos) {
-        const equalTodos = this.defaultBranch?.equalTodos(todos);
-        this.defaultBranch = new DefaultBranchState(todos);
-        return equalTodos ? undefined : this.defaultBranch.todos;
+    setDefaultState(todos, commitSha) {
+        const previousTodos = this.defaultBranch?.todos || [];
+        const { todos: reconciled, changed } = reconcileTodos(previousTodos, todos, commitSha);
+        this.defaultBranch = new DefaultBranchState(reconciled);
+        return changed ? this.defaultBranch.todos : undefined;
     }
     setFeatureState(todos, name, commitSha) {
-        const equalTodos = this.featureBranch?.equalTodos(todos);
-        this.featureBranch = new FeatureBranchState(todos, name, commitSha);
-        return equalTodos ? undefined : this.featureBranch.todos;
+        const previousTodos = this.featureBranch?.todos || [];
+        const { todos: reconciled, changed } = reconcileTodos(previousTodos, todos, commitSha);
+        this.featureBranch = new FeatureBranchState(reconciled, name, commitSha);
+        return changed ? this.featureBranch.todos : undefined;
     }
     setComment(id, issueIsDead) {
         this.commentId = id;
@@ -43184,18 +43391,6 @@ class DefaultBranchState {
     todos;
     constructor(todos) {
         this.todos = todos.map((todo) => new Todo(todo));
-    }
-    equalTodos(todos) {
-        if (this.todos.length !== todos.length) {
-            return false;
-        }
-        const orderedTodos = todos.sort(((a, b) => a.compare(b)));
-        for (const [i, thisTodo] of this.todos.entries()) {
-            if (!thisTodo.equals(orderedTodos[i])) {
-                return false;
-            }
-        }
-        return true;
     }
 }
 class FeatureBranchState extends DefaultBranchState {
@@ -43231,12 +43426,12 @@ class RepoTodoStates {
     getTodoState(issueNr) {
         return this.todoStates[issueNr];
     }
-    setDefaultTodoState(issueNr, todos) {
+    setDefaultTodoState(issueNr, todos, commitSha) {
         if (!this.getTodoState(issueNr)) {
             this.todoStates[issueNr] = new TodoState({ todos });
             return this.getTodoState(issueNr)?.defaultBranch?.todos;
         }
-        return this.getTodoState(issueNr)?.setDefaultState(todos);
+        return this.getTodoState(issueNr)?.setDefaultState(todos, commitSha);
     }
     setFeatureTodoState(issueNr, todos, name, commitSha) {
         if (!this.getTodoState(issueNr)) {
@@ -43244,8 +43439,8 @@ class RepoTodoStates {
         }
         return this.getTodoState(issueNr)?.setFeatureState(todos, name, commitSha);
     }
-    setStrayTodoState(todos) {
-        return this.setDefaultTodoState(STRAY_TODO_KEY, todos);
+    setStrayTodoState(todos, commitSha) {
+        return this.setDefaultTodoState(STRAY_TODO_KEY, todos, commitSha);
     }
     setDefaultTrackedBranch(ref, commitSha) {
         this.trackedDefaultBranch = ref;
@@ -57250,7 +57445,11 @@ class TodohubControlIssueDataStore {
     }
 }
 
+// EXTERNAL MODULE: external "node:crypto"
+var external_node_crypto_ = __nccwpck_require__(7598);
+var external_node_crypto_default = /*#__PURE__*/__nccwpck_require__.n(external_node_crypto_);
 ;// CONCATENATED MODULE: ./src/service/comment.ts
+
 
 
 class GithubCommentFactory {
@@ -57283,23 +57482,21 @@ class GithubIssueComment {
         this.todos = todos;
         this.runId = runId;
     }
-    async reopenIssueWithOpenTodos() {
-        if (this.todos.length) {
-            this.logger.debug(`Opening issue <${this.issueNr}>...`);
-            try {
-                return await this.repo.updateIssue(this.issueNr, undefined, undefined, 'open');
+    async reopenIssue() {
+        this.logger.debug(`Opening issue <${this.issueNr}>...`);
+        try {
+            return await this.repo.updateIssue(this.issueNr, undefined, undefined, 'open');
+        }
+        catch (err) {
+            assertGithubError(err);
+            if (err.status === 410 || err.status === 404) {
+                this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Issue does not exist or was permanently deleted.`);
             }
-            catch (err) {
-                assertGithubError(err);
-                if (err.status === 410 || err.status === 404) {
-                    this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Issue does not exist or was permanently deleted.`);
-                }
-                else if (err.status === 422) {
-                    this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Possibly a pull request, which cannot be reopened due to the respective branch being deleted.`);
-                }
-                else {
-                    throw err;
-                }
+            else if (err.status === 422) {
+                this.logger.warning(`Error (re)opening issue <${this.issueNr}>. Possibly a pull request, which cannot be reopened due to the respective branch being deleted.`);
+            }
+            else {
+                throw err;
             }
         }
     }
@@ -57345,16 +57542,29 @@ class GithubIssueComment {
         }
     }
     composeTrackedIssueComment() {
-        let composed = this.todos.length ? '#### TODO' : 'No Open Todos';
-        for (const todo of this.todos) {
-            const link = `[link](${this.repo.baseUrl}/blob/${this.commitSha}/${todo.fileName}#L${todo.lineNumber})`;
-            composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
+        const openTodos = this.todos.filter(todo => !todo.doneInCommit);
+        const doneTodos = this.todos.filter(todo => todo.doneInCommit);
+        let composed = (openTodos.length || doneTodos.length) ? '' : 'No Open Todos';
+        if (openTodos.length) {
+            composed += '#### Open';
+            for (const todo of openTodos) {
+                const linkRef = todo.foundInCommit || this.commitSha;
+                const link = `[link](${this.repo.baseUrl}/blob/${linkRef}/${todo.fileName}#L${todo.lineNumber})`;
+                composed += `\n* [ ] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
+            }
+        }
+        if (doneTodos.length) {
+            composed += `${openTodos.length ? '\n\n' : ''}#### Completed`;
+            for (const todo of doneTodos) {
+                // When generating a github a URL that highlights a specific line in a file in a commit, the filepath is hashed and added to the URL
+                const fileNameHash = external_node_crypto_default().createHash('sha256').update(todo.fileName, 'utf8').digest('hex');
+                const linkRef = todo.doneInCommit;
+                const link = `[link](${this.repo.baseUrl}/commit/${linkRef}#diff-${fileNameHash}L${todo.lineNumber})`;
+                composed += `\n* [x] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`;
+            }
         }
         const linkToBranch = `${this.repo.baseUrl}/tree/${this.refName.split('/').pop()}`;
         const linkToRun = `${this.repo.baseUrl}/actions/runs/${this.runId}`;
-        // if (this.runAttempt) {
-        //   linkToRun += `/attempts/${this.runAttempt}`
-        // }
         composed += '\n---';
         composed += `\n\n<sub>Tracked Branch: [\`${escapeMd(this.refName)}\`](${linkToBranch}) | Tracked commit: ${this.commitSha} | Run: [\`${this.runId}\`](${linkToRun}) </sub>`;
         return composed;
