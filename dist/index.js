@@ -43042,6 +43042,32 @@ class Todo {
     constructor(todo) {
         Object.assign(this, todo);
     }
+    compare(otherTodo) {
+        if (this.issueNumber !== otherTodo.issueNumber) {
+            if (this.issueNumber == null)
+                return 1;
+            if (otherTodo.issueNumber == null)
+                return -1;
+            return this.issueNumber - otherTodo.issueNumber;
+        }
+        if (this.fileName !== otherTodo.fileName) {
+            return this.fileName.localeCompare(otherTodo.fileName);
+        }
+        if (this.lineNumber !== otherTodo.lineNumber) {
+            return this.lineNumber - otherTodo.lineNumber;
+        }
+        if (this.todoText !== otherTodo.todoText) {
+            return this.todoText.localeCompare(otherTodo.todoText);
+        }
+        if (this.foundInCommit !== otherTodo.foundInCommit) {
+            if (this.foundInCommit == null)
+                return 1;
+            if (otherTodo.foundInCommit == null)
+                return -1;
+            return this.foundInCommit.localeCompare(otherTodo.foundInCommit);
+        }
+        return 0;
+    }
 }
 
 ;// CONCATENATED MODULE: ./src/util/find-todo-stream.ts
@@ -43386,11 +43412,18 @@ class TodoState {
     deleteFeatureState() {
         delete this.featureBranch;
     }
+    sort() {
+        this.featureBranch?.sort();
+        this.defaultBranch?.sort();
+    }
 }
 class DefaultBranchState {
     todos;
     constructor(todos) {
         this.todos = todos.map((todo) => new Todo(todo));
+    }
+    sort() {
+        this.todos.sort((a, b) => a.compare(b));
     }
 }
 class FeatureBranchState extends DefaultBranchState {
@@ -43467,6 +43500,11 @@ class RepoTodoStates {
     }
     setLastUpdatedDefaultCommit(sha) {
         this.lastUpdatedDefaultCommit = sha;
+    }
+    sortTodos() {
+        for (const state of Object.values(this.todoStates)) {
+            state.sort();
+        }
     }
 }
 
@@ -57246,7 +57284,7 @@ class TodohubControlIssueDataStore {
         this.logger = logger;
     }
     async write(data, _id) {
-        // TODO #70 sort by keys: Check/make sure that TODOs are always ordered when added before writing?
+        data.sortTodos();
         const composed = this.compose(data);
         if (this.existingIssue) {
             const updated = await this.repo.updateIssue(this.existingIssue.number, undefined, composed);
