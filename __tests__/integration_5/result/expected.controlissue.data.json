@@ -1,0 +1,113 @@
+{
+  "version": "1",
+  "lastUpdatedDefaultCommit": "new-sha",
+  "trackedDefaultBranch": "refs/heads/main",
+  "todoStates": {
+    "0": {
+      "defaultBranch": {
+        "todos": []
+      }
+    },
+    "5": {
+      "defaultBranch": {
+        "todos": [
+          {
+            "rawLine": "TODO #5 implement user authentication",
+            "todoText": "implement user authentication",
+            "keyword": "TODO",
+            "lineNumber": 3,
+            "issueNumber": 5,
+            "fileName": "auth_module",
+            "foundInCommit": "old-sha"
+          },
+          {
+            "rawLine": "TODO #5 write unit tests for auth",
+            "todoText": "write unit tests for auth",
+            "keyword": "TODO",
+            "lineNumber": 12,
+            "issueNumber": 5,
+            "fileName": "auth_module",
+            "foundInCommit": "old-sha"
+          },
+          {
+            "rawLine": "TODO #5 add input validation for email addresses",
+            "todoText": "add input validation for email addresses",
+            "keyword": "TODO",
+            "lineNumber": 2,
+            "issueNumber": 5,
+            "fileName": "validation",
+            "foundInCommit": "old-sha"
+          },
+          {
+            "rawLine": "TODO #5 refactor database connection pooling",
+            "todoText": "refactor database connection pooling",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "database",
+            "foundInCommit": "old-sha"
+          },
+          {
+            "rawLine": "TODO #5 build a spaceship to mars",
+            "todoText": "build a spaceship to mars",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "legacy",
+            "foundInCommit": "new-sha"
+          },
+          {
+            "rawLine": "TODO #5 integrate new payment gateway",
+            "todoText": "integrate new payment gateway",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "payments",
+            "foundInCommit": "new-sha"
+          },
+          {
+            "rawLine": "TODO #5 optimize search indexing",
+            "todoText": "optimize search indexing",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "search",
+            "foundInCommit": "new-sha"
+          },
+          {
+            "rawLine": "TODO #5 setup CI pipeline",
+            "todoText": "setup CI pipeline",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "ci",
+            "foundInCommit": "old-sha",
+            "doneInCommit": "done-sha"
+          },
+          {
+            "rawLine": "TODO #5 remove deprecated API endpoints",
+            "todoText": "remove deprecated API endpoints",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "api",
+            "foundInCommit": "old-sha",
+            "doneInCommit": "new-sha"
+          },
+          {
+            "rawLine": "TODO #5 completely rewrite the legacy system",
+            "todoText": "completely rewrite the legacy system",
+            "keyword": "TODO",
+            "lineNumber": 1,
+            "issueNumber": 5,
+            "fileName": "legacy",
+            "foundInCommit": "old-sha",
+            "doneInCommit": "new-sha"
+          }
+        ]
+      },
+      "commentId": 55,
+      "deadIssue": false
+    }
+  }
+}
