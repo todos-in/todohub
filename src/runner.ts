@@ -1,5 +1,3 @@
-// TODO #65 test
-
 import { RepoTodoStates } from './model/model.repostate.js'
 import { TTodo } from './model/validation.js'
 import { Environment } from './interfaces/environment.js'
