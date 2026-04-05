@@ -75,6 +75,24 @@
             "foundInCommit": "new-sha"
           },
           {
+            "rawLine": "TODO #5 add email notification on user signup",
+            "todoText": "add email notification on user signup",
+            "keyword": "TODO",
+            "lineNumber": 2,
+            "issueNumber": 5,
+            "fileName": "notifications",
+            "foundInCommit": "old-sha"
+          },
+          {
+            "rawLine": "TODO #5 add email notification when account is deleted",
+            "todoText": "add email notification when account is deleted",
+            "keyword": "TODO",
+            "lineNumber": 4,
+            "issueNumber": 5,
+            "fileName": "notifications",
+            "foundInCommit": "old-sha"
+          },
+          {
             "rawLine": "TODO #5 setup CI pipeline",
             "todoText": "setup CI pipeline",
             "keyword": "TODO",
@@ -101,6 +119,16 @@
             "lineNumber": 1,
             "issueNumber": 5,
             "fileName": "legacy",
+            "foundInCommit": "old-sha",
+            "doneInCommit": "new-sha"
+          },
+          {
+            "rawLine": "TODO #5 add email notification for password reset",
+            "todoText": "add email notification for password reset",
+            "keyword": "TODO",
+            "lineNumber": 4,
+            "issueNumber": 5,
+            "fileName": "notifications",
             "foundInCommit": "old-sha",
             "doneInCommit": "new-sha"
           }

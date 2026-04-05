@@ -3,7 +3,7 @@
   * contains pre, mid and post tag text
   * contains datatag with several existing TODOs for issue #5
 * repo contains
-  * six files with one or two TODOs each, all referencing issue #5
+  * seven files with one or two TODOs each, all referencing issue #5
   * no `.todoignore`
 * Tests **reconciliation of changed TODOs** (stages changes):
   * **Exact match**: TODO unchanged in same file and line → preserved with original `foundInCommit`
@@ -14,3 +14,4 @@
   * **Too-much-altered TODO**: TODO text changed beyond recognition → old marked done, new added as fresh
   * **Brand new TODOs**: TODOs not in previous state → added with current `foundInCommit`
   * **Previously done TODO**: Already-done TODO preserved in output
+  * **Ambiguous similar TODOs (best-match removal)**: Multiple similar TODOs existed; one was removed, others slightly changed → best match for the removed one is found and marked as done, while the others are updated with `foundInCommit` preserved
