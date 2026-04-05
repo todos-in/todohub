@@ -1,3 +1,4 @@
+import crypto from 'node:crypto'
 import { TTodo } from '../model/validation.js'
 import { Logger } from '../interfaces/logger.js'
 import GithubService from './github.js'
@@ -97,8 +98,10 @@ class GithubIssueComment {
     if (doneTodos.length) {
       composed += `${openTodos.length ? '\n\n' : ''}#### Completed`
       for (const todo of doneTodos) {
+        // When generating a github a URL that highlights a specific line in a file in a commit, the filepath is hashed and added to the URL
+        const fileNameHash = crypto.createHash('sha256').update(todo.fileName, 'utf8').digest('hex')
         const linkRef = todo.doneInCommit
-        const link = `[link](${this.repo.baseUrl}/blob/${linkRef}/${todo.fileName}#L${todo.lineNumber})`
+        const link = `[link](${this.repo.baseUrl}/commit/${linkRef}#diff-${fileNameHash}L${todo.lineNumber})`
         composed += `\n* [x] \`${todo.fileName}:${todo.lineNumber}\`: ${escapeMd(todo.rawLine)} <sup>${link}</sup>`
       }
     }
