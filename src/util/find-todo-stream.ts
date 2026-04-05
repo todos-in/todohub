@@ -2,7 +2,7 @@ import { Writable } from 'node:stream'
 import { matchTodo } from './todo-match.js'
 import { Todo } from '../model/model.todo.js'
 import { EnvironmentService } from '../service/environment.js'
-import { Logger } from 'interfaces/logger.js'
+import { Logger } from '../interfaces/logger.js'
 import { Environment } from '../interfaces/environment.js'
 
 export class FindTodoStreamFactory {

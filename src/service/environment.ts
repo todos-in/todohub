@@ -1,5 +1,5 @@
 import { EnvironmentLoadError, EnvironmentParsingError } from '../error/error.js'
-import { Environment } from 'interfaces/environment.js'
+import { Environment } from '../interfaces/environment.js'
 import { Config, PushContextGetter } from '../interfaces/config.js'
 
 export class EnvironmentService {
